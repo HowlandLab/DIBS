@@ -4,7 +4,7 @@ TODO: med: Add in description of this package
 
 # General imports for packages
 from . import (
-    # app,
+    app,
     check_arg,
     config,
     feature_engineering,
