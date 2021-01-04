@@ -18,8 +18,8 @@ from . import (
     visuals,
 )
 
-# # User-facing IO API  # TODO: med: uncomment this section later when API properly implemented
-# from .io_dibs import (
-#     read_csv,
-#     read_pipeline,
-# )
+# User-facing IO API
+from .io import (
+    read_csv,
+    read_pipeline,
+)
