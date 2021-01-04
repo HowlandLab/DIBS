@@ -1,5 +1,5 @@
 bhtsne>=0.1.9
-# easygui
+easygui
 ffmpeg
 future
 hdbscan>=0.8.26
