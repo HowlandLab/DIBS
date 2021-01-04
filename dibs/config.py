@@ -16,7 +16,7 @@ Another way to od it is using the object method:
 """
 from ast import literal_eval
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 import configparser
 import numpy as np
 import os
@@ -77,7 +77,7 @@ assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
 
 ### APP #######################################################
 MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
-PIPELINE_NAME = configuration.get('APP', 'PIPELINE_NAME', fallback='DEFAULT_OUTPUT_PIPELINE')
+PIPELINE_NAME = configuration.get('APP', 'PIPELINE_NAME')
 VIDEO_TO_LABEL_PATH: str = configuration.get('APP', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: ************* This note from the original author implies that VID_NAME must be a video that corresponds to a csv from PREDICT_FOLDERS
 VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
 COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
