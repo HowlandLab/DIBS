@@ -60,9 +60,9 @@ configuration.read(os.path.join(DIBS_BASE_PROJECT_PATH, config_file_name))
 assert os.path.isdir(default_log_folder_path), f'log file save folder does not exist: {default_log_folder_path}'
 
 ### PATH ################################################################################
-DLC_PROJECT_PATH = configuration.get('PATH', 'DLC_PROJECT_PATH')
+DLC_PROJECT_PATH = configuration.get('PATH', 'DLC_PROJECT_PATH', fallback='')
 OUTPUT_PATH = config_output_path = configuration.get('PATH', 'OUTPUT_PATH').strip() if configuration.get('PATH', 'OUTPUT_PATH').strip() else default_output_path
-VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH') if configuration.get('PATH', 'VIDEOS_OUTPUT_PATH') else os.path.join(OUTPUT_PATH, 'videos')
+VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH', fallback=os.path.join(OUTPUT_PATH, 'videos'))
 GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
 EXAMPLE_VIDEOS_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'example_videos')
@@ -76,11 +76,11 @@ assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
 
 
 ### APP #######################################################
-MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME')  # Machine learning model name?
-PIPELINE_NAME = configuration.get('APP', 'PIPELINE_NAME')
+MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
+PIPELINE_NAME = configuration.get('APP', 'PIPELINE_NAME', fallback='DEFAULT_OUTPUT_PIPELINE')
 VIDEO_TO_LABEL_PATH: str = configuration.get('APP', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: ************* This note from the original author implies that VID_NAME must be a video that corresponds to a csv from PREDICT_FOLDERS
 VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
-COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('APP', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
+COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
 PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
 SAVE_GRAPHS_TO_FILE: bool = configuration.getboolean('APP', 'SAVE_GRAPHS_TO_FILE')
 GENERATE_VIDEOS: bool = configuration.getboolean('APP', 'GENERATE_VIDEOS')
@@ -280,32 +280,32 @@ assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= 250, \
 ##### TRAIN_FOLDERS, PREDICT_FOLDERS
 # TRAIN_FOLDERS & PREDICT_FOLDERS are lists of folders that are implicitly understood to exist within BASE_PATH
 
-TRAIN_DATA_FOLDER_PATH = os.path.abspath(configuration.get('PATH', 'TRAIN_DATA_FOLDER_PATH'))
-
-PREDICT_DATA_FOLDER_PATH = configuration.get('PATH', 'PREDICT_DATA_FOLDER_PATH')
-
-
-TRAIN_FOLDERS_IN_DLC_PROJECT_toBeDeprecated = [  # TODO: DEPREC
-    'sample_train_data_folder',
-]
-PREDICT_FOLDERS_IN_DLC_PROJECT_toBeDeprecated: List[str] = [  # TODO: DEPREC
-    'sample_predic_data_folder',
-]
-
-TRAIN_FOLDERS_PATHS_toBeDeprecated = [os.path.join(DLC_PROJECT_PATH, folder)
-                                      for folder in TRAIN_FOLDERS_IN_DLC_PROJECT_toBeDeprecated
-                                      if not os.path.isdir(folder)]  # TODO: why the if statement?
-PREDICT_FOLDERS_PATHS_toBeDeprecated = [os.path.join(DLC_PROJECT_PATH, folder)
-                                        for folder in PREDICT_FOLDERS_IN_DLC_PROJECT_toBeDeprecated]
-
-### Create a folder to store extracted images.
-config_value_alternate_output_path_for_annotated_frames = configuration.get(  # TODO:low:address.deleteable?duplicate?
-    'PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES')
-
-FRAMES_OUTPUT_PATH = config_value_alternate_output_path_for_annotated_frames = \
-    configuration.get('PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES') \
-    if configuration.get('PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES')\
-    else FRAMES_OUTPUT_PATH
+# TRAIN_DATA_FOLDER_PATH = os.path.abspath(configuration.get('PATH', 'TRAIN_DATA_FOLDER_PATH'))
+#
+# PREDICT_DATA_FOLDER_PATH = configuration.get('PATH', 'PREDICT_DATA_FOLDER_PATH')
+#
+#
+# TRAIN_FOLDERS_IN_DLC_PROJECT_toBeDeprecated = [  # TODO: DEPREC
+#     'sample_train_data_folder',
+# ]
+# PREDICT_FOLDERS_IN_DLC_PROJECT_toBeDeprecated: List[str] = [  # TODO: DEPREC
+#     'sample_predic_data_folder',
+# ]
+#
+# TRAIN_FOLDERS_PATHS_toBeDeprecated = [os.path.join(DLC_PROJECT_PATH, folder)
+#                                       for folder in TRAIN_FOLDERS_IN_DLC_PROJECT_toBeDeprecated
+#                                       if not os.path.isdir(folder)]  # TODO: why the if statement?
+# PREDICT_FOLDERS_PATHS_toBeDeprecated = [os.path.join(DLC_PROJECT_PATH, folder)
+#                                         for folder in PREDICT_FOLDERS_IN_DLC_PROJECT_toBeDeprecated]
+#
+# ### Create a folder to store extracted images.
+# config_value_alternate_output_path_for_annotated_frames = configuration.get(  # TODO:low:address.deleteable?duplicate?
+#     'PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES')
+#
+# FRAMES_OUTPUT_PATH = config_value_alternate_output_path_for_annotated_frames = \
+#     configuration.get('PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES') \
+#     if configuration.get('PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES')\
+#     else FRAMES_OUTPUT_PATH
 
 
 # Asserts  # TODO: delete or rework these asserts below for legacy variables
@@ -322,12 +322,12 @@ FRAMES_OUTPUT_PATH = config_value_alternate_output_path_for_annotated_frames = \
 #     assert os.path.isabs(folder_path), f'(ToBeDeprecated): PREDICT_FOLDERS_PATH: ' \
 #                                        f'Predict folder PATH is not absolute and should be: {folder_path}'
 
-assert os.path.isabs(TRAIN_DATA_FOLDER_PATH), f'TODO, NOT AN ABS PATH review me! {__file__}'
-
-assert os.path.isdir(config_value_alternate_output_path_for_annotated_frames), \
-    f'config_value_alternate_output_path_for_annotated_frames does not exist. ' \
-    f'config_value_alternate_output_path_for_annotated_frames = ' \
-    f'\'{config_value_alternate_output_path_for_annotated_frames}\'. Check config.ini pathing.'
+# assert os.path.isabs(TRAIN_DATA_FOLDER_PATH), f'TODO, NOT AN ABS PATH review me! {__file__}'
+#
+# assert os.path.isdir(config_value_alternate_output_path_for_annotated_frames), \
+#     f'config_value_alternate_output_path_for_annotated_frames does not exist. ' \
+#     f'config_value_alternate_output_path_for_annotated_frames = ' \
+#     f'\'{config_value_alternate_output_path_for_annotated_frames}\'. Check config.ini pathing.'
 
 
 ###### VIDEO PARAMETERS #####
