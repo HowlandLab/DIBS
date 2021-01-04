@@ -12,9 +12,9 @@ import pandas as pd
 import sys
 
 from dibs.logging_dibs import get_caller_function
-import dibs
+from dibs import config
 
-logger = dibs.config.initialize_logger(__file__)
+logger = config.initialize_logger(__file__)
 
 
 ###
