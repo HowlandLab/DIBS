@@ -3,7 +3,7 @@ Encapsulate all argument checking functions here.
 Since the patterns we use to log and raise exceptions are so frequent and
     consistent, we abstract away and implement and store them here.
 """
-from typing import Collection, Optional
+from typing import Collection
 import errno
 import inspect
 import numpy as np
