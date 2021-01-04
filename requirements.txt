@@ -1,0 +1,21 @@
+bhtsne>=0.1.9
+# easygui
+ffmpeg
+future
+hdbscan>=0.8.26
+joblib>=0.14.1
+matplotlib>=3.0.3
+networkx
+numpy>=1.16.4
+pandas>=1.0.3
+protobuf>=3.13.0
+psutil>=5.7.0
+opencv-python>=3.4.11.41
+openTSNE>=0.4.4
+seaborn>=0.10.0
+scikit-learn>=0.22.1
+scipy>=1.5.2
+streamlit>=0.64.0
+tables
+tqdm>=4.46.0
+umap-learn>=0.4.6
