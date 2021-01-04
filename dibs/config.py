@@ -396,6 +396,25 @@ bodyparts = {key: configuration['DLC_FEATURES'][key]
 # App meta-variables which help standardize things
 PIPELINE_FILENAME = f'bs_pipeline__{PIPELINE_NAME}.sav'
 MODEL_FILENAME = f'bs_model__{MODEL_NAME}.sav'
+map_group_to_behaviour = {
+    0: 'UNKNOWN',
+    1: 'orient right',
+    2: 'body lick',
+    3: 'rearing',
+    4: 'nose poke',
+    5: 'tall wall-rear',
+    6: 'face groom',
+    7: 'wall-rear',
+    8: 'head groom',
+    9: 'nose poke',
+    10: 'pause',
+    11: 'locomote',
+    12: 'orient right',
+    13: 'paw groom',
+    14: 'locomote',
+    15: 'orient left',
+    16: 'orient left',
+}
 
 
 ###
