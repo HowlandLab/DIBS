@@ -294,7 +294,8 @@ class BasePipeline(PipelineAttributeHolder):
         # Pipeline name
         check_arg.ensure_type(name, str)
         self.set_name(name)
-        # TSNE source
+
+        # TSNE source  # TODO: HIGH: move this section to set_params
         tsne_source = kwargs.get('tsne_source', '')
         check_arg.ensure_type(tsne_source, str)
         if tsne_source in self.valid_tsne_sources:
