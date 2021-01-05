@@ -68,13 +68,13 @@ key_button_save_assignment = 'key_button_save_assignment'
 key_button_show_example_videos_options = 'key_button_show_example_videos_options'
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
 key_button_menu_label_entire_video = 'key_button_menu_label_entire_video'
-default_n_seconds_wait_until_auto_refresh = 'default_n_seconds_wait_until_auto_refresh'
+default_n_seconds_sleep = 'default_n_seconds_wait_until_auto_refresh'
 ### Page variables data ###
 streamlit_persistence_variables = {  # Instantiate default variable values here
-    key_pipeline_path: '',  #  TODO: deprecate? Doesn't see much use
+    key_pipeline_path: '',  #  TODO: med: review usage. Could be strong than passing paths between funcs?
     key_open_pipeline_path: config.DIBS_BASE_PROJECT_PATH,
     key_iteration_page_refresh_count: 0,
-    default_n_seconds_wait_until_auto_refresh: 4,
+    default_n_seconds_sleep: 4,
     key_button_show_adv_pipeline_information: False,
     key_button_see_rebuild_options: False,
     key_button_see_advanced_options: False,
@@ -100,7 +100,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here
 
 def st_file_selector(st_placeholder, label='', path='.'):
     """
-    TODO: NOTE: THIS FUNCTION DOES NOT CURRENTLY WORK!!!
+    TODO: NOTE: THIS FUNCTION DOES NOT CURRENTLY WORK!!! wip
     """
     # get base path (directory)
     logger.debug(f'st_file_selector(): label = {label} / path = {path}')
@@ -114,6 +114,7 @@ def st_file_selector(st_placeholder, label='', path='.'):
     # list files in base path directory
     files: List[str] = ['.', '..', ] + os.listdir(base_path)
     # logger.debug(f'st_file_selector(): files list: {files} ')
+
     # Create select box
     selected_file = st_placeholder.selectbox(label=label, options=files, key=base_path+str(random.randint(0, 1000)))
     selected_path = os.path.normpath(os.path.join(base_path, selected_file))
@@ -137,7 +138,7 @@ def st_file_selector(st_placeholder, label='', path='.'):
 
 def home(**kwargs):
     """
-    The designated home page/entry point when Streamlit is used with B-SOiD.
+    The designated home page/entry point when Streamlit is used.
     -------------
     kwargs
 
@@ -150,7 +151,7 @@ def home(**kwargs):
         up to the user to fill out.
 
     """
-    logger.debug('    < Start of streamlit page >    ')
+    logger.debug('    < Start of Streamlit page >    ')
     ### Set up session variables
     global file_session
     file_session = streamlit_session_state.get(**streamlit_persistence_variables)
@@ -225,7 +226,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
 {os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
 
 """.strip())
-                        n_secs_til_refresh = file_session[default_n_seconds_wait_until_auto_refresh]
+                        n_secs_til_refresh = file_session[default_n_seconds_sleep]
                         st.info(f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
                         time.sleep(n_secs_til_refresh)
                         st.experimental_rerun()
@@ -396,7 +397,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if text_input_change_desc != p.description:
             p.set_description(text_input_change_desc).save(os.path.dirname(pipeline_file_path))
             file_session[key_button_update_description] = False
-            wait_seconds = file_session[default_n_seconds_wait_until_auto_refresh]
+            wait_seconds = file_session[default_n_seconds_sleep]
             st.success(f'Pipeline description has been changed!')
             st.info(f'This page will refresh automatically to reflect your changes in {wait_seconds} seconds, or you can manually refresh the page (by clicking the page and pressing "R") to see changes.')
             time.sleep(wait_seconds)
@@ -457,7 +458,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     p = p.add_train_data_source(input_new_data_source).save(os.path.dirname(pipeline_file_path))
                     file_session[key_button_add_train_data_source] = False  # Reset menu to collapsed state
                     file_session[key_button_add_new_data] = False
-                    n = file_session[default_n_seconds_wait_until_auto_refresh]
+                    n = file_session[default_n_seconds_sleep]
                     st.balloons()
                     st.success(f'New training data added to pipeline successfully! Pipeline has been saved to: "{pipeline_file_path}".')  # TODO: finish statement. Add in suggestion to refresh page.
                     st.info(f'This page will refresh automatically in {n} seconds')
@@ -483,7 +484,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     p = p.add_predict_data_source(input_new_predict_data_source).save(os.path.dirname(pipeline_file_path))
                     file_session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
                     file_session[key_button_add_new_data] = False  # Reset add menu to collapsed state
-                    n_wait_secs = file_session[default_n_seconds_wait_until_auto_refresh]
+                    n_wait_secs = file_session[default_n_seconds_sleep]
                     st.success(f'New prediction data added to pipeline successfully! Pipeline has been saved.')
                     st.info(f'This page will refresh with your new changes in {n_wait_secs} seconds.')
                     time.sleep(n_wait_secs)
@@ -512,7 +513,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     with st.spinner(f'Removing {select_train_data_to_remove} from training data set...'):
                         p = p.remove_train_data_source(select_train_data_to_remove).save(os.path.dirname(pipeline_file_path))
                     file_session[key_button_menu_remove_data] = False
-                    n = file_session[default_n_seconds_wait_until_auto_refresh]
+                    n = file_session[default_n_seconds_sleep]
                     st.balloons()
                     st.success(f'{select_train_data_to_remove} data successfully removed!')
                     st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
@@ -532,8 +533,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     st.balloons()
                     st.success(f'{select_predict_option_to_remove} data was successfully removed!')
                     st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
-                    n = file_session[default_n_seconds_wait_until_auto_refresh]
-                    time.sleep(n)
+                    time.sleep(file_session[default_n_seconds_sleep])
                     st.experimental_rerun()
                 st.markdown('------------------------------------------')
                 st.markdown('')
@@ -657,7 +657,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 file_session[key_button_see_rebuild_options] = False
                 st.success(f'Model was successfully re-built! This page will auto-refresh, or you can manually refresh the page (press "R") to see changes.')
                 st.info(f'The page will refresh shortly, or you can manually refresh the page (press "R") to see the changes')
-                n = file_session[default_n_seconds_wait_until_auto_refresh]
+                n = file_session[default_n_seconds_sleep]
                 time.sleep(n)
                 st.experimental_rerun()
 
@@ -789,7 +789,7 @@ def review_behaviours(p, pipeline_file_path):
                     )
                 st.success(f'Example videos created!')  # TODO: low: improve message
                 file_session[key_button_show_example_videos_options] = False
-                n = file_session[default_n_seconds_wait_until_auto_refresh]
+                n = file_session[default_n_seconds_sleep]
                 st.info(f'This page will automatically refresh in {n} seconds.')
                 time.sleep(n)
                 st.experimental_rerun()
