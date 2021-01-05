@@ -116,6 +116,7 @@ class PipelineAttributeHolder(object):
     features_which_average_by_sum = ['SnoutToTailbaseChangeInAngle', 'SnoutSpeed', 'TailbaseSpeed']
     _all_features: Tuple[str] = tuple(features_which_average_by_mean + features_which_average_by_sum)
     test_col_name = 'is_test_data'
+
     # All label properties for respective assignments instantiated below to ensure no missing properties b/w Pipelines (aka: quick fix, not enough time to debug in full)
     label_0, label_1, label_2, label_3, label_4, label_5, label_6, label_7, label_8, label_9 = ['' for _ in range(10)]
     label_10, label_11, label_12, label_13, label_14, label_15, label_16, label_17, label_18 = ['' for _ in range(9)]
@@ -130,7 +131,7 @@ class PipelineAttributeHolder(object):
     _acc_score: float = None
     _cross_val_scores: np.ndarray = np.array([])
     seconds_to_engineer_train_features: float = None
-    seconds_to_build: float = -1
+    seconds_to_build: float = -1.
 
     # TODO: med/high: create tests for this func below
     def get_assignment_label(self, assignment: int) -> str:
@@ -178,7 +179,7 @@ class PipelineAttributeHolder(object):
         return self._clf_gmm
 
     @property
-    def clf_svm(self):
+    def clf(self):
         return self._classifier
 
     @property
@@ -852,7 +853,7 @@ class BasePipeline(PipelineAttributeHolder):
         self.train_classifier()  # # self.train_SVM()
 
         # Set predictions
-        self.df_features_train_scaled[self.svm_assignment_col_name] = self.clf_svm.predict(
+        self.df_features_train_scaled[self.svm_assignment_col_name] = self.clf.predict(
             self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
         self.df_features_train_scaled[self.svm_assignment_col_name] = self.df_features_train_scaled[
             self.svm_assignment_col_name].astype(int)  # Coerce into int
@@ -860,7 +861,7 @@ class BasePipeline(PipelineAttributeHolder):
         logger.debug(f'Generating cross-validation scores...')
         # # Get cross-val accuracy scores
         self._cross_val_scores = cross_val_score(
-            self.clf_svm,
+            self.clf,
             self.df_features_train_scaled[list(self.all_features)],
             self.df_features_train_scaled[self.svm_assignment_col_name],
             cv=self.cross_validation_k,
@@ -869,7 +870,7 @@ class BasePipeline(PipelineAttributeHolder):
         df_features_train_scaled_test_data = self.df_features_train_scaled.loc[
             ~self.df_features_train_scaled[self.test_col_name]]
         self._acc_score = accuracy_score(
-            y_pred=self.clf_svm.predict(df_features_train_scaled_test_data[list(self.all_features)]),
+            y_pred=self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)]),
             y_true=df_features_train_scaled_test_data[self.svm_assignment_col_name].values)
         logger.debug(f'Pipeline train accuracy: {self.accuracy_score}')
         # TODO: low: save the confusion matrix after accuracy score too?
@@ -905,7 +906,7 @@ class BasePipeline(PipelineAttributeHolder):
 
         # Add prediction labels
         if len(self.df_features_predict_scaled) > 0:
-            self.df_features_predict_scaled[self.svm_assignment_col_name] = self.clf_svm.predict(
+            self.df_features_predict_scaled[self.svm_assignment_col_name] = self.clf.predict(
                 self.df_features_predict_scaled[list(self.all_features_list)].values)
         else:
             logger.debug(f'{get_current_function()}(): 0 records were detected '
