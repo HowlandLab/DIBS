@@ -1,6 +1,6 @@
 """
 
-For ever new pipeline implementation by the user, make sure you do the following:
+For ever new pipeline implementation by the user, you must do the following:
     - Use BasicPipeline as the parent object
     - Implement `engineer_features()` using the given interface
 
@@ -79,8 +79,8 @@ class PipelineAttributeHolder(object):
     df_features_predict_scaled = pd.DataFrame(columns=default_cols)
 
     # Other model vars (Rename this)
-    input_videos_fps = config.VIDEO_FPS  # TODO: remove default as config?
-    cross_validation_k: int = config.CROSSVALIDATION_K  # TODO remove default as config?
+    input_videos_fps = config.VIDEO_FPS
+    cross_validation_k: int = config.CROSSVALIDATION_K
     _random_state: int = None
     average_over_n_frames: int = 3
     test_train_split_pct: float = None
@@ -697,21 +697,11 @@ class BasePipeline(PipelineAttributeHolder):
         # Check args
         check_arg.ensure_type(data, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
-        # Do
-        # TODO: uncommment this bhtsne later since it was originally commented-out because VCC distrib. problems
-        # if self.tsne_source == 'bhtsne':
-        #     arr_result = TSNE_bhtsne(
-        #         data[self.features_names_7],
-        #         dimensions=self.tsne_n_components,
-        #         perplexity=np.sqrt(len(self.features_names_7)),  # TODO: implement math somewhere else
-        #         rand_seed=self.random_state,
-        #     )
-
+        # Execute
         if self.tsne_source == 'sklearn':
             # TODO: high: Save the TSNE object
             arr_result = TSNE_sklearn(
-                perplexity=np.sqrt(len(data.columns)),
-                # Perplexity scales with sqrt, power law  # TODO: encapsulate this later
+                perplexity=np.sqrt(len(data.columns)), # Perplexity scales with sqrt, power law  # TODO: encapsulate this later
                 learning_rate=max(200, len(data.columns) // 16),  # alpha*eta = n  # TODO: encapsulate this later
                 n_components=self.tsne_n_components,
                 random_state=self.random_state,
@@ -720,6 +710,14 @@ class BasePipeline(PipelineAttributeHolder):
                 n_jobs=self.tsne_n_jobs,
                 verbose=self.tsne_verbose,
             ).fit_transform(data[list(self.all_features_list)])
+        # # TODO: uncommment this bhtsne later since it was originally commented-out because VCC distrib. problems
+        # elif self.tsne_source == 'bhtsne':
+        #     arr_result = TSNE_bhtsne(
+        #         data[self.features_names_7],
+        #         dimensions=self.tsne_n_components,
+        #         perplexity=np.sqrt(len(self.features_names_7)),  # TODO: implement math somewhere else
+        #         rand_seed=self.random_state,
+        #     )
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_source}'
             logger.error(err)
@@ -752,7 +750,7 @@ class BasePipeline(PipelineAttributeHolder):
         """ Use scaled training data to train SVM classifier """
         df = self.df_features_train_scaled
         # Instantiate SVM object
-        self._clf_svm = SVC(
+        self._classifier = SVC(
             C=self.svm_c,
             gamma=self.svm_gamma,
             probability=self.svm_probability,
@@ -760,14 +758,14 @@ class BasePipeline(PipelineAttributeHolder):
             random_state=self.random_state,
         )
         # Fit SVM to non-test data
-        self._clf_svm.fit(
-            X=df.loc[~df[self.test_col_name]][list(self.all_features)],  # TODO: too specific
+        self.clf.fit(
+            X=df.loc[~df[self.test_col_name]][list(self.all_features)],  # TODO: too specific ??? Review this TODO
             y=df.loc[~df[self.test_col_name]][self.gmm_assignment_col_name],
         )
         return self
 
     def train_classifier(self):
-        # TODO: finish this function!
+        # TODO: HIGH: finish this function!
         df = self.df_features_train_scaled
 
         if self.clf_type == 'SVM':
@@ -806,7 +804,7 @@ class BasePipeline(PipelineAttributeHolder):
             raise KeyError(err)
         # Fit classifier to non-test data
         clf.fit(
-            X=df.loc[~df[self.test_col_name]][list(self.all_features)],  # TODO: too specific
+            X=df.loc[~df[self.test_col_name]][list(self.all_features)],  # TODO: too specific ??? review the veracity of this TODO
             y=df.loc[~df[self.test_col_name]][self.gmm_assignment_col_name],
         )
         # Save classifier
@@ -828,8 +826,8 @@ class BasePipeline(PipelineAttributeHolder):
         :param reengineer_train_features: (bool) If True, forces the training data to be re-engineered.
         """
         # Engineer features
-        logger.debug(f'{inspect.stack()[0][3]}(): Start engineering features')
         if reengineer_train_features or self._is_training_data_set_different_from_model_input:
+            logger.debug(f'{inspect.stack()[0][3]}(): Start engineering features...')
             self.engineer_features_train()
 
         # Scale data
@@ -851,7 +849,7 @@ class BasePipeline(PipelineAttributeHolder):
 
         # # Train Classifier
         logger.debug(f'Training classifier now...')
-        self.train_classifier()  # # self.train_SVM()
+        self.train_classifier()  # self.train_SVM()
 
         # Set predictions
         self.df_features_train_scaled[self.svm_assignment_col_name] = self.clf.predict(
@@ -868,6 +866,7 @@ class BasePipeline(PipelineAttributeHolder):
             cv=self.cross_validation_k,
         )
 
+        logger.debug(f'Generating accuracy score with a test split % of: {self.test_train_split_pct*100}%')
         df_features_train_scaled_test_data = self.df_features_train_scaled.loc[
             ~self.df_features_train_scaled[self.test_col_name]]
         self._acc_score = accuracy_score(
@@ -878,7 +877,7 @@ class BasePipeline(PipelineAttributeHolder):
 
         # Final touches. Save state of pipeline.
         self._is_built = True
-        self._is_training_data_set_different_from_model_input = False  # TODO: review these 3 variables
+        self._is_training_data_set_different_from_model_input = False  # TODO: med: review these 3 variables
         self._has_modified_model_variables = False
         self._last_built = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
         logger.debug(f'All done with building classifiers/model!')
@@ -887,13 +886,15 @@ class BasePipeline(PipelineAttributeHolder):
 
     def build_classifier(self, reengineer_train_features: bool = False):
         """ This is the legacy naming. Method kept for backwards compatibility. This function will be deleted later. """
-        warn = f'Pipeline.build_classifier(): was called, but this is the legacy name. Instead, use Pipeline.build_model() from now on.'
+        warn = f'Pipeline.build_classifier(): was called, but this is the ' \
+               f'legacy name. Instead, use Pipeline.build_model() from now on.'
         logger.warning(warn)
         return self.build_model(reengineer_train_features=reengineer_train_features)
 
-    def generate_predict_data_assignments(self, reengineer_train_data_features: bool = False,
-                                          reengineer_predict_features=False):  # TODO: low: rename?
-        """ Runs after build(). Using terminology from old implementation. TODO: purpose """
+    def generate_predict_data_assignments(self, reengineer_train_data_features: bool = False, reengineer_predict_features=False):  # TODO: low: rename?
+        """
+        Runs after build(). Using terminology from old implementation. TODO: purpose
+        """
         # TODO: add arg checking for empty predict data?
 
         # Check that classifiers are built on the training data
@@ -941,8 +942,7 @@ class BasePipeline(PipelineAttributeHolder):
 
         # with warnings.catch_warnings():
         #     warnings.filterwarnings('ignore', category=SettingWithCopyWarning)
-        df_shuffled[
-            test_data_col_name] = False  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
+        df_shuffled[test_data_col_name] = False  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
         df_shuffled.loc[:int(len(df) * self.test_train_split_pct), test_data_col_name] = True
 
         df_shuffled = df_shuffled.reset_index()
@@ -956,8 +956,16 @@ class BasePipeline(PipelineAttributeHolder):
         Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
         :param output_path_dir: (str) an absolute path to a DIRECTORY where the pipeline will be saved.
         """
-        # if output_path_dir is None:
-        #     output_path_dir = config.OUTPUT_PATH
+        warn = f'This function, "{get_current_function()}()", will be deprecated ' \
+               f'in the future since naming is too vague. Instead, use save_to_folder()'
+        logger.warning(warn)
+        return self.save_to_folder(output_path_dir)
+
+    def save_to_folder(self, output_path_dir=config.OUTPUT_PATH):
+        """
+        Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
+        :param output_path_dir: (str) an absolute path to a DIRECTORY where the pipeline will be saved.
+        """
         logger.debug(
             f'{inspect.stack()[0][3]}(): Attempting to save pipeline to the following folder: {output_path_dir}.')
 
@@ -987,29 +995,6 @@ class BasePipeline(PipelineAttributeHolder):
         logger.debug(f'{inspect.stack()[0][3]}(): Pipeline ({self.name}) saved to: {final_out_path}')
         return io.read_pipeline(final_out_path)
 
-    def save_to_folder(self, dir: str):  # TODO: med: review
-        """  """
-        # Arg checking
-        if not os.path.isdir(dir):
-            not_a_dir_err = f'Argument `dir` = "{dir}" is not a valid directory. Saving pipeline to dir failed.'
-            logger.error(not_a_dir_err)
-            raise NotADirectoryError(not_a_dir_err)
-        # Execute
-        # TODO: low: implement execution
-        return
-
-    def save_as(self, file_path):  # TODO: med: review
-        """
-
-        :param file_path:
-        :return:
-        """
-        # Arg check
-        # TODO: implement arg checking
-        # Execute
-        # TODO: implement
-        return
-
     # Video stuff
 
     def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str,
@@ -1032,12 +1017,8 @@ class BasePipeline(PipelineAttributeHolder):
 
         # Arg checking
         check_arg.ensure_is_file(video_to_be_labeled_path)
-        # if not os.path.isfile(video_to_be_labeled_path):
-        #     not_a_video_err = f'The video to be labeled is not a valid file/path. ' \
-        #                       f'Submitted video path: {video_to_be_labeled_path}. '
-        #     logger.error(not_a_video_err)
-        #     raise FileNotFoundError(not_a_video_err)
-
+        check_arg.ensure_type(data_source, str)
+        # check_arg.ensure_has_valid_chars_for_path(video_name)  # TODO: low/med: review this line then implement
         check_arg.ensure_is_dir(output_dir)
         if not self.is_built:
             err = f'Model is not built so cannot make labeled video'
@@ -1062,8 +1043,8 @@ class BasePipeline(PipelineAttributeHolder):
         frames = list(df_data['frame'].astype(int).values)
 
         # Generate video with variables
-        logger.debug(f'{get_current_function()}(): labels indices example: {labels[:5]}')
-        logger.debug(f'Frame indices example: {frames[:5]}')
+        logger.debug(f'{get_current_function()}(): labels[:5] example = {labels[:5]}')
+        logger.debug(f'frames[:5] example: {frames[:5]}')
         videoprocessing.make_labeled_video_according_to_frame(
             labels,
             frames,
@@ -1080,8 +1061,8 @@ class BasePipeline(PipelineAttributeHolder):
         """
         Create video clips of behaviours
 
-        :param data_source:
-        :param video_file_path:
+        :param data_source: (str)
+        :param video_file_path: (str)
         :param file_name_prefix:
         :param min_rows_of_behaviour:
         :param max_examples:
@@ -1162,10 +1143,8 @@ class BasePipeline(PipelineAttributeHolder):
                 current_behaviour_list = [self.get_assignment_label(a) for a in assignments_list]
                 frames_indices_list = list(df_frames_selection['frame'].astype(int).values)
                 color_map_array = visuals.generate_color_map(len(self.unique_assignments))
-                text_colors_list: List[Tuple[float]] = [tuple(float(min(255. * x, 255.))
-                                                              # Multiply the 3 values by 255 since existing values are on a 0 to 1 scale
-                                                              for x in tuple(color_map_array[a][:3]))
-                                                        # Takes only the first 3 elements since the 4th appears to be brightness value?
+                text_colors_list: List[Tuple[float]] = [tuple(float(min(255. * x, 255.))  # Multiply the 3 values by 255 since existing values are on a 0 to 1 scale
+                                                              for x in tuple(color_map_array[a][:3]))  # Takes only the first 3 elements since the 4th appears to be brightness value?
                                                         for a in assignments_list]
 
                 #
@@ -1255,8 +1234,7 @@ class DemoPipeline(BasePipeline):
 
 class PipelinePrime(BasePipeline):
     """
-    First implementation of a full pipeline. Utilizes the 7 original features from the B-SOiD paper.
-
+    First implementation of a full pipeline. Utilizes the 7 features from the B-SOiD paper.
     """
 
     def engineer_features(self, in_df) -> pd.DataFrame:
@@ -1342,7 +1320,7 @@ class PipelinePrime(BasePipeline):
 
 class PipelineEPM(BasePipeline):
     """
-    First try implementation for [EPM] (what does the acronym stand for again?) which matches B-SOID specs
+    First try implementation for Elevated Plus Maze whose features match those in B-SOID specs
     """
 
     def engineer_features(self, in_df) -> pd.DataFrame:
