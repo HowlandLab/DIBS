@@ -70,7 +70,7 @@ key_button_create_new_example_videos = 'key_button_create_new_example_videos'
 key_button_menu_label_entire_video = 'key_button_menu_label_entire_video'
 default_n_seconds_wait_until_auto_refresh = 'default_n_seconds_wait_until_auto_refresh'
 ### Page variables data ###
-streamlit_persistency_variables = {  # Instantiate default variable values here
+streamlit_persistence_variables = {  # Instantiate default variable values here
     key_pipeline_path: '',  #  TODO: deprecate? Doesn't see much use
     key_open_pipeline_path: config.DIBS_BASE_PROJECT_PATH,
     key_iteration_page_refresh_count: 0,
@@ -153,7 +153,7 @@ def home(**kwargs):
     logger.debug('    < Start of streamlit page >    ')
     ### Set up session variables
     global file_session
-    file_session = streamlit_session_state.get(**streamlit_persistency_variables)
+    file_session = streamlit_session_state.get(**streamlit_persistence_variables)
     matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows
     file_session[key_iteration_page_refresh_count] = file_session[key_iteration_page_refresh_count] + 1
 
