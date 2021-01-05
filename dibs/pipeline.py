@@ -82,7 +82,7 @@ class PipelineAttributeHolder(object):
     input_videos_fps = config.VIDEO_FPS  # TODO: remove default as config?
     cross_validation_k: int = config.CROSSVALIDATION_K  # TODO remove default as config?
     _random_state: int = None
-    average_over_n_frames: int = 3  # TODO: low: add to kwargs? Address later.  TODO: change to `n_rows_to_integrate_by`
+    average_over_n_frames: int = 3
     test_train_split_pct: float = None
 
     # Model objects
