@@ -670,7 +670,21 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
 def see_model_diagnostics(p, pipeline_file_path):
     ######################################### MODEL DIAGNOSTICS ########################################################
+
+    ### SIDEBAR
+
+    ### MAIN
     st.markdown(f'## Model Diagnostics')
+
+    ### View PCA plot for selected features (hopefully explaining some feature viability)
+    # TODO: med/high
+
+    ###
+
+    ### View confusion matrix for test-data
+    # TODO: med/high
+
+    ###
 
     ### View Histogram for assignment distribution
     st.markdown(f'*This section is a work-in-progress. Opening a graph in this section is very volatile and there is high chance that by opening a graph then streamlit will crash. A fix is actively being worked-on!*')
@@ -702,6 +716,17 @@ def see_model_diagnostics(p, pipeline_file_path):
             st.info('A 3d plot of the cluster distributions could not be created because '
                     'the model is not built. ')
     ###
+
+    ### View histogram(s) that show distribution of lengths of all behaviours
+    # TODO: med
+
+    ###
+
+    ### View transition matrix of actions
+    # TODO: low
+
+    ###
+
     st.markdown('--------------------------------------------------------------------------------------------------')
 
     return review_behaviours(p, pipeline_file_path)
@@ -713,7 +738,7 @@ def review_behaviours(p, pipeline_file_path):
     if not os.path.isfile(pipeline_file_path):
         st.error(FileNotFoundError(f'An unexpected error occurred. Your pipeline file path was lost along the way. Currently, your pipeline file path reads as: "{pipeline_file_path}"'))
 
-    ###############################################################################################################
+    ####################################################################################################################
     ### SIDEBAR
 
     ### MAIN
