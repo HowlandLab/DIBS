@@ -1595,7 +1595,8 @@ class PipelineCHBO(BasePipeline):
 
 class PipelineMimic(BasePipeline):
     """
-    A pipeline implementation for mimicking the B-SOID implementation
+    A pipeline implementation for mimicking the B-SOID implementation.
+    This is sa revised version of PipelinePrime that uses a better feature engineering pathway.
 
     7 Features listed in paper (terms in brackets are cursive and were written in math format. See paper page 12/13):
     1. body length (or "[d_ST]"): distance from snout to base of tail
