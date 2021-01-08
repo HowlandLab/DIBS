@@ -625,7 +625,7 @@ def engineer_7_features_dataframe(df: pd.DataFrame, features_names_7: List[str] 
     """
     if win_len is None:
         win_len = win_len_formula(config.VIDEO_FPS)
-    logger.debug(f'{logging_bsoid.get_current_function()}(): `win_len` was calculated as: {win_len}')
+    logger.debug(f'{logging_dibs.get_current_function()}(): `win_len` was calculated as: {win_len}')
 
     required_features_from_config = {
         'Head': 'SNOUT/HEAD',
@@ -839,3 +839,12 @@ def engineer_7_features_dataframe(df: pd.DataFrame, features_names_7: List[str] 
 
     return df_engineered_features
 
+
+def win_len_formula(fps: int) -> int:
+    """
+    A mimic of the original win_len formula except without relying on numpy
+    :param fps: (int)
+    :return: (int)
+    """
+    win_len = int(round(0.05 / (1 / fps)) * 2 - 1)
+    return win_len
