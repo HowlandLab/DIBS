@@ -66,19 +66,20 @@ VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH', fallb
 GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
 EXAMPLE_VIDEOS_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'example_videos')
+VIDEO_TO_LABEL_PATH: str = configuration.get('PATH', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: ************* This note from the original author implies that VID_NAME must be a video that corresponds to a csv from PREDICT_FOLDERS
 
-# PATH asserts
+### PATH asserts
 assert not DLC_PROJECT_PATH or os.path.isdir(DLC_PROJECT_PATH),\
     f'DLC_PROJECT_PATH SPECIFIED DOES NOT EXIST: {DLC_PROJECT_PATH}'
 assert os.path.isdir(OUTPUT_PATH), f'SPECIFIED OUTPUT PATH INVALID/DOES NOT EXIST: {OUTPUT_PATH}'
 assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
     f'`short_video_output_directory` dir. (value={VIDEO_OUTPUT_FOLDER_PATH}) must exist for runtime but does not.'
-
+assert not VIDEO_TO_LABEL_PATH or os.path.isfile(VIDEO_TO_LABEL_PATH), \
+    f'Video does not exist: {VIDEO_TO_LABEL_PATH}. Check pathing in config.ini file.'
 
 ### APP #######################################################
 MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
 PIPELINE_NAME = configuration.get('APP', 'PIPELINE_NAME')
-VIDEO_TO_LABEL_PATH: str = configuration.get('APP', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: ************* This note from the original author implies that VID_NAME must be a video that corresponds to a csv from PREDICT_FOLDERS
 VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
 COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
 PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
@@ -96,9 +97,7 @@ OUTPUT_VIDEO_FPS = configuration.getint('APP', 'OUTPUT_VIDEO_FPS') \
     else int(VIDEO_FPS * PERCENT_FRAMES_TO_LABEL)
 
 
-# APP asserts
-assert not VIDEO_TO_LABEL_PATH or os.path.isfile(VIDEO_TO_LABEL_PATH), \
-    f'Video does not exist: {VIDEO_TO_LABEL_PATH}. Check pathing in config.ini file.'
+### APP asserts
 assert COMPILE_CSVS_FOR_TRAINING in {0, 1}, f'Invalid COMP value detected: {COMPILE_CSVS_FOR_TRAINING}.'
 assert isinstance(PERCENT_FRAMES_TO_LABEL, float) and 0. < PERCENT_FRAMES_TO_LABEL < 1., \
     f'PERCENT_FRAMES_TO_LABEL is invalid. Value = {PERCENT_FRAMES_TO_LABEL}, type = {type(PERCENT_FRAMES_TO_LABEL)}.'
@@ -108,7 +107,7 @@ assert isinstance(IDENTIFICATION_ORDER, int), f'check IDENTIFICATION_ORDER for t
 ### STREAMLIT ############################################################
 default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location')
 
-# STREAMLIT asserts
+### STREAMLIT asserts
 if default_pipeline_file_path:
     assert os.path.isfile(default_pipeline_file_path)
 
@@ -132,6 +131,8 @@ CROSSVALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
 CROSSVALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
 
 valid_classifiers = {'SVM', 'RANDOMFOREST'}
+
+### MODEL ASSERTS
 assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detected: "{DEFAULT_CLASSIFIER}". ' \
                                                 f'Valid classifier values include: {valid_classifiers}'
 
@@ -156,7 +157,7 @@ log_file_file_path = str(Path(log_file_folder_path, config_file_name).absolute()
 initialize_logger: callable = logging_dibs.preload_logger_with_config_vars(
     logger_name, log_format, stdout_log_level, file_log_level, log_file_file_path)
 
-# Logging asserts
+### Logging asserts
 assert os.path.isdir(log_file_folder_path), f'Path does not exist: {log_file_folder_path}'
 
 
@@ -177,9 +178,9 @@ DEFAULT_H5_TEST_FILE: str = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_
 
 max_rows_to_read_in_from_csv: int = configuration.getint('TESTING', 'max_rows_to_read_in_from_csv') if configuration.get('TESTING', 'max_rows_to_read_in_from_csv') else sys.maxsize  # TODO: potentially remove this variable. When comparing pd.read_csv and dibs.read_csv, they dont match due to header probs
 
+### Testing variables asserts
 
 assert os.path.isfile(DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH), f'CSV test file was not found: {DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH}'
-
 # assert os.path.isfile(DEFAULT_H5_TEST_FILE), f'h5 test file was not found: {DEFAULT_H5_TEST_FILE}'  # TODO: low: when h5 format finally figured-out (From an actual DLC project outcome), re-instate this assert
 
 
@@ -208,9 +209,6 @@ EMGMM_PARAMS = {
 
 ### HDBSCAN -- Density-based clustering ################################################################################
 hdbscan_min_samples: int = configuration.getint('HDBSCAN', 'min_samples')
-HDBSCAN_PARAMS = {
-    'min_samples': hdbscan_min_samples,
-}
 
 
 ### MLP -- Feedforward neural network (MLP) params #####################################################################
@@ -263,15 +261,7 @@ TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
 TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
 TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 
-TSNE_SKLEARN_PARAMS = {  # TODO: med: deprecate. This was the old, opaque way of packing kwargs. Not used much anymore.
-    'n_components': TSNE_N_COMPONENTS,
-    'n_jobs': TSNE_N_JOBS,
-    'verbose': TSNE_VERBOSE,
-    'random_state': RANDOM_STATE,
-    'n_iter': TSNE_N_ITER,
-    'early_exaggeration': TSNE_EARLY_EXAGGERATION,
-}
-
+# TSNE asserts
 assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= 250, \
     f'TSNE_N_ITER should be an integer above 250 but was found to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
 
