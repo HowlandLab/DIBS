@@ -261,63 +261,9 @@ TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
 TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
 TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 
-# TSNE asserts
+### TSNE asserts
 assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= 250, \
     f'TSNE_N_ITER should be an integer above 250 but was found to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
-
-########################################################################################################################
-# TODO: below under construction
-##### TRAIN_FOLDERS, PREDICT_FOLDERS
-# TRAIN_FOLDERS & PREDICT_FOLDERS are lists of folders that are implicitly understood to exist within BASE_PATH
-
-# TRAIN_DATA_FOLDER_PATH = os.path.abspath(configuration.get('PATH', 'TRAIN_DATA_FOLDER_PATH'))
-#
-# PREDICT_DATA_FOLDER_PATH = configuration.get('PATH', 'PREDICT_DATA_FOLDER_PATH')
-#
-#
-# TRAIN_FOLDERS_IN_DLC_PROJECT_toBeDeprecated = [  # TODO: DEPREC
-#     'sample_train_data_folder',
-# ]
-# PREDICT_FOLDERS_IN_DLC_PROJECT_toBeDeprecated: List[str] = [  # TODO: DEPREC
-#     'sample_predic_data_folder',
-# ]
-#
-# TRAIN_FOLDERS_PATHS_toBeDeprecated = [os.path.join(DLC_PROJECT_PATH, folder)
-#                                       for folder in TRAIN_FOLDERS_IN_DLC_PROJECT_toBeDeprecated
-#                                       if not os.path.isdir(folder)]  # TODO: why the if statement?
-# PREDICT_FOLDERS_PATHS_toBeDeprecated = [os.path.join(DLC_PROJECT_PATH, folder)
-#                                         for folder in PREDICT_FOLDERS_IN_DLC_PROJECT_toBeDeprecated]
-#
-# ### Create a folder to store extracted images.
-# config_value_alternate_output_path_for_annotated_frames = configuration.get(  # TODO:low:address.deleteable?duplicate?
-#     'PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES')
-#
-# FRAMES_OUTPUT_PATH = config_value_alternate_output_path_for_annotated_frames = \
-#     configuration.get('PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES') \
-#     if configuration.get('PATH', 'ALTERNATE_OUTPUT_PATH_FOR_ANNOTATED_FRAMES')\
-#     else FRAMES_OUTPUT_PATH
-
-
-# Asserts  # TODO: delete or rework these asserts below for legacy variables
-
-# for folder_path in TRAIN_FOLDERS_PATHS_toBeDeprecated:
-#     assert os.path.isdir(folder_path), f'(ToBeDeprecated): TRAIN_FOLDERS_PATH: ' \
-#                                        f'Training folder does not exist: {folder_path}'
-#     assert os.path.isabs(folder_path), f'(ToBeDeprecated): TRAIN_FOLDERS_PATH: ' \
-#                                        f'Predict folder PATH is not absolute and should be: {folder_path}'
-
-# for folder_path in PREDICT_FOLDERS_PATHS_toBeDeprecated:
-#     assert os.path.isdir(folder_path), f'(ToBeDeprecated): PREDICT_FOLDERS_PATH: ' \
-#                                        f'Prediction folder does not exist: {folder_path}'
-#     assert os.path.isabs(folder_path), f'(ToBeDeprecated): PREDICT_FOLDERS_PATH: ' \
-#                                        f'Predict folder PATH is not absolute and should be: {folder_path}'
-
-# assert os.path.isabs(TRAIN_DATA_FOLDER_PATH), f'TODO, NOT AN ABS PATH review me! {__file__}'
-#
-# assert os.path.isdir(config_value_alternate_output_path_for_annotated_frames), \
-#     f'config_value_alternate_output_path_for_annotated_frames does not exist. ' \
-#     f'config_value_alternate_output_path_for_annotated_frames = ' \
-#     f'\'{config_value_alternate_output_path_for_annotated_frames}\'. Check config.ini pathing.'
 
 
 ###### VIDEO PARAMETERS #####
@@ -331,7 +277,7 @@ map_ext_to_fourcc = {
 
 }
 
-# VIDEO asserts
+### VIDEO asserts
 assert isinstance(DEFAULT_TEXT_BGR, tuple), f'DEFAULT_TEXT_BGR was expected to be a tuple but ' \
                                             f'instead found type: {type(DEFAULT_TEXT_BGR)}  (value = {DEFAULT_TEXT_BGR}'
 assert len(DEFAULT_TEXT_BGR) == 3, f'DEFAULT_TEXT_BGR was expected to have 3 elements but ' \
