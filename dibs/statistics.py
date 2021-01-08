@@ -1,5 +1,5 @@
 """
-TODO: explain submodule
+Math and statistics functions
 """
 from typing import Any, List, Tuple, Union
 import functools
@@ -27,6 +27,7 @@ def sum_args(*args):
     """
     Get the sum of all arguments for those that are not NaN.
     Provides a solution that gets the sum for any N arguments.
+    Returns the sum of all the args submitted. If no args submitted, returns NaN.
     """
     args = [arg for arg in args if arg == arg]  # Remove any 'nan' values
     if len(args) == 0:
@@ -43,7 +44,7 @@ def first_arg(*args):
     return args[0]
 
 
-def convert_int_from_string_if_possible(s: str):
+def convert_int_from_string_if_possible(s: str) -> Union[str, int]:
     """ Converts digit string to integer if possible """
     if s.isdigit():
         return int(s)
