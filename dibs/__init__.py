@@ -12,7 +12,7 @@ from . import (
     logging_dibs,
     pipeline,
     statistics,
-    streamlit_dibs,
+    streamlit_app,
     streamlit_session_state,
     videoprocessing,
     visuals,
