@@ -5,6 +5,7 @@ TODO: med: Add in description of this package
 # General imports for packages
 from . import (
     app,
+    base_pipeline,
     check_arg,
     config,
     feature_engineering,
