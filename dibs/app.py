@@ -50,7 +50,7 @@ def clear_output_folders(*args, **kwargs) -> None:
 def streamlit(**kwargs) -> None:
     """ Streamlit code here. Currently this is the first and only iteration of streamlit apps, but
     who knows how many will be created in the future. """
-    streamlit_dibs.home(**kwargs)
+    streamlit_app.home(**kwargs)
 
 
 # Sample function
