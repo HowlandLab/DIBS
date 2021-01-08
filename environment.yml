@@ -78,6 +78,7 @@ dependencies:
     - future==0.18.2
     - gitdb==4.0.5
     - gitpython==3.1.12
+    - hdbscan==0.8.26
     - idna==2.10
     - ipykernel==5.4.2
     - ipython==7.19.0
