@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import re
 
-from dibs import config
+from dibs import check_arg, config
 
 logger = config.initialize_logger(__file__)
 
@@ -35,6 +35,7 @@ def sum_args(*args):
 
 
 def first_arg(*args):
+    """ Return first in a set of many args. Must submit a non-zero set of args. """
     if len(args) <= 0:
         err = f'An invalid set of args submitted. Args = {args}'
         logger.error(err)
@@ -60,9 +61,7 @@ def alphanum_key(s) -> List:
 
 def sort_list_nicely_in_place(list_input: list) -> None:
     """ Sort the given list (in place) in the way that humans expect. """
-    if not isinstance(list_input, list):
-        raise TypeError(f'argument `l` expected to be of type list but '
-                        f'instead found: {type(list_input)} (value: {list_input}).')
+    check_arg.ensure_type(list_input, list)
     list_input.sort(key=alphanum_key)
 
 
@@ -96,6 +95,16 @@ def augmented_runlength_encoding(labels: Union[List, np.ndarray]) -> Tuple[List[
     return label_list, idx_list, lengths_list
 
 
+def boxcar_center(input_array, n) -> np.ndarray:
+    """
+    TODO
+    :param input_array: TODO
+    :param n: TODO
+    :return: TODO
+    """
+    input_array_as_series = pd.Series(input_array)
+    moving_avg = np.array(input_array_as_series.rolling(window=n, min_periods=1, center=True).mean())
 
+    return moving_avg
 
 
