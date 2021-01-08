@@ -40,9 +40,9 @@ valid_video_extensions = {'avi', 'mp4', }
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 pipeline_options = {
     'PipelinePrime': pipeline.PipelinePrime,
-    'pipeline_epm_name': pipeline.PipelineEPM,
-    'PipelineTim': pipeline.PipelineTim,
-    'Change Blindness Odor Test Pipeline': pipeline.PipelineCHBO,
+    'Pipeline EPM: Elevated Plus Maze': pipeline.PipelineEPM,
+    'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
+    'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
 }
 # pipeline_prime_name, pipeline_epm_name, pipelineTimName, pipelineCHBO = 'PipelinePrime', 'pipeline_epm_name', 'PipelineTim', 'CHBO Pipeline'  # TODO: deprecate this line
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
