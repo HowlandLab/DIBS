@@ -12,7 +12,7 @@ import re
 import sys
 
 
-from dibs import check_arg, config, logging_dibs, pipeline
+from dibs import check_arg, config, logging_enhanced, pipeline
 
 
 logger = config.initialize_logger(__file__)
@@ -132,7 +132,7 @@ def read_dlc_data(data_file_path: str, **kwargs) -> pd.DataFrame:
     elif file_extension == 'h5':
         return read_h5(data_file_path)
     else:
-        invalid_ext_err = f'{logging_dibs.get_current_function()}(): the input DLC data file had ' \
+        invalid_ext_err = f'{logging_enhanced.get_current_function()}(): the input DLC data file had ' \
                           f'an unexpected extension. Please check file path: {data_file_path}'
         logger.error(invalid_ext_err)
         raise ValueError(invalid_ext_err)
@@ -146,10 +146,10 @@ def read_pipeline(path_to_file: str):
     """
     # TODO: do final checks on this function
     check_arg.ensure_is_file(path_to_file)
-    logger.debug(f'{logging_dibs.get_current_function()}(): Trying to open: {path_to_file}')
+    logger.debug(f'{logging_enhanced.get_current_function()}(): Trying to open: {path_to_file}')
     with open(path_to_file, 'rb') as file:
         p = joblib.load(file)
-    logger.debug(f'{logging_dibs.get_current_function()}(): Pipeline at {path_to_file} opened successfully!')
+    logger.debug(f'{logging_enhanced.get_current_function()}(): Pipeline at {path_to_file} opened successfully!')
     return p
 
 

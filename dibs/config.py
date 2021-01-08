@@ -25,7 +25,7 @@ import random
 import sys
 import time
 
-from dibs import logging_dibs
+from dibs import logging_enhanced
 
 
 ### Debug options
@@ -139,7 +139,7 @@ assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detec
 
 ### LOGGING ##########################################################
 
-log_function_entry_exit: callable = logging_dibs.log_entry_exit  # Temporary measure to enable logging when entering/exiting functions. Times entry/exit for duration and logs it.
+log_function_entry_exit: callable = logging_enhanced.log_entry_exit  # Temporary measure to enable logging when entering/exiting functions. Times entry/exit for duration and logs it.
 
 config_log_file_folder_path = configuration.get('LOGGING', 'LOG_FILE_FOLDER_PATH')
 log_file_folder_path = config_log_file_folder_path if config_log_file_folder_path else default_log_folder_path
@@ -154,7 +154,7 @@ log_file_file_path = str(Path(log_file_folder_path, config_file_name).absolute()
 
 
 # Instantiate file-specific logger. Use at top of file as: "logger = dibs.config.initialize_logger(__file__)"
-initialize_logger: callable = logging_dibs.preload_logger_with_config_vars(
+initialize_logger: callable = logging_enhanced.preload_logger_with_config_vars(
     logger_name, log_format, stdout_log_level, file_log_level, log_file_file_path)
 
 ### Logging asserts

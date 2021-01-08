@@ -30,7 +30,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from dibs import check_arg, config, statistics, logging_dibs
+from dibs import check_arg, config, statistics, logging_enhanced
 
 
 logger = config.initialize_logger(__name__)
@@ -51,9 +51,9 @@ def attach_average_bodypart_xy(df: pd.DataFrame, bodypart_1: str, bodypart_2: st
     for body_part, xy in itertools.product((bodypart_1, bodypart_2), ('x', 'y')):
         feat_xy = f'{body_part}_{xy}'
         if feat_xy not in set(df.columns):
-            err_missing_feature = f'{logging_dibs.get_current_function()}(): missing feature column "{feat_xy}", ' \
+            err_missing_feature = f'{logging_enhanced.get_current_function()}(): missing feature column "{feat_xy}", ' \
                                   f'so cannot calculate avg position. Columns = {list(df.columns)}'
-            logging_dibs.log_then_raise(err_missing_feature, logger, KeyError)
+            logging_enhanced.log_then_raise(err_missing_feature, logger, KeyError)
 
     # hindpaw_left = config.get_part('HINDPAW_LEFT') if hindpaw_left is None else hindpaw_left
     # hindpaw_right = config.get_part('HINDPAW_RIGHT') if hindpaw_right is None else hindpaw_right
@@ -96,8 +96,8 @@ def attach_feature_distance_between_2_bodyparts(df: pd.DataFrame, bodypart_1, bo
     for feat, xy in itertools.product((bodypart_1, bodypart_2), ['x', 'y']):
         bodypart_xy = f'{feat}_{xy}'
         if bodypart_xy not in set(df.columns):
-            err_missing_feature = f'{logging_dibs.get_current_function()}(): missing feature column "{bodypart_xy}", so cannot calculate avg position. Columns = {list(df.columns)}'
-            logging_dibs.log_then_raise(err_missing_feature, logger, KeyError)
+            err_missing_feature = f'{logging_enhanced.get_current_function()}(): missing feature column "{bodypart_xy}", so cannot calculate avg position. Columns = {list(df.columns)}'
+            logging_enhanced.log_then_raise(err_missing_feature, logger, KeyError)
     # Resolve kwargs
     df = df.copy() if copy else df
     # Execute
@@ -121,9 +121,9 @@ def average_xy_between_2_features(df: pd.DataFrame, bodypart_1, bodypart_2, outp
     for bodypart, xy in itertools.product((bodypart_1, bodypart_2), ['x', 'y']):
         featxy = f'{bodypart}_{xy}'
         if featxy not in df.columns:
-            err_missing_feature = f'{logging_dibs.get_current_function()}(): missing feature column "{featxy}", ' \
+            err_missing_feature = f'{logging_enhanced.get_current_function()}(): missing feature column "{featxy}", ' \
                                   f'so cannot calculate avg position. Columns = {list(df.columns)}'
-            logging_dibs.log_then_raise(err_missing_feature, logger, KeyError)
+            logging_enhanced.log_then_raise(err_missing_feature, logger, KeyError)
     # Resolve kwargs
     df = df.copy() if copy else df
     # Execute
@@ -191,7 +191,7 @@ def attach_angle_between_bodyparts(df, bodypart_1, bodypart_2, output_feature_na
     return df
 
 
-### Numpy array feature creation (TODO: rename this section?)
+### Numpy array feature creation functions
 
 def distance_between_two_arrays(arr1, arr2) -> float:
     """
@@ -250,14 +250,14 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
         err_mismatch_input_output = f'The length of the input array and the length of the ' \
                                     f'output array do not match. This is incorrect. Input ' \
                                     f'array length = {arr.shape[0]}, and output array length = {len(veloc_values)}'
-        logging_dibs.log_then_raise(err_mismatch_input_output, logger, ValueError)
+        logging_enhanced.log_then_raise(err_mismatch_input_output, logger, ValueError)
 
     veloc_array = np.array(veloc_values)
 
     # Sanity check
     if veloc_array.shape != (len(arr), ):
         err_incorrect_columns = f'The return array should just have one column of velocities but an incorrect number of columns was discovered. Number of columns = {veloc_array.shape[1]} (return array shape = {veloc_array.shape}).'
-        logging_dibs.log_then_raise(err_incorrect_columns, logger, ValueError)
+        logging_enhanced.log_then_raise(err_incorrect_columns, logger, ValueError)
 
     return veloc_array
 
@@ -288,7 +288,7 @@ def average_values_over_moving_window(data, method, n_frames: int) -> np.ndarray
     elif method == 'sum':
         averaging_function = statistics.sum_args
     else:
-        err = f'{logging_dibs.get_current_function()}(): This should never be read since ' \
+        err = f'{logging_enhanced.get_current_function()}(): This should never be read since ' \
               f'method was validated earlier in function'
         logger.error(err)
         raise TypeError(err)
@@ -316,7 +316,7 @@ def average_array_into_bins(arr, n_rows_per_bin, average_method: str):
     valid_avg_methods = {'sum', 'avg', 'average', 'mean', 'first'}
     if average_method not in valid_avg_methods:
         err_invalid_method = f'Invalid method specified: {average_method}'  # TODO: low: improve err msg later
-        logging_dibs.log_then_raise(err_invalid_method, logger, ValueError)
+        logging_enhanced.log_then_raise(err_invalid_method, logger, ValueError)
     #
     if average_method in {'sum', }:
         method = statistics.sum_args
@@ -359,7 +359,7 @@ def integrate_df_feature_into_bins(df: pd.DataFrame, map_features_to_bin_methods
     check_arg.ensure_type(n_rows, int)
     for feature in map_features_to_bin_methods.keys():
         if feature not in df.columns:
-            err = f'{logging_dibs.get_current_function()}(): TODO: elaborate: feature not found: "{feature}". ' \
+            err = f'{logging_enhanced.get_current_function()}(): TODO: elaborate: feature not found: "{feature}". ' \
                   f'Cannot integrate into ?ms bins.'
             logger.error(err)
             raise ValueError(err)
@@ -516,7 +516,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
     # logger.debug(f'{inspect.stack()[0][3]}: Loop over data and do adaptive filtering.')
     idx_col = 0
     for idx_col_i in tqdm(range(data_likelihood.shape[1]),
-                          desc=f'{logging_dibs.get_current_function()}(): Adaptively filtering DLC data...',
+                          desc=f'{logging_enhanced.get_current_function()}(): Adaptively filtering DLC data...',
                           disable=False if config.stdout_log_level.strip().upper() == 'DEBUG' else True):
         # Get histogram of likelihood data in col_i (ignoring first row since its just labels (e.g.: [x  x  x  x ...]))
         histogram, bin_edges = np.histogram(data_likelihood[:, idx_col_i].astype(np.float))
@@ -625,7 +625,7 @@ def engineer_7_features_dataframe(df: pd.DataFrame, features_names_7: List[str] 
     """
     if win_len is None:
         win_len = win_len_formula(config.VIDEO_FPS)
-    logger.debug(f'{logging_dibs.get_current_function()}(): `win_len` was calculated as: {win_len}')
+    logger.debug(f'{logging_enhanced.get_current_function()}(): `win_len` was calculated as: {win_len}')
 
     required_features_from_config = {
         'Head': 'SNOUT/HEAD',

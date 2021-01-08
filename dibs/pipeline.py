@@ -41,7 +41,7 @@ import time
 # import openTSNE  # openTSNE only supports n_components 2 or less
 # import warnings
 
-from dibs.logging_dibs import get_current_function
+from dibs.logging_enhanced import get_current_function
 from dibs import check_arg, config, feature_engineering, io, statistics, videoprocessing, visuals
 
 logger = config.initialize_logger(__file__)

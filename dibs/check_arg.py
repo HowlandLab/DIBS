@@ -11,7 +11,7 @@ import os
 import pandas as pd
 import sys
 
-from dibs.logging_dibs import get_caller_function
+from dibs.logging_enhanced import get_caller_function
 from dibs import config
 
 logger = config.initialize_logger(__file__)

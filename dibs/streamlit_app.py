@@ -20,7 +20,7 @@ import time
 import traceback
 
 
-from dibs import check_arg, config, io, logging_dibs, pipeline, streamlit_session_state
+from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
 
 matplotlib_axes_logger.setLevel('ERROR')
 
@@ -308,7 +308,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
 
 def show_pipeline_info(p: pipeline.PipelinePrime, pipeline_path, **kwargs):
     """  """
-    logger.debug(f'{logging_dibs.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
+    logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
 
     ### SIDEBAR ###
 
@@ -370,7 +370,7 @@ We recommend that you rebuild the model to avoid future problems. """.strip())
     # # TODO: for below commented-out: add a CONFIRM button to confirm model re-build, then re-instate
 
     st.markdown('------------------------------------------------------------------------------------------------')
-    logger.debug(f'{logging_dibs.get_current_function()}(): ending. pipeline_path = {pipeline_path}')
+    logger.debug(f'{logging_enhanced.get_current_function()}(): ending. pipeline_path = {pipeline_path}')
     return show_actions(p, pipeline_path)
 
 

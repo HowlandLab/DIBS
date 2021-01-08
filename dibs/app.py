@@ -6,7 +6,7 @@ import inspect
 import os
 import time
 
-from dibs import config, logging_dibs, streamlit_app
+from dibs import config, logging_enhanced, streamlit_app
 
 logger = config.initialize_logger(__name__)
 
@@ -57,7 +57,7 @@ def streamlit(**kwargs) -> None:
 
 def sample_runtime_function(sleep_secs=3, *args, **kwargs):
     """ Sample function that takes n seconds to run """
-    logger.debug(f'{logging_dibs.get_current_function()}(): '
+    logger.debug(f'{logging_enhanced.get_current_function()}(): '
                  f'Doing sample runtime execution for {sleep_secs} seconds.')
     time.sleep(sleep_secs)
     return

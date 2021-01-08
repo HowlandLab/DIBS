@@ -10,7 +10,7 @@ import os
 # import easygui  # docs: http://easygui.sourceforge.net/
 
 from dibs import check_arg, config, statistics
-from dibs.logging_dibs import get_current_function
+from dibs.logging_enhanced import get_current_function
 
 logger = config.initialize_logger(__file__)
 

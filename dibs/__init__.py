@@ -9,7 +9,7 @@ from . import (
     config,
     feature_engineering,
     io,
-    logging_dibs,
+    logging_enhanced,
     pipeline,
     statistics,
     streamlit_app,
