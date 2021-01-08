@@ -1317,6 +1317,54 @@ class PipelinePrime(BasePipeline):
         return df_features
 
 
+class PipelineRetreat(BasePipeline):
+    """
+    A one-off pipeline for Tim to use at his retreat :)
+    """
+
+    def engineer_features(self, in_df) -> pd.DataFrame:
+        columns_to_save = ['scorer', 'source', 'file_source', 'data_source', 'frame']
+        df = in_df.sort_values('frame').copy()
+
+        # Filter
+        df_filtered, _ = feature_engineering.adaptively_filter_dlc_output(df)
+        # Engineer features
+        df_features: pd.DataFrame = feature_engineering.engineer_7_features_dataframe(
+            df_filtered,
+            features_names_7=list(self.all_features),
+            map_names={
+                'Head': 'NOSETIP',
+                'ForepawLeft': 'FOREPAW_LEFT',
+                'ForepawRight': 'FOREPAW_RIGHT',
+                'HindpawLeft': 'HINDPAW_LEFT',
+                'HindpawRight': 'HINDPAW_RIGHT',
+                'Tailbase': 'TAILBASE',
+            })
+        """
+        TAILBASE = TailBase
+        NOSETIP = NoseTip
+        FOREPAW_LEFT = ForepawLeft
+        FOREPAW_RIGHT = ForepawRight
+        HINDPAW_LEFT = HindpawLeft
+        HINDPAW_RIGHT = HindpawRight
+        """
+        # Ensure columns don't get dropped by accident
+        for col in columns_to_save:
+            if col in in_df.columns and col not in df_features.columns:
+                df_features[col] = df[col].values
+
+        # Smooth over n-frame windows
+        for feature in self.features_which_average_by_mean:
+            df_features[feature] = feature_engineering.average_values_over_moving_window(
+                df_features[feature].values, 'avg', self.average_over_n_frames)
+        # Sum
+        for feature in self.features_which_average_by_sum:
+            df_features[feature] = feature_engineering.average_values_over_moving_window(
+                df_features[feature].values, 'sum', self.average_over_n_frames)
+
+        return df_features
+
+
 class PipelineEPM(BasePipeline):
     """
     First try implementation for Elevated Plus Maze whose features match those in B-SOID specs
