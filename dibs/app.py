@@ -6,7 +6,7 @@ import inspect
 import os
 import time
 
-from dibs import config, logging_dibs, streamlit_dibs
+from dibs import config, logging_dibs, streamlit_app
 
 logger = config.initialize_logger(__name__)
 
