@@ -260,8 +260,12 @@ TSNE_N_ITER: int = configuration.getint('TSNE', 'n_iter')
 TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
 TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
 TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
+TSNE_INIT: str = configuration.get('TSNE', 'init')
 
 ### TSNE asserts
+valid_tsne_initializations = {'random', 'pca'}
+assert TSNE_INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
+                                                f'Parameter is currently: {TSNE_INIT}.'
 assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= 250, \
     f'TSNE_N_ITER should be an integer above 250 but was found to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
 
