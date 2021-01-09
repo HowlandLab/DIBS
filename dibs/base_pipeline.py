@@ -25,11 +25,9 @@ import time
 # import warnings
 
 from dibs.logging_enhanced import get_current_function
-from dibs import check_arg, config, feature_engineering, io, statistics, videoprocessing, visuals
+from dibs import check_arg, config, io, statistics, videoprocessing, visuals
 
 logger = config.initialize_logger(__file__)
-
-
 
 
 # Base pipeline objects that outline the API
@@ -100,10 +98,11 @@ class BasePipeline(object):
     # TSNE
     tsne_source: str = 'sklearn'
     tsne_n_components: int = 3
-    tsne_n_iter: int = None
-    tsne_early_exaggeration: float = None
-    tsne_n_jobs: int = None  # n cores used during process
-    tsne_verbose: int = None
+    tsne_n_iter: int = config.TSNE_N_ITER
+    tsne_early_exaggeration: float = config.TSNE_EARLY_EXAGGERATION
+    tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
+    tsne_verbose: int = config.TSNE_VERBOSE
+    tsne_init: str = config.TSNE_INIT
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
     gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
@@ -1173,7 +1172,6 @@ self._is_training_data_set_different_from_model_input: {self._is_training_data_s
     def __repr__(self) -> str:
         # TODO: low: flesh out how these are usually built. Add a last updated info?
         return f'{self.name}'
-
 
 
 def generate_pipeline_filename(name: str):
