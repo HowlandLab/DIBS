@@ -668,6 +668,7 @@ class BasePipeline(object):
                 early_exaggeration=self.tsne_early_exaggeration,
                 n_jobs=self.tsne_n_jobs,
                 verbose=self.tsne_verbose,
+                init=self.tsne_init,
             ).fit_transform(data[list(self.all_features_list)])
         # # TODO: uncommment this bhtsne later since it was originally commented-out because VCC distrib. problems
         # elif self.tsne_source == 'bhtsne':
