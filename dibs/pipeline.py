@@ -32,15 +32,16 @@ import joblib
 import numpy as np
 import os
 import pandas as pd
-import sys
 import time
 
-# from bhtsne import tsne as TSNE_bhtsne
-# from pandas.core.common import SettingWithCopyWarning
-# from tqdm import tqdm
-# import openTSNE  # openTSNE only supports n_components 2 or less
-# import warnings
+from bhtsne import tsne as TSNE_bhtsne
+from pandas.core.common import SettingWithCopyWarning
+from tqdm import tqdm
+import openTSNE  # openTSNE only supports n_components 2 or less
+import sys
+import warnings
 
+from dibs.base_pipeline import BasePipeline as BP
 from dibs.logging_enhanced import get_current_function
 from dibs import check_arg, config, feature_engineering, io, statistics, videoprocessing, visuals
 
@@ -92,10 +93,11 @@ class PipelineAttributeHolder(object):
     # TSNE
     tsne_source: str = 'sklearn'
     tsne_n_components: int = 3
-    tsne_n_iter: int = None
-    tsne_early_exaggeration: float = None
-    tsne_n_jobs: int = None  # n cores used during process
-    tsne_verbose: int = None
+    tsne_n_iter: int = config.TSNE_N_ITER
+    tsne_early_exaggeration: float = config.TSNE_EARLY_EXAGGERATION
+    tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
+    tsne_verbose: int = config.TSNE_VERBOSE
+    tsne_init: str = config.TSNE_INIT
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
     gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
@@ -691,6 +693,7 @@ class BasePipeline(PipelineAttributeHolder):
                 early_exaggeration=self.tsne_early_exaggeration,
                 n_jobs=self.tsne_n_jobs,
                 verbose=self.tsne_verbose,
+                init=self.tsne_init,
             ).fit_transform(data[list(self.all_features_list)])
         # # TODO: uncommment this bhtsne later since it was originally commented-out because VCC distrib. problems
         # elif self.tsne_source == 'bhtsne':
@@ -1213,7 +1216,7 @@ class DemoPipeline(BasePipeline):
         return data
 
 
-class PipelinePrime(BasePipeline):
+class PipelinePrime(BP):
     """
     First implementation of a full pipeline. Utilizes the 7 features from the B-SOiD paper.
     """
@@ -1347,7 +1350,7 @@ class PipelineRetreat(BasePipeline):
         return df_features
 
 
-class PipelineEPM(BasePipeline):
+class PipelineEPM(BP):
     """
     First try implementation for Elevated Plus Maze whose features match those in B-SOID specs
     """
@@ -1408,7 +1411,7 @@ class PipelineFlex(BasePipeline):
         return data
 
 
-class PipelineTim(BasePipeline):
+class PipelineTim(BP):
     """
 
     """
