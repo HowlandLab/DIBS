@@ -594,8 +594,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=250, max_value=5_000)
 
 
-            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity)
-            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate)
+            # input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity)
+            # input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate)
 
 
             # TODO: n_jobs: n_jobs=-1: all cores being used, set to -2 for all cores but one.
