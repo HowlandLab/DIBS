@@ -672,8 +672,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 except Exception as e:
                     err = f'EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}'
                     logger.error(err, exc_info=True)
-                    st.info(f'An unexpected exception has occurred when building the pipeline. See below.')
-                    st.error(e)
+                    st.error(err)
                     st.stop()
 
     ### End of rebuild model section
