@@ -18,7 +18,7 @@ import pandas as pd
 import time
 
 import sys
-# from bhtsne import tsne as TSNE_bhtsne
+from bhtsne import tsne as TSNE_bhtsne
 # from pandas.core.common import SettingWithCopyWarning
 # from tqdm import tqdm
 # import openTSNE  # openTSNE only supports n_components 2 or less
@@ -95,7 +95,7 @@ class BasePipeline(object):
     _clf_gmm: GaussianMixture = None
 
     # TSNE
-    tsne_source: str = 'sklearn'
+    tsne_source: str = 'bhtsne'
     tsne_n_components: int = 3
     tsne_n_iter: int = config.TSNE_N_ITER
     tsne_early_exaggeration: float = config.TSNE_EARLY_EXAGGERATION
@@ -685,13 +685,14 @@ class BasePipeline(object):
                 init=self.tsne_init,
             ).fit_transform(data[list(self.all_features_list)])
         # # TODO: uncommment this bhtsne later since it was originally commented-out because VCC distrib. problems
-        # elif self.tsne_source == 'bhtsne':
-        #     arr_result = TSNE_bhtsne(
-        #         data[self.features_names_7],
-        #         dimensions=self.tsne_n_components,
-        #         perplexity=np.sqrt(len(self.features_names_7)),  # TODO: implement math somewhere else
-        #         rand_seed=self.random_state,
-        #     )
+        elif self.tsne_source == 'bhtsne':
+            arr_result = TSNE_bhtsne(
+                # ValueError: Expected n_neighbors > 0. Got -2
+                data[list(self.all_features)],
+                dimensions=self.tsne_n_components,
+                perplexity=self.tsne_perplexity,  # TODO: implement math somewhere else
+                rand_seed=self.random_state,
+            )
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_source}'
             logger.error(err)
