@@ -1,11 +1,13 @@
-# DIBS
-(WIP) Data-Informed Behavioural Segmentation
+# DIBS: Data-Informed Behavioural Segmentation
 
 
 
 ## Installation & Setup
 - Ensure that you have Anaconda installed
-- Run the following command: `conda env create -n dibs -f environment.yml`
+  - You can ensure you have conda installed by running: `conda --version`
+- Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
+- Copy and paste all of the commands from [CONDA_ENV_COMMANDS.txt](./CONDA_ENV_COMMANDS.txt) into your 
+  command line one at a time to download all necessary packages
 
 
 ## Usage
@@ -22,5 +24,6 @@ To run the Streamlit app with an existing Pipeline file, run:
     could have problems with backslashes and other weird characters)
       
 
+To see the FAQ, see this [document](./FAQ.md)
 
 
