@@ -42,7 +42,7 @@ pipeline_options = {
     'Pipeline EPM: Elevated Plus Maze': pipeline.PipelineEPM,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
-    'PipelineMimic: a pipeline that mimics the B-SOiD implementation': pipeline.PipelineMimic,
+    'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
 }
 # pipeline_prime_name, pipeline_epm_name, pipelineTimName, pipelineCHBO = 'PipelinePrime', 'pipeline_epm_name', 'PipelineTim', 'CHBO Pipeline'  # TODO: deprecate this line
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
@@ -592,6 +592,12 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', min_value=0., max_value=100., value=p.tsne_early_exaggeration, step=0.1, format='%.2f')
             input_tsne_n_components = st.slider(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=1, max_value=10, step=1, format='%i')
             input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=250, max_value=5_000)
+
+
+            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity)
+            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate)
+
+
             # TODO: n_jobs: n_jobs=-1: all cores being used, set to -2 for all cores but one.
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
