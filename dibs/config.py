@@ -261,8 +261,11 @@ TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
 TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
 TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 TSNE_INIT: str = configuration.get('TSNE', 'init')
-TSNE_PERPLEXITY: Optional[float] = configuration.getfloat('TSNE', 'perplexity', fallback=-1.0)
-TSNE_LEARNING_RATE: Optional[float] = configuration.getfloat('TSNE', 'LEARNING_RATE', fallback=-1.0)
+TSNE_PERPLEXITY: Optional[str] = configuration.get('TSNE', 'perplexity')
+TSNE_PERPLEXITY: Optional[float] = float(TSNE_PERPLEXITY) if TSNE_PERPLEXITY else -1.0
+TSNE_LEARNING_RATE: Optional[str] = configuration.get('TSNE', 'learning_rate')
+TSNE_LEARNING_RATE: Optional[float] = float(TSNE_LEARNING_RATE) if TSNE_LEARNING_RATE else -1.0
+
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}
 assert TSNE_INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
