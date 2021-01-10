@@ -23,7 +23,7 @@ assert os.path.isfile(csv_test_file_path)
 
 class TestPipeline(TestCase):
 
-    # Param adds, changes, checks
+    ### Param adds, changes, checks ###
     def test__set_params__shouldKeepDefaultsWhileChangingSpecifiedVars__whenOptionalArgForReadingInConfigVarsNotTrue(self):
         # Arrange
         p = dibs.pipeline.PipelinePrime('TestPipe07dfdp')
@@ -51,7 +51,7 @@ class TestPipeline(TestCase):
         err = f"""Error: cv cross val did not get read-in correctly. TODO: elaborate. """.strip()
         self.assertEqual(expected_cv, actual_cv, err)
 
-    # SCALING DATA
+    ### Scaling data ###
     @skip  # Temporary skip since it takes forever to run this due to sample size
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
         # Arrange
@@ -75,7 +75,7 @@ Symmetric diff = {unscaled_features_cols.symmetric_difference(scaled_features_co
 """.strip()
         self.assertEqual(unscaled_features_cols, scaled_features_cols, err_message)
 
-    # Adding new training data sources
+    ### Adding new training data sources ###
     def test__pipeline_adding_train_data_file_source__should____(self):
         """"""
         # Arrange
@@ -168,6 +168,29 @@ p.train_data_files_paths = {p.train_data_files_paths}
         # Assert
         err_msg = f'TODO: err msg'
         self.assertEqual(original_number_of_data_rows, actual_total_rows_after_feature_engineering, err_msg)
+
+    ### Removing train data sources ###
+
+    ### Removing predict data sources ###
+    def test__remove_train_data_source__shouldRemoveSource__whenSourceIsPresent(self):
+        # Arrange
+        p = dibs.base_pipeline.BasePipeline('')
+        p = p.add_train_data_source(csv_test_file_path)
+        # Act
+
+        # Assert
+        self.assertEqual()
+
+    def test__remove_train_data_source__shouldChangeNothing__whenSourceNotPresent(self):
+        # Arrange
+        p = dibs.base_pipeline.BasePipeline('')
+        p = p.add_train_data_source(csv_test_file_path)
+        # Act
+
+        # Assert
+        self.assertEqual()
+
+    ### Label assignments ###
 
     def test__get_assignment_label__shouldReturnEmptyString__whenLabelNotSet(self):
         """
