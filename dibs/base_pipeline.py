@@ -104,6 +104,7 @@ class BasePipeline(object):
     tsne_verbose: int = config.TSNE_VERBOSE
     tsne_init: str = config.TSNE_INIT
     tsne_perplexity: Optional[float] = config.TSNE_PERPLEXITY
+    tsne_learning_rate: Optional[float] = config.TSNE_LEARNING_RATE
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
     gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
@@ -661,7 +662,7 @@ class BasePipeline(object):
         if self.tsne_source == 'sklearn':
             arr_result = TSNE_sklearn(
                 perplexity=np.sqrt(len(self.all_features)) if not self.tsne_perplexity else self.tsne_perplexity,
-                learning_rate=max(200, len(self.all_features) // 16),  # alpha*eta = n  # TODO: encapsulate this later
+                learning_rate=max(200, len(self.all_features) // 16) if not self.tsne_learning_rate else self.tsne_learning_rate,  # alpha*eta = n  # TODO: encapsulate this later
                 n_components=self.tsne_n_components,
                 random_state=self.random_state,
                 n_iter=self.tsne_n_iter,
