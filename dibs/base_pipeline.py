@@ -659,10 +659,9 @@ class BasePipeline(object):
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
         # Execute
         if self.tsne_source == 'sklearn':
-            # TODO: high: Save the TSNE object
             arr_result = TSNE_sklearn(
                 perplexity=np.sqrt(len(self.all_features)) if not self.tsne_perplexity else self.tsne_perplexity,
-                learning_rate=max(200, len(data.columns) // 16),  # alpha*eta = n  # TODO: encapsulate this later
+                learning_rate=max(200, len(self.all_features) // 16),  # alpha*eta = n  # TODO: encapsulate this later
                 n_components=self.tsne_n_components,
                 random_state=self.random_state,
                 n_iter=self.tsne_n_iter,
@@ -687,7 +686,6 @@ class BasePipeline(object):
 
     def train_GMM(self, data: pd.DataFrame):
         """"""
-
         self._clf_gmm = GaussianMixture(
             n_components=self.gmm_n_components,
             covariance_type=self.gmm_covariance_type,
@@ -705,25 +703,6 @@ class BasePipeline(object):
     def gmm_predict(self, data):  # TODO: low: remove func?
         assignments = self.clf_gmm.predict(data)
         return assignments
-
-    def train_SVM(self):
-        # TODO: HIGH: DEPRECATED. ENSURE EVERYTING WORKS THEN DELETE
-        """ Use scaled training data to train SVM classifier """
-        df = self.df_features_train_scaled
-        # Instantiate SVM object
-        self._classifier = SVC(
-            C=self.svm_c,
-            gamma=self.svm_gamma,
-            probability=self.svm_probability,
-            verbose=self.svm_verbose,
-            random_state=self.random_state,
-        )
-        # Fit SVM to non-test data
-        self.clf.fit(
-            X=df.loc[~df[self.test_col_name]][list(self.all_features)],  # TODO: too specific ??? Review this TODO
-            y=df.loc[~df[self.test_col_name]][self.gmm_assignment_col_name],
-        )
-        return self
 
     def train_classifier(self):
         # TODO: HIGH: finish this function!
