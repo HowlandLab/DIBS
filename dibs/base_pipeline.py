@@ -333,6 +333,17 @@ class BasePipeline(object):
         tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
         check_arg.ensure_type(tsne_verbose, int)
         self.tsne_verbose = tsne_verbose
+
+        # TODO: set param for `tsne_init`
+
+        tsne_perplexity = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self.tsne_perplexity)
+        check_arg.ensure_type(tsne_perplexity, float)
+        self.tsne_perplexity = tsne_perplexity
+
+        tsne_learning_rate = kwargs.get('tsne_learning_rate', config.TSNE_LEARNING_RATE if read_config_on_missing_param else self.tsne_learning_rate)
+        check_arg.ensure_type(tsne_learning_rate, float)
+        self.tsne_learning_rate = tsne_learning_rate
+
         # GMM vars
         gmm_n_components = kwargs.get('gmm_n_components', config.gmm_n_components if read_config_on_missing_param else self.gmm_n_components)
         check_arg.ensure_type(gmm_n_components, int)
