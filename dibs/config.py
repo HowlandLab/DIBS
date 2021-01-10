@@ -16,7 +16,7 @@ Another way to od it is using the object method:
 """
 from ast import literal_eval
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 import configparser
 import numpy as np
 import os
@@ -261,6 +261,7 @@ TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
 TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
 TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 TSNE_INIT: str = configuration.get('TSNE', 'init')
+TSNE_PERPLEXITY: Optional[float] = configuration.getfloat('TSNE', 'perplexity', fallback=None)
 
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}

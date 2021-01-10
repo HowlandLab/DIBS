@@ -9,7 +9,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils import shuffle as sklearn_shuffle_dataframe
-from typing import Any, Collection, Dict, List, Tuple  # TODO: med: review all uses of Optional
+from typing import Any, Collection, Dict, List, Optional, Tuple  # TODO: med: review all uses of Optional
 import inspect
 import joblib
 import numpy as np
@@ -103,6 +103,7 @@ class BasePipeline(object):
     tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
     tsne_verbose: int = config.TSNE_VERBOSE
     tsne_init: str = config.TSNE_INIT
+    tsne_perplexity: Optional[float] = config.TSNE_PERPLEXITY
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
     gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
@@ -660,7 +661,7 @@ class BasePipeline(object):
         if self.tsne_source == 'sklearn':
             # TODO: high: Save the TSNE object
             arr_result = TSNE_sklearn(
-                perplexity=np.sqrt(len(data.columns)), # Perplexity scales with sqrt, power law  # TODO: encapsulate this later
+                perplexity=np.sqrt(len(self.all_features)) if not self.tsne_perplexity else self.tsne_perplexity,
                 learning_rate=max(200, len(data.columns) // 16),  # alpha*eta = n  # TODO: encapsulate this later
                 n_components=self.tsne_n_components,
                 random_state=self.random_state,
