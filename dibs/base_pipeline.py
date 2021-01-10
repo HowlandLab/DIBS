@@ -15,14 +15,13 @@ import joblib
 import numpy as np
 import os
 import pandas as pd
-import sys
 import time
 
+import sys
 # from bhtsne import tsne as TSNE_bhtsne
 # from pandas.core.common import SettingWithCopyWarning
 # from tqdm import tqdm
 # import openTSNE  # openTSNE only supports n_components 2 or less
-# import warnings
 
 from dibs.logging_enhanced import get_current_function
 from dibs import check_arg, config, io, statistics, videoprocessing, visuals
@@ -103,8 +102,8 @@ class BasePipeline(object):
     tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
     tsne_verbose: int = config.TSNE_VERBOSE
     tsne_init: str = config.TSNE_INIT
-    tsne_perplexity: Optional[float] = config.TSNE_PERPLEXITY
-    tsne_learning_rate: Optional[float] = config.TSNE_LEARNING_RATE
+    _tsne_perplexity: Optional[float] = config.TSNE_PERPLEXITY
+    tsne_learning_rate: float = config.TSNE_LEARNING_RATE
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
     gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
@@ -120,8 +119,7 @@ class BasePipeline(object):
     rf_n_estimators = config.rf_n_estimators
 
     # Column names
-    features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength',
-                                      'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
+    features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength', 'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
     features_which_average_by_sum = ['SnoutToTailbaseChangeInAngle', 'SnoutSpeed', 'TailbaseSpeed']
     _all_features: Tuple[str] = tuple(features_which_average_by_mean + features_which_average_by_sum)
     test_col_name = 'is_test_data'
@@ -182,6 +180,10 @@ class BasePipeline(object):
     @property
     def description(self):
         return self._description
+
+    @property
+    def tsne_perplexity(self):
+        return self._tsne_perplexity if self._tsne_perplexity else np.sqrt(len(self.all_features))
 
     @property
     def clf_gmm(self):
@@ -336,9 +338,9 @@ class BasePipeline(object):
 
         # TODO: set param for `tsne_init`
 
-        tsne_perplexity = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self.tsne_perplexity)
+        tsne_perplexity = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
         check_arg.ensure_type(tsne_perplexity, float)
-        self.tsne_perplexity = tsne_perplexity
+        self._tsne_perplexity = tsne_perplexity
 
         tsne_learning_rate = kwargs.get('tsne_learning_rate', config.TSNE_LEARNING_RATE if read_config_on_missing_param else self.tsne_learning_rate)
         check_arg.ensure_type(tsne_learning_rate, float)
@@ -672,8 +674,8 @@ class BasePipeline(object):
         # Execute
         if self.tsne_source == 'sklearn':
             arr_result = TSNE_sklearn(
-                perplexity=np.sqrt(len(self.all_features)) if not self.tsne_perplexity else self.tsne_perplexity,
-                learning_rate=max(200, len(self.all_features) // 16) if not self.tsne_learning_rate else self.tsne_learning_rate,  # alpha*eta = n  # TODO: encapsulate this later
+                perplexity=self.tsne_perplexity,
+                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: encapsulate this later                     !!!
                 n_components=self.tsne_n_components,
                 random_state=self.random_state,
                 n_iter=self.tsne_n_iter,
