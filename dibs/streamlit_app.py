@@ -34,7 +34,6 @@ logger = config.initialize_logger(__file__)
 
 ##### Instantiate names for buttons, options that can be changed on the fly but logic below stays the same #####
 
-title = f'B-SOiD Streamlit app'
 valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
@@ -176,7 +175,7 @@ def home(**kwargs):
         st.experimental_rerun()
 
     ### MAIN ###
-    st.markdown(f'# {title}')
+    st.markdown(f'# B-SOiD Streamlit app')
     st.markdown('------------------------------------------------------------------------------------------')
     is_pipeline_loaded = False
 
@@ -617,7 +616,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('### Rebuilding Model')
         st.markdown(f'*Note: changing the above parameters without rebuilding the model will have no effect.*')
 
-        # Save above info + rebuild model
+        # Save above info & rebuild model
         st.markdown('## Rebuild model with new parameters above?')
         button_rebuild_model = st.button('I want to rebuild model with new parameters', key_button_rebuild_model)
         if button_rebuild_model: file_session[key_button_rebuild_model] = not file_session[key_button_rebuild_model]
@@ -660,9 +659,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                         file_session[key_button_rebuild_model_confirmation] = False
                     st.balloons()
                     file_session[key_button_see_rebuild_options] = False
-                    st.success(f'Model was successfully re-built! This page will auto-refresh, or you can manually refresh the page (press "R") to see changes.')
-                    st.info(f'The page will refresh shortly, or you can manually refresh the page (press "R") to see the changes')
                     n = file_session[default_n_seconds_sleep]
+                    st.success(f'Model was successfully re-built!\n\nThis page will auto-refresh in {n} seconds.')
                     time.sleep(n)
                     st.experimental_rerun()
                 except Exception as e:
@@ -869,7 +867,8 @@ def review_behaviours(p, pipeline_file_path):
 
 def results_section(p, pipeline_file_path, **kwargs):
     if not os.path.isfile(pipeline_file_path):
-        st.error(f'An unexpected error occurred. Your pipeline file path was lost along the way. Currently, your pipeline file path reads as: "{pipeline_file_path}"')
+        st.error(f'An unexpected error occurred. Your pipeline file path was lost along the way. '
+                 f'Currently, your pipeline file path reads as: "{pipeline_file_path}"')
     st.markdown('---------------------------------------------------------------------------------------------')
     st.markdown(f'## Create results')
     ### Label an entire video ###
