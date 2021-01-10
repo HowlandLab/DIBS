@@ -43,6 +43,7 @@ pipeline_options = {
     'Pipeline EPM: Elevated Plus Maze': pipeline.PipelineEPM,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
+    'PipelineMimic: a pipeline that mimics the B-SOiD implementation': pipeline.PipelineMimic,
 }
 # pipeline_prime_name, pipeline_epm_name, pipelineTimName, pipelineCHBO = 'PipelinePrime', 'pipeline_epm_name', 'PipelineTim', 'CHBO Pipeline'  # TODO: deprecate this line
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
@@ -473,7 +474,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             file_session[key_button_add_train_data_source] = False  # Close the menu for adding training data
         if file_session[key_button_add_predict_data_source]:
             st.markdown(f'TODO: add in new predict data')
-            input_new_predict_data_source = st.text_input(f'Input a file path below to a new data source which will be analyzed by the model.', value=config.DIBS_BASE_PROJECT_PATH)
+            input_new_predict_data_source = st.text_input(f'Input a file path below to a new data source which will be analyzed by the model.')
             if input_new_predict_data_source:
                 # Check if file exists
                 if not os.path.isfile(input_new_predict_data_source):
@@ -561,7 +562,9 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         # st.markdown('---')
 
         st.markdown('### Gaussian Mixture Model Parameters')
-        slider_gmm_n_components = st.slider(f'GMM Components (clusters)', value=10, min_value=2, max_value=40, step=1)
+        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=10, min_value=2, max_value=40, step=1)
+        st.markdown(f'_You have currently selected __{slider_gmm_n_components}__ clusters_')
+        st.markdown('')
         # TODO: low: add GMM: probability = True
         # TODO: low: add: GMM: n_jobs = -2
 
@@ -583,7 +586,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if file_session[key_button_see_advanced_options]:
             st.markdown('## Advanced model options. ')
             st.markdown('### Do not change things here unless you know what you are doing!')
-            st.markdown('*Note: If you collapse the advanced options menu, all changes made will revert to default unless you rebuild the model with the menu open.*')
+            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain adv'
+                        'anced parameters changes, ensure that the menu is open when clicking the "Rebuild" button.*')
             # See advanced options for model
             st.markdown('### Advanced TSNE Parameters')
             input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', min_value=0., max_value=100., value=p.tsne_early_exaggeration, step=0.1, format='%.2f')
@@ -623,43 +627,48 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             if button_confirmation_of_rebuild:
                 file_session[key_button_rebuild_model_confirmation] = True
             if file_session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
-                with st.spinner('Rebuilding model...'):
-                    model_vars = {
-                        # General opts
-                        'input_videos_fps': video_fps,
-                        'average_over_n_frames': average_over_n_frames,
+                try:
+                    with st.spinner('Rebuilding model...'):
+                        model_vars = {
+                            # General opts
+                            'input_videos_fps': video_fps,
+                            'average_over_n_frames': average_over_n_frames,
 
-                        'gmm_n_components': slider_gmm_n_components,
-                        'cross_validation_k': input_k_fold_cross_val,
-                        # Advanced opts
-                        'tsne_early_exaggeration': input_tsne_early_exaggeration,
-                        'tsne_n_components': input_tsne_n_components,
-                        'tsne_n_iter': input_tsne_n_iter,
+                            'gmm_n_components': slider_gmm_n_components,
+                            'cross_validation_k': input_k_fold_cross_val,
+                            # Advanced opts
+                            'tsne_early_exaggeration': input_tsne_early_exaggeration,
+                            'tsne_n_components': input_tsne_n_components,
+                            'tsne_n_iter': input_tsne_n_iter,
 
-                        'gmm_reg_covar': input_gmm_reg_covar,
-                        'gmm_tol': input_gmm_tolerance,
-                        'gmm_max_iter': input_gmm_max_iter,
-                        'gmm_n_init': input_gmm_n_init,
+                            'gmm_reg_covar': input_gmm_reg_covar,
+                            'gmm_tol': input_gmm_tolerance,
+                            'gmm_max_iter': input_gmm_max_iter,
+                            'gmm_n_init': input_gmm_n_init,
 
-                        'svm_c': input_svm_c,
-                        'svm_gamma': input_svm_gamma,
+                            'svm_c': input_svm_c,
+                            'svm_gamma': input_svm_gamma,
 
-                    }
+                        }
 
-                    # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
-                    p = p.set_params(**model_vars)
-                    if not os.path.isdir(os.path.dirname(pipeline_file_path)):
-                        st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
-                        st.stop()
-                    p = p.build(True, True).save(os.path.dirname(pipeline_file_path))
-                    file_session[key_button_rebuild_model_confirmation] = False
-                st.balloons()
-                file_session[key_button_see_rebuild_options] = False
-                st.success(f'Model was successfully re-built! This page will auto-refresh, or you can manually refresh the page (press "R") to see changes.')
-                st.info(f'The page will refresh shortly, or you can manually refresh the page (press "R") to see the changes')
-                n = file_session[default_n_seconds_sleep]
-                time.sleep(n)
-                st.experimental_rerun()
+                        # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
+                        p = p.set_params(**model_vars)
+                        if not os.path.isdir(os.path.dirname(pipeline_file_path)):
+                            st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
+                            st.stop()
+                        p = p.build(True, True).save(os.path.dirname(pipeline_file_path))
+                        file_session[key_button_rebuild_model_confirmation] = False
+                    st.balloons()
+                    file_session[key_button_see_rebuild_options] = False
+                    st.success(f'Model was successfully re-built! This page will auto-refresh, or you can manually refresh the page (press "R") to see changes.')
+                    st.info(f'The page will refresh shortly, or you can manually refresh the page (press "R") to see the changes')
+                    n = file_session[default_n_seconds_sleep]
+                    time.sleep(n)
+                    st.experimental_rerun()
+                except Exception as e:
+                    st.info(f'An unexpected exception has occurred when building the pipeline. See below.')
+                    st.error(e)
+                    st.stop()
 
     ### End of rebuild model section
 
