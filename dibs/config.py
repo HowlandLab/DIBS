@@ -263,8 +263,7 @@ TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 TSNE_INIT: str = configuration.get('TSNE', 'init')
 TSNE_PERPLEXITY: Optional[str] = configuration.get('TSNE', 'perplexity')
 TSNE_PERPLEXITY: Optional[float] = float(TSNE_PERPLEXITY) if TSNE_PERPLEXITY else -1.0
-TSNE_LEARNING_RATE: Optional[str] = configuration.get('TSNE', 'learning_rate')
-TSNE_LEARNING_RATE: Optional[float] = float(TSNE_LEARNING_RATE) if TSNE_LEARNING_RATE else -1.0
+TSNE_LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
 
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}
