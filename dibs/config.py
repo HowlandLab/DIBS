@@ -261,8 +261,8 @@ TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
 TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
 TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 TSNE_INIT: str = configuration.get('TSNE', 'init')
-TSNE_PERPLEXITY: Optional[str] = configuration.get('TSNE', 'perplexity')
-TSNE_PERPLEXITY: Optional[float] = float(TSNE_PERPLEXITY) if TSNE_PERPLEXITY else -1.0
+TSNE_PERPLEXITY: Optional[str] = configuration.getfloat('TSNE', 'perplexity')
+# TSNE_PERPLEXITY: Optional[float] = float(TSNE_PERPLEXITY) if TSNE_PERPLEXITY else -1.0
 TSNE_LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
 
 ### TSNE asserts
