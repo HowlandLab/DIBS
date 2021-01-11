@@ -18,12 +18,12 @@ To run normally, run: `streamlit run main.py streamlit`
 
 To run the Streamlit app with an existing Pipeline file, run:
 
-  - `streamlit run main.py streamlit -- -p '/path/to/existing.pipeline'`
-    - This works with Linux and Windows systems so long as the path is absolute
+  - `streamlit run main.py streamlit -- -p '/absolute/path/to/existing.pipeline'`
+    - This works with Linux and Windows systems so long as the path is absolute, and
     - **Ensure that the path to the pipeline is in single quotes** so that it is evaluated as-is (or else you 
     could have problems with backslashes and other weird characters)
       
 
-To see the FAQ, see this [document](./FAQ.md)
+To see the FAQ, see this: [FAQ.md](./FAQ.md)
 
 
