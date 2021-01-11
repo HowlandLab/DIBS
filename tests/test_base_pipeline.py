@@ -1,5 +1,7 @@
 """
+Testing the BasePipeline object
 
+https://docs.python.org/3/library/unittest.html
 """
 from typing import Any, Dict, List, Set
 from unittest import TestCase, skip
@@ -10,15 +12,17 @@ import pandas as pd
 import random
 import time
 
+from dibs.logging_enhanced import get_current_function, get_caller_function
 import dibs
 
 
-def get_random():
-    return random.randint(0, 100_000_000_000)
+def get_unique_pipe_name() -> str:
+    name = f'Pipeline__{get_caller_function()}__{random.randint(0, 100_000_000)}__{dibs.config.runtime_timestr}'
+    return name
 
 
 csv_test_file_path = dibs.config.DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH
-assert os.path.isfile(csv_test_file_path)
+csv_test_file_path_data_source_name = dibs.config.get_data_source_from_file_path(csv_test_file_path)
 
 
 class TestPipeline(TestCase):
@@ -26,7 +30,7 @@ class TestPipeline(TestCase):
     ### Param adds, changes, checks ###
     def test__set_params__shouldKeepDefaultsWhileChangingSpecifiedVars__whenOptionalArgForReadingInConfigVarsNotTrue(self):
         # Arrange
-        p = dibs.pipeline.PipelinePrime('TestPipe07dfdp')
+        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
         default_gmm_n_components = p.gmm_n_components
 
         # Act
@@ -44,7 +48,7 @@ class TestPipeline(TestCase):
         cv = expected_cv = 5
 
         # Act
-        p = dibs.pipeline.PipelinePrime(f'TestPipeline_{get_random()}', cross_validation_k=cv)
+        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name(), cross_validation_k=cv)
         actual_cv = p.cross_validation_k
 
         # Assert
@@ -55,7 +59,7 @@ class TestPipeline(TestCase):
     @skip  # Temporary skip since it takes forever to run this due to sample size
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
         # Arrange
-        p = dibs.pipeline.PipelinePrime('TestPipe987dfdp').add_train_data_source(csv_test_file_path).build(True)
+        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name()).add_train_data_source(csv_test_file_path).build(True)
 
         # Act
         p = p.scale_transform_train_data()
@@ -80,7 +84,7 @@ Symmetric diff = {unscaled_features_cols.symmetric_difference(scaled_features_co
         """"""
         # Arrange
         data_source_file_path = csv_test_file_path
-        pipe = dibs.pipeline.PipelinePrime('TestPipeline_asdf')
+        pipe = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
         num_of_sources_before_addition: int = len(pipe.training_data_sources)
         num_of_sources_should_be_this_after_addition = num_of_sources_before_addition + 1
 
@@ -102,7 +106,7 @@ list_of_sources_after_addition = {num_of_sources_actually_this_after_addition}
     def test__pipeline_adding_train_data_file_source__shouldBeZeroToStart(self):
         """"""
         # Arrange
-        p = dibs.pipeline.PipelinePrime('Test_6546df5465465')
+        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
         expected_amount_of_sources = 0
 
         # Act
@@ -120,7 +124,7 @@ actual_amount_of_dataframes = {actual_amount_of_dataframes}
     def test__pipeline_adding_train_data_file_source__shouldAddParticularFileTo____when____(self):
         """"""
         # Arrange
-        p = dibs.pipeline.PipelinePrime('Test1231asdf23123')
+        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
         data_source_file_path = csv_test_file_path
 
         # Act
@@ -149,7 +153,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
 """
         self.assertTrue(is_equal, err_msg)
 
-    # @skip
+    @skip  # TODO: finish test
     def test__add_train_data_AND_build__shouldHaveSameNumRowsInRawDataAsBuiltData__whenRawDataBuilt(self):
         """
         After adding just 1 train data source,
@@ -174,21 +178,28 @@ p.train_data_files_paths = {p.train_data_files_paths}
     ### Removing predict data sources ###
     def test__remove_train_data_source__shouldRemoveSource__whenSourceIsPresent(self):
         # Arrange
-        p = dibs.base_pipeline.BasePipeline('')
+        p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
         p = p.add_train_data_source(csv_test_file_path)
+        num_sources_before_remove = len(p.training_data_sources)
+        expected_num_sources_after = num_sources_before_remove - 1
         # Act
+        p = p.remove_train_data_source(csv_test_file_path_data_source_name)
+        actual_num_sources_after_remove = len(p.training_data_sources)
 
         # Assert
-        self.assertEqual()
+        self.assertEqual(expected_num_sources_after, actual_num_sources_after_remove)
 
     def test__remove_train_data_source__shouldChangeNothing__whenSourceNotPresent(self):
         # Arrange
-        p = dibs.base_pipeline.BasePipeline('')
+        not_a_real_data_source = 'NotARealDataSource'
+        p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
         p = p.add_train_data_source(csv_test_file_path)
+        expected_num_sources = len(p.training_data_sources)
         # Act
-
+        p = p.remove_train_data_source(not_a_real_data_source)
+        num_sources_after = len(p.training_data_sources)
         # Assert
-        self.assertEqual()
+        self.assertEqual(expected_num_sources, num_sources_after)
 
     ### Label assignments ###
 
@@ -197,7 +208,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
         Test to see if output is None if no assignment label found
         """
         # Arrange
-        p = dibs.pipeline.PipelinePrime('APipelineName_asdffdfsdf123987')
+        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
         expected_label = ''
         # Act
         actual_label = p.get_assignment_label(0)
@@ -206,7 +217,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
 
     def test__set_label__shouldUpdateAssignment__whenUsed(self):
         # Arrange
-        p = dibs.pipeline.PipelinePrime('DeleteMe___6APipelineName12398asdfasdfaasdfdf989dsdf7')
+        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
         assignment, input_label = 1, 'Behaviour1'
 
         # Act
@@ -218,7 +229,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
 
     def test__updatingAssignment__shouldSaveLabel__whenSavedAndRereadIn(self):
         # Arrange
-        name = 'DELETE_ME__APipelineName12398asdzzz1614154fasdfsdf7_'
+        name = get_unique_pipe_name()
         p_write = dibs.pipeline.PipelinePrime(name)
         assignment, input_label = 12, 'Behaviour12'
 
@@ -226,10 +237,11 @@ p.train_data_files_paths = {p.train_data_files_paths}
         p_write = p_write.set_label(assignment, input_label)
         p_write.save()
 
-        p_read = dibs.read_pipeline(os.path.join(
-            dibs.config.OUTPUT_PATH,
-            dibs.pipeline.generate_pipeline_filename(name),
-        ))
+        p_read = dibs.read_pipeline(
+            os.path.join(
+                dibs.config.OUTPUT_PATH,
+                dibs.pipeline.generate_pipeline_filename(name),
+            ))
 
         actual_label = p_read.get_assignment_label(assignment)
         # Assert
@@ -266,3 +278,4 @@ Actual label: {actual_label}
         # Assert
         self.assertTrue(is_equal)
 
+    # def test__END_TO_END
