@@ -8,7 +8,7 @@ import dibs
 
 ########################################################################################################################
 
-single_test_file_location = dibs.config.DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH
+single_test_file_location = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
 
 
 ####################

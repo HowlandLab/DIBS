@@ -9,8 +9,8 @@ import pandas as pd
 
 import dibs as dibs
 
-csv_test_file_path = dibs.config.DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH
-h5_test_file_path = dibs.config.DEFAULT_H5_TEST_FILE
+csv_test_file_path = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
+# h5_test_file_path = dibs.config.DEFAULT_H5_TEST_FILE
 assert os.path.isfile(csv_test_file_path)
 # assert os.path.isfile(h5_test_file_path)  #  TODO: high: get a valid h5 file from DLC output to use as testing material
 

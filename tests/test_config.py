@@ -6,7 +6,7 @@ import pandas as pd
 import dibs
 
 
-test_file_name = dibs.config.DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH
+test_file_name = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
 
 
 class TestConfig(TestCase):

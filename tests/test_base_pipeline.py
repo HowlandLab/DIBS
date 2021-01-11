@@ -21,7 +21,7 @@ def get_unique_pipe_name() -> str:
     return name
 
 
-csv_test_file_path = dibs.config.DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH
+csv_test_file_path = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
 csv_test_file_path_data_source_name = dibs.config.get_data_source_from_file_path(csv_test_file_path)
 
 
