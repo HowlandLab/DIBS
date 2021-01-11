@@ -94,8 +94,8 @@ def attach_feature_distance_between_2_bodyparts(df: pd.DataFrame, bodypart_1, bo
     check_arg.ensure_type(df, pd.DataFrame)
     bodypart_1 = config.get_part(bodypart_1) if resolve_bodyparts_with_config_ini else bodypart_1
     bodypart_2 = config.get_part(bodypart_2) if resolve_bodyparts_with_config_ini else bodypart_2
-    for feat, xy in itertools.product((bodypart_1, bodypart_2), ['x', 'y']):
-        bodypart_xy = f'{feat}_{xy}'
+    for bodypart, xy in itertools.product((bodypart_1, bodypart_2), ['x', 'y']):
+        bodypart_xy = f'{bodypart}_{xy}'
         if bodypart_xy not in set(df.columns):
             err_missing_feature = f'{logging_enhanced.get_current_function()}(): missing feature column "{bodypart_xy}", so cannot calculate avg position. Columns = {list(df.columns)}'
             logging_enhanced.log_then_raise(err_missing_feature, logger, KeyError)
