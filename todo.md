@@ -10,8 +10,8 @@ Wishlist of things to implement
 - [x] Add FPS input into params
 - [x] Add colour to text in example behaviour videos
 - [ ] GMM plot should modify labels to match behaviours instead of just assignment number (WHEN POSSIBLE)
-- [ ] Confusion matrix for diagnostics (Aaron)
-- [ ] Add PCA plotting for training data for BasePipeline
+- [ ] Aaron: Confusion matrix for diagnostics (Aaron)
+- [ ] Aaron: Add PCA plotting for training data for BasePipeline
 
 
 
