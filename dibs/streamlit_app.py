@@ -74,7 +74,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here
     key_pipeline_path: '',  #  TODO: med: review usage. Could be strong than passing paths between funcs?
     key_open_pipeline_path: config.DIBS_BASE_PROJECT_PATH,
     key_iteration_page_refresh_count: 0,
-    default_n_seconds_sleep: 4,
+    default_n_seconds_sleep: 3,
     key_button_show_adv_pipeline_information: False,
     key_button_see_rebuild_options: False,
     key_button_see_advanced_options: False,
@@ -325,12 +325,12 @@ def show_pipeline_info(p: pipeline.PipelinePrime, pipeline_path, **kwargs):
     if button_show_advanced_pipeline_information:
         file_session[key_button_show_adv_pipeline_information] = not file_session[key_button_show_adv_pipeline_information]
     if file_session[key_button_show_adv_pipeline_information]:
-        st.markdown(f'- Training data sources:')
+        st.markdown(f'- Training data sources ({len(p.training_data_sources)} total sources):')
         if len(p.training_data_sources) > 0:
             for s in p.training_data_sources: st.markdown(f'- - **{s}**')
         else:
             st.markdown(f'- - **None**')
-        st.markdown(f'- Predict data sources:')
+        st.markdown(f'- Predict data sources ({len(p.predict_data_sources)} total sources):')
         if len(p.predict_data_sources) > 0:
             for s in p.predict_data_sources:
                 st.markdown(f'- - **{s}**')
@@ -447,12 +447,15 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
 
             # Original implementation below: dont delete yet!
-            # Old implementation: Below is a code fragment that should NOT be deleted. Since it
-            input_new_data_source = st.text_input("Input a file path below to data which will be used to train the model")
+            st.markdown(f"_Input a file path below to data which will be used to train the model._\n\n_You may input a file path or a path to a directory. If a directory is entered, all CSVs directly within will be added as training data_")
+            input_new_data_source = st.text_input('')
             if input_new_data_source:
                 # Check if file exists
-                if not os.path.isfile(input_new_data_source):
+                if not os.path.isfile(input_new_data_source) and not os.path.isdir(input_new_data_source):
                     st.error(FileNotFoundError(f'File not found: {input_new_data_source}. Data not added to pipeline.'))
+                elif os.path.isdir(input_new_data_source) and len([file for file in os.listdir(input_new_data_source) if file.endswith('csv')]) == 0:
+                    err = f'Zero CSV files were found in the submitted folder: {input_new_data_source}'
+                    st.error(err)
                 # Add to pipeline, save
                 else:
                     p = p.add_train_data_source(input_new_data_source).save(os.path.dirname(pipeline_file_path))
@@ -465,6 +468,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     time.sleep(n)
                     st.experimental_rerun()
             st.markdown('')
+        # C:\Users\killian\projects\DIBS\epm_data_test
 
         # 2/2: Button for adding data to prediction set
         button_add_predict_data_source = st.button('-> Add data to be evaluated by the model', key=key_button_add_predict_data_source)
@@ -476,10 +480,14 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             input_new_predict_data_source = st.text_input(f'Input a file path below to a new data source which will be analyzed by the model.')
             if input_new_predict_data_source:
                 # Check if file exists
-                if not os.path.isfile(input_new_predict_data_source):
-                    st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. '
-                                               f'No data was added to pipeline prediction data set.'))
-
+                if not os.path.isfile(input_new_predict_data_source) and not os.path.isdir(input_new_predict_data_source):
+                    st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. Data not added to pipeline.'))
+                elif os.path.isdir(input_new_predict_data_source) and len([file for file in os.listdir(input_new_predict_data_source) if file.endswith('csv')]) == 0:  # TODO: use .endiswith()
+                    err = f'Zero CSV files were found in the submitted folder: {input_new_predict_data_source}'
+                    st.error(err)
+                # if not os.path.isfile(input_new_predict_data_source):
+                #     st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. '
+                #                                f'No data was added to pipeline prediction data set.'))
                 else:
                     p = p.add_predict_data_source(input_new_predict_data_source).save(os.path.dirname(pipeline_file_path))
                     file_session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
@@ -528,7 +536,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 confirm = st.button('Confirm')
                 if confirm:
                     with st.spinner(f'Removing {select_predict_option_to_remove} from predict data set'):
-                        p.remove_predict_data_source(select_predict_option_to_remove).save(os.path.dirname(pipeline_file_path))
+                        p = p.remove_predict_data_source(select_predict_option_to_remove).save(os.path.dirname(pipeline_file_path))
                     file_session[key_button_menu_remove_data] = False
                     st.balloons()
                     st.success(f'{select_predict_option_to_remove} data was successfully removed!')
