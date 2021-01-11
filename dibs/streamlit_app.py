@@ -4,6 +4,8 @@ streamlit api: https://docs.streamlit.io/en/stable/api.html
 Number formatting: https://python-reference.readthedocs.io/en/latest/docs/str/formatting.html
     Valid formatters: %d %e %f %g %i
 More on formatting: https://pyformat.info/
+
+Developer's note: ignore 120 char limit during development
 """
 from matplotlib.axes._axes import _log as matplotlib_axes_logger
 from mpl_toolkits.mplot3d import Axes3D  # Despite being "unused", this import MUST stay in for 3d plotting to work.
@@ -306,7 +308,8 @@ Success! Your new project pipeline has been saved to disk to the following path:
         show_pipeline_info(p, pipeline_file_path)
 
 
-def show_pipeline_info(p: pipeline.PipelinePrime, pipeline_path, **kwargs):
+def show_pipeline_info(p, pipeline_path, **kwargs):
+
     """  """
     logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
 
@@ -501,7 +504,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('')
         st.markdown('')
 
-    ###
+    ### End of menu for adding data ###
 
     ### Menu button: removing data ###
     button_remove_data = st.button('Toggle: remove data from model', key_button_menu_remove_data)
@@ -547,6 +550,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 st.markdown('')
         st.markdown('')
 
+    ### End of menu for removing data ###
+
     st.markdown('')
 
     ### Menu button: rebuilding model ###
@@ -586,7 +591,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
         # TODO: HIGH IMPORTANCE! The advanced parameters should reflect the classifier type being used (SVM vs RF vs something new in the future)
-        st.markdown('*Toggle advanced parameters at your own risk. Many require special knowledge of ML parameters*')
+        st.markdown('*Toggle advanced parameters at your own risk. Many variables require special knowledge of ML parameters*')
         button_see_advanced_options = st.button('Toggle: advanced parameters')
         if button_see_advanced_options:
             file_session[key_button_see_advanced_options] = not file_session[key_button_see_advanced_options]

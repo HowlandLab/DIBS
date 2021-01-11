@@ -66,7 +66,7 @@ VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH', fallb
 GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
 EXAMPLE_VIDEOS_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'example_videos')
-VIDEO_TO_LABEL_PATH: str = configuration.get('PATH', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: ************* This note from the original author implies that VID_NAME must be a video that corresponds to a csv from PREDICT_FOLDERS
+VIDEO_TO_LABEL_PATH: str = configuration.get('PATH', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: evaluate if remove or not
 
 ### PATH asserts
 assert not DLC_PROJECT_PATH or os.path.isdir(DLC_PROJECT_PATH),\
@@ -81,19 +81,17 @@ assert not VIDEO_TO_LABEL_PATH or os.path.isfile(VIDEO_TO_LABEL_PATH), \
 MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
 PIPELINE_NAME = configuration.get('APP', 'PIPELINE_NAME')
 VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
-COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
 PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
 SAVE_GRAPHS_TO_FILE: bool = configuration.getboolean('APP', 'SAVE_GRAPHS_TO_FILE')
 FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')
 DEFAULT_SAVED_GRAPH_FILE_FORMAT: str = configuration.get('APP', 'DEFAULT_SAVED_GRAPH_FILE_FORMAT')
 PERCENT_FRAMES_TO_LABEL: float = configuration.getfloat('APP', 'PERCENT_FRAMES_TO_LABEL')
 N_JOBS = configuration.getint('APP', 'N_JOBS')
-IDENTIFICATION_ORDER: int = configuration.getint('APP', 'FILE_IDENTIFICATION_ORDER_LEGACY')  # TODO: low: deprecate
 
-# OUTPUT_VIDEO_FPS: an attempt at keeping output video fps consistent to input fps relative to PERCENT_FRAMES_TO_LABEL
-OUTPUT_VIDEO_FPS = configuration.getint('APP', 'OUTPUT_VIDEO_FPS') \
-    if configuration.get('APP', 'OUTPUT_VIDEO_FPS').isnumeric() \
-    else int(VIDEO_FPS * PERCENT_FRAMES_TO_LABEL)
+IDENTIFICATION_ORDER: int = configuration.getint('APP', 'FILE_IDENTIFICATION_ORDER_LEGACY')  # TODO: low: deprecate
+COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
+
+OUTPUT_VIDEO_FPS = configuration.getint('APP', 'OUTPUT_VIDEO_FPS')
 
 
 ### APP asserts
@@ -170,7 +168,7 @@ DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PAT
 # DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH = os.path.join()
 
 # DEFAULT_PIPELINE__CHBO__CSV_TEST_FILE: str = os.path.join()
-DEFAULT_H5_TEST_FILE: str = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', configuration.get('TESTING', 'DEFAULT_H5_TEST_FILE'))
+# DEFAULT_H5_TEST_FILE: str = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', configuration.get('TESTING', 'DEFAULT_H5_TEST_FILE'))
 
 
 ## TODO: low: address comments below
@@ -179,7 +177,9 @@ DEFAULT_H5_TEST_FILE: str = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_
 # except ValueError:  # In the case that the value is empty (since it is optional), assign max possible size to read in
 #     max_rows_to_read_in_from_csv = sys.maxsize
 
-max_rows_to_read_in_from_csv: int = configuration.getint('TESTING', 'max_rows_to_read_in_from_csv') if configuration.get('TESTING', 'max_rows_to_read_in_from_csv') else sys.maxsize  # TODO: potentially remove this variable. When comparing pd.read_csv and dibs.read_csv, they dont match due to header probs
+max_rows_to_read_in_from_csv: int = configuration.getint('TESTING', 'max_rows_to_read_in_from_csv') \
+    if configuration.get('TESTING', 'max_rows_to_read_in_from_csv') \
+    else sys.maxsize  # TODO: potentially remove this variable. When comparing pd.read_csv and dibs.read_csv, they dont match due to header probs
 
 ### Testing variables asserts
 
@@ -199,7 +199,9 @@ gmm_max_iter = configuration.getint('EM/GMM', 'max_iter')
 gmm_n_init = configuration.getint('EM/GMM', 'n_init')
 gmm_init_params = configuration.get('EM/GMM', 'init_params')
 gmm_verbose = configuration.getint('EM/GMM', 'verbose')
-gmm_verbose_interval = configuration.getint('EM/GMM', 'verbose_interval') if configuration.get('EM/GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
+gmm_verbose_interval = configuration.getint('EM/GMM', 'verbose_interval') \
+    if configuration.get('EM/GMM', 'verbose_interval') \
+    else 10  # 10 is a default that can be changed  # TODO: low: address
 EMGMM_PARAMS = {
     'n_components': gmm_n_components,
     'covariance_type': gmm_covariance_type,
