@@ -114,7 +114,7 @@ class BasePipeline(object):
 
     # Classifier
     _classifier = None
-    clf_type: str = config.DEFAULT_CLASSIFIER
+    classifier_type: str = config.DEFAULT_CLASSIFIER
     # Classifier: SVM
     svm_c, svm_gamma, svm_probability, svm_verbose = None, None, None, None
     # Classifier: Random Forest
@@ -296,19 +296,41 @@ class BasePipeline(object):
         explicitly will be read in from the config.ini file and then replace the current value
         for that property in the pipeline.
 
-        Valid Kwargs:
-            - input_video_fps
-            - random_state
-            - tsne_n_components
-            - tsne_n_iter
-            - tsne_early_exaggeration
-            - tsne_n_jobs
-            - tsne_verbose
-            TODO: low: complete list
+        Valid Kwargs include any properties in the BasePipeline that do not begin with an underscore.
+
+        Kwargs
+        ----------
+        classifier_type : str
+            Must be one of { 'SVM', 'RANDOMFOREST' }
+
+        input_video_fps : int
+            Explanation goes here
+
+        random_state : int
+            Explanation __
+
+        tsne_n_components : int
+
+        tsne_n_iter : int
+
+        tsne_early_exaggeration : float
+
+        tsne_n_jobs : int
+
+        tsne_verbose : int
+
+        TODO: low: complete list
 
         """
         check_arg.ensure_type(read_config_on_missing_param, bool)
         ### General Params ###
+        classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
+        check_arg.ensure_type(classifier_type)
+        if classifier_type not in config.valid_classifiers:
+            err = f'Input classifier type is not valid. Value = {classifier_type}'
+            logger.error(err)
+            raise ValueError(err)
+        self.classifier_type = classifier_type
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
         video_fps = kwargs.get('input_videos_fps', config.VIDEO_FPS if read_config_on_missing_param else self.input_videos_fps)
         check_arg.ensure_type(video_fps, int, float)
@@ -377,8 +399,8 @@ class BasePipeline(object):
         check_arg.ensure_type(gmm_verbose_interval, int)
         self.gmm_verbose_interval = gmm_verbose_interval
         # Classifier vars
-        clf_type = kwargs.get('clf_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.clf_type)
-        self.clf_type = clf_type
+        clf_type = kwargs.get('clf_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
+        self.classifier_type = clf_type
         # Random Forest vars
         rf_n_estimators = kwargs.get('rf_n_estimators', config.rf_n_estimators if read_config_on_missing_param else self.rf_n_estimators)
         check_arg.ensure_type(rf_n_estimators, int)
@@ -770,7 +792,7 @@ class BasePipeline(object):
         # TODO: HIGH: finish this function!
         df = self.df_features_train_scaled
 
-        if self.clf_type == 'SVM':
+        if self.classifier_type == 'SVM':
             clf = SVC(
                 C=self.svm_c,
                 gamma=self.svm_gamma,
@@ -778,7 +800,7 @@ class BasePipeline(object):
                 verbose=self.svm_verbose,
                 random_state=self.random_state,
             )
-        elif self.clf_type == 'RANDOMFOREST':
+        elif self.classifier_type == 'RANDOMFOREST':
             clf = RandomForestClassifier(
                 n_estimators=self.rf_n_estimators,
                 # criterion='gini',
@@ -801,7 +823,7 @@ class BasePipeline(object):
                 # max_samples=None,
             )
         else:
-            err = f'TODO: elaborate: an invalid classifier type was detected: {self.clf_type}'
+            err = f'TODO: elaborate: an invalid classifier type was detected: {self.classifier_type}'
             logger.error(err)
             raise KeyError(err)
         # Fit classifier to non-test data
