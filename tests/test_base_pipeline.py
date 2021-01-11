@@ -15,14 +15,12 @@ import time
 from dibs.logging_enhanced import get_current_function, get_caller_function
 import dibs
 
+csv_test_file_path = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
+
 
 def get_unique_pipe_name() -> str:
     name = f'Pipeline__{get_caller_function()}__{random.randint(0, 100_000_000)}__{dibs.config.runtime_timestr}'
     return name
-
-
-csv_test_file_path = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
-csv_test_file_path_data_source_name = dibs.config.get_data_source_from_file_path(csv_test_file_path)
 
 
 class TestPipeline(TestCase):
@@ -39,7 +37,7 @@ class TestPipeline(TestCase):
 
         # Assert
         err_msg = f"""
-
+TODO: {get_current_function()}
 """
         self.assertEqual(default_gmm_n_components, gmm_n_components_after_set_param, err_msg)
 
@@ -178,12 +176,13 @@ p.train_data_files_paths = {p.train_data_files_paths}
     ### Removing predict data sources ###
     def test__remove_train_data_source__shouldRemoveSource__whenSourceIsPresent(self):
         # Arrange
+        csv_file_path__this_test = csv_test_file_path
         p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
-        p = p.add_train_data_source(csv_test_file_path)
+        p = p.add_train_data_source(csv_file_path__this_test)
         num_sources_before_remove = len(p.training_data_sources)
         expected_num_sources_after = num_sources_before_remove - 1
         # Act
-        p = p.remove_train_data_source(csv_test_file_path_data_source_name)
+        p = p.remove_train_data_source(dibs.config.get_data_source_from_file_path(csv_file_path__this_test))
         actual_num_sources_after_remove = len(p.training_data_sources)
 
         # Assert
