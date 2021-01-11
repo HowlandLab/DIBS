@@ -1,6 +1,8 @@
 """
 
 """
+from bhtsne import tsne as TSNE_bhtsne
+from openTSNE import TSNE as OpenTsneObj
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import TSNE as TSNE_sklearn
 from sklearn.metrics import accuracy_score
@@ -13,13 +15,11 @@ from typing import Any, Collection, Dict, List, Optional, Tuple  # TODO: med: re
 import inspect
 import joblib
 import numpy as np
-from openTSNE import TSNE as OpenTsneObj
 import os
 import pandas as pd
 import time
 
 import sys
-from bhtsne import tsne as TSNE_bhtsne
 # from pandas.core.common import SettingWithCopyWarning
 # from tqdm import tqdm
 # import openTSNE  # openTSNE only supports n_components 2 or less
@@ -701,10 +701,9 @@ class BasePipeline(object):
         elif self.tsne_implementation == 'bhtsne':
             logger.debug(f'Now reducing data with bhtsne implementation...')
             arr_result = TSNE_bhtsne(
-                # TODO: low: investigate: ValueError: Expected n_neighbors > 0. Got -2
                 data[list(self.all_features)],
                 dimensions=self.tsne_n_components,
-                perplexity=self.tsne_perplexity,  # TODO: implement math somewhere else
+                perplexity=self.tsne_perplexity,
                 rand_seed=self.random_state,
                 theta=0.5,
             )
