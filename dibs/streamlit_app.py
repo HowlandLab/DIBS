@@ -657,8 +657,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                             'tsne_perplexity': input_tsne_perplexity,
                             'tsne_learning_rate': input_tsne_learning_rate,
                             'tsne_early_exaggeration': input_tsne_early_exaggeration,
-                            'tsne_n_components': input_tsne_n_components,
                             'tsne_n_iter': input_tsne_n_iter,
+                            'tsne_n_components': input_tsne_n_components,
 
                             'gmm_reg_covar': input_gmm_reg_covar,
                             'gmm_tol': input_gmm_tolerance,
@@ -732,7 +732,7 @@ def see_model_diagnostics(p, pipeline_file_path):
 
     ###
     # View 3d Plot
-    st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: phrase better?
+    st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
     gmm_button = st.button('Pop out window of cluster/assignment distribution')  # TODO: low: phrase this button better?
     if gmm_button:
         if p.is_built:

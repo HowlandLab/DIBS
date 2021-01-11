@@ -63,7 +63,7 @@ class BasePipeline(object):
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
     # data_ext: str = 'csv'  # Extension which data is read from  # TODO: deprecate, delete line
-    dims_cols_names = None  # Union[List[str], Tuple[str]]
+    # dims_cols_names = None  # Union[List[str], Tuple[str]]
     valid_tsne_sources: set = {'bhtsne', 'sklearn', }
     gmm_assignment_col_name, svm_assignment_col_name, = 'gmm_assignment', 'svm_assignment'
     behaviour_col_name = 'behaviour'
@@ -400,11 +400,11 @@ class BasePipeline(object):
         if self.test_train_split_pct is None:
             self.test_train_split_pct = config.HOLDOUT_PERCENT
 
-        self.dims_cols_names = [f'dim_{d + 1}' for d in
-                                range(self.tsne_n_components)]  # TODO: low: encapsulate elsewhere
+        # self.dims_cols_names = [f'dim_{d+1}' for d in range(self.tsne_n_components)]  # TODO: remove this coment, it is now a property
 
         self._has_modified_model_variables = True
         return self
+
 
     # Functions that should be overwritten by child classes
     def engineer_features(self, data: pd.DataFrame):
@@ -522,7 +522,14 @@ class BasePipeline(object):
     def engineer_features_all_dfs(self, list_dfs_of_raw_data: List[pd.DataFrame]) -> pd.DataFrame:
         """
         The main function that can build features for BOTH training and prediction data.
-        Here we are ensuring that the data processing for both training and prediction occurs in the same way.
+        Here we are ensuring that the data processing for both training and prediction
+        occurs in the same way.
+
+        Assumptions:
+            - Each returned feature is assumed to be a float and is converted as such after
+                the child return of self.engineer_features() executes (bug fixing reasons. For whatever
+                reason, feature cols kept being returned as Object type and sklearn TSNE handled
+                it just fine but bhtsne did not).
         """
         # TODO: MED: these cols really should be saved in
         #  engineer_7_features_dataframe_NOMISSINGDATA(),
@@ -541,6 +548,7 @@ class BasePipeline(object):
             check_arg.ensure_frame_indices_are_integers(df)
             logger.debug(f'{get_current_function()}(): Engineering df feature set {i+1} of {len(list_dfs_of_raw_data)}')
             df_engineered_features: pd.DataFrame = self.engineer_features(df)
+            df_engineered_features = df_engineered_features.astype({feature: float for feature in self.all_features})
             list_dfs_engineered_features.append(df_engineered_features)
 
         # Aggregate all data into one DataFrame, return
@@ -675,6 +683,7 @@ class BasePipeline(object):
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
         # Execute
         if self.tsne_implementation == 'sklearn':
+            logger.debug(f'Now reducing data with SKLEARN implementation...')
             arr_result = TSNE_sklearn(
                 perplexity=self.tsne_perplexity,
                 learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: encapsulate this later                     !!!
@@ -686,10 +695,10 @@ class BasePipeline(object):
                 verbose=self.tsne_verbose,
                 init=self.tsne_init,
             ).fit_transform(data[list(self.all_features_list)])
-        # # TODO: uncommment this bhtsne later since it was originally commented-out because VCC distrib. problems
         elif self.tsne_implementation == 'bhtsne':
+            logger.debug(f'Now reducing data with bhtsne implementation...')
             arr_result = TSNE_bhtsne(
-                # ValueError: Expected n_neighbors > 0. Got -2
+                # TODO: low: investigate: ValueError: Expected n_neighbors > 0. Got -2
                 data[list(self.all_features)],
                 dimensions=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,  # TODO: implement math somewhere else
@@ -697,17 +706,18 @@ class BasePipeline(object):
                 theta=0.5,
             )
         elif self.tsne_implementation == 'opentsne':
-            arr_result = OpenTsneObj(
+            logger.debug(f'Now reducing data with OpenTSNE implementation...')
+            tsne = OpenTsneObj(
                 n_components=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,
-                learning_rate='auto',  # TODO: review
+                learning_rate='auto',  # TODO: med: review
                 early_exaggeration=self.tsne_early_exaggeration,
                 n_iter=self.tsne_n_iter,
                 n_jobs=self.tsne_n_jobs,
-                negative_gradient_method='fft',  # TODO: review
+                negative_gradient_method='fft',  # TODO: med: review
                 random_state=self.random_state,
                 verbose=bool(self.tsne_verbose),
-                metric="euclidean",  # TODO: review
+                metric="euclidean",  # TODO: med: review
                 # early_exaggeration_iter=250,
                 # n_iter=500,
                 # exaggeration=None,
@@ -726,7 +736,8 @@ class BasePipeline(object):
                 # neighbors="auto",
                 # callbacks=None,
                 # callbacks_every_iters=50,
-            )
+            ).fit(data[list(self.all_features_list)])
+            arr_result = tsne.transform(data[list(self.all_features_list)])
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logger.error(err)
@@ -806,6 +817,7 @@ class BasePipeline(object):
             self.df_features_train_scaled,
             pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
         ], axis=1)
+
         return self
 
     # Model building

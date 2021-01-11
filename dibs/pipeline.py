@@ -1684,7 +1684,7 @@ class PipelineMimic(BasePipeline):
         df = df.sort_values('frame').copy()
 
         # 1 dist snout to tail
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('TAILBASE'), config.get_part('NOSETIP'), self.feat_body_length)
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('TAILBASE'), config.get_part('NOSETIP'), output_feature_name=self.feat_body_length)
 
         # 2: Dist FrontPaws to tail relative to body length
         ## 1/3: Get AvgForepaw location

@@ -61,7 +61,9 @@ assert os.path.isdir(default_log_folder_path), f'log file save folder does not e
 
 ### PATH ################################################################################
 DLC_PROJECT_PATH = configuration.get('PATH', 'DLC_PROJECT_PATH', fallback='')
-OUTPUT_PATH = config_output_path = configuration.get('PATH', 'OUTPUT_PATH').strip() if configuration.get('PATH', 'OUTPUT_PATH').strip() else default_output_path
+OUTPUT_PATH = config_output_path = configuration.get('PATH', 'OUTPUT_PATH').strip() \
+    if configuration.get('PATH', 'OUTPUT_PATH').strip() \
+    else default_output_path
 VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH', fallback=os.path.join(OUTPUT_PATH, 'videos'))
 GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
@@ -111,7 +113,8 @@ default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_lo
 
 ### STREAMLIT asserts
 if default_pipeline_file_path:
-    assert os.path.isfile(default_pipeline_file_path)
+    assert os.path.isfile(default_pipeline_file_path), \
+        f'Pipeline location could not be found: {default_pipeline_file_path}'
 
 
 ### DLC_FEATURES #########################################################
