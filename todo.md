@@ -12,6 +12,7 @@ Wishlist of things to implement (unordered)
 - [ ] GMM plot should modify labels to match behaviours instead of just assignment number (WHEN POSSIBLE)
 - [ ] Aaron: Confusion matrix for Streamlit diagnostics section (Aaron)
 - [ ] Aaron: Add PCA plotting for training data for BasePipeline to Streamlit diagnostics section
+- [ ] Aaron: Feature eng: Calc set of angle delta between 2 sets of 2-dim points
 
 
 
