@@ -405,6 +405,9 @@ class BasePipeline(object):
         self._has_modified_model_variables = True
         return self
 
+    @property
+    def dims_cols_names(self) -> List[str]:
+        return [f'dim_{d+1}' for d in range(self.tsne_n_components)]
 
     # Functions that should be overwritten by child classes
     def engineer_features(self, data: pd.DataFrame):
@@ -736,8 +739,8 @@ class BasePipeline(object):
                 # neighbors="auto",
                 # callbacks=None,
                 # callbacks_every_iters=50,
-            ).fit(data[list(self.all_features_list)])
-            arr_result = tsne.transform(data[list(self.all_features_list)])
+            )
+            arr_result = tsne.fit(data[list(self.all_features_list)].values)
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logger.error(err)
