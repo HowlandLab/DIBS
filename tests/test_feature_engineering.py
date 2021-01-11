@@ -157,7 +157,7 @@ actual actual_output_arr: {actual_output_arr}
         expected_num_cols: int = len(df_cols_set) + 2
 
         # (Ensure col names exist for test)
-        feature1, feature2 = 'Forepaw/Shoulder1', 'Forepaw/Shoulder2'
+        feature1, feature2 = 'ForepawLeft', 'ForepawRight'
         for body_part, xy in itertools.product((feature1, feature2), ('x', 'y')):
             feat_xy = f'{body_part}_{xy}'
             assert feat_xy in df_cols_set, f'Column "{feat_xy}" not found in DataFrame. Cannot complete test. Columns = {list(df.columns)}'
