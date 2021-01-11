@@ -12,7 +12,7 @@ Wishlist of things to implement (unordered)
 - [ ] GMM plot should modify labels to match behaviours instead of just assignment number (WHEN POSSIBLE)
 - [ ] Aaron: Confusion matrix for Streamlit diagnostics section (Aaron)
 - [ ] Aaron: Add PCA plotting for training data for BasePipeline to Streamlit diagnostics section
-
+- [ ] Aaron: add math for snout/tail body angle in feature_engi
 
 
 
