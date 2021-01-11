@@ -717,7 +717,7 @@ class BasePipeline(object):
                 early_exaggeration=self.tsne_early_exaggeration,
                 n_iter=self.tsne_n_iter,
                 n_jobs=self.tsne_n_jobs,
-                negative_gradient_method='fft',  # TODO: med: review
+                negative_gradient_method='bh',  # Note: default 'fft' does not work with dims >2
                 random_state=self.random_state,
                 verbose=bool(self.tsne_verbose),
                 metric="euclidean",  # TODO: med: review
