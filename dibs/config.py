@@ -117,17 +117,6 @@ if default_pipeline_file_path:
         f'Pipeline location could not be found: {default_pipeline_file_path}'
 
 
-### DLC_FEATURES #########################################################
-def get_part(part) -> str:
-    """
-    For some DLC projects, there are different naming conventions for body parts and their associated
-    column names in the DLC output. This function resolves that name aliasing by actively
-    checking the configuration file to find the true name that is expected for the given bodypart.
-    Get the actual body part name as per the DLC data.
-    """
-    return configuration['DLC_FEATURES'][part]
-
-
 ### MODEL ###############################################################
 DEFAULT_CLASSIFIER: str = configuration.get('MODEL', 'DEFAULT_CLASSIFIER')
 RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE', fallback=random.randint(1, 100_000_000))
@@ -345,9 +334,6 @@ BODYPARTS_VOC_LEGACY = {
     'Point8': 7,
 }
 
-
-########################################################################################################################
-
 bodyparts = {key: configuration['DLC_FEATURES'][key]
              for key in configuration['DLC_FEATURES']}
 
@@ -378,7 +364,17 @@ map_group_to_behaviour = {
 }
 
 
-###
+### CONFIG FUNCTIONS ###
+
+def get_part(part) -> str:
+    """
+    For some DLC projects, there are different naming conventions for body parts and their associated
+    column names in the DLC output. This function resolves that name aliasing by actively
+    checking the configuration file to find the true name that is expected for the given bodypart.
+    Get the actual body part name as per the DLC data.
+    """
+    return configuration['DLC_FEATURES'][part]
+
 
 def get_config_str() -> str:
     """ Debugging function """
