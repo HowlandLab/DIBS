@@ -10,8 +10,8 @@ Wishlist of things to implement (unordered)
 - [x] Add FPS input into params
 - [x] Add colour to text in example behaviour videos
 - [ ] GMM plot should modify labels to match behaviours instead of just assignment number (WHEN POSSIBLE)
-- [ ] Aaron: Confusion matrix for diagnostics (Aaron)
-- [ ] Aaron: Add PCA plotting for training data for BasePipeline
+- [ ] Aaron: Confusion matrix for Streamlit diagnostics section (Aaron)
+- [ ] Aaron: Add PCA plotting for training data for BasePipeline to Streamlit diagnostics section
 
 
 
