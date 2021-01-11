@@ -88,6 +88,11 @@ DEFAULT_SAVED_GRAPH_FILE_FORMAT: str = configuration.get('APP', 'DEFAULT_SAVED_G
 PERCENT_FRAMES_TO_LABEL: float = configuration.getfloat('APP', 'PERCENT_FRAMES_TO_LABEL')
 N_JOBS = configuration.getint('APP', 'N_JOBS')
 
+if 'NUMEXPR_MAX_THREADS' not in os.environ and configuration.get('APP', 'NUMEXPR_MAX_THREADS'):
+    NUMEXPR_MAX_THREADS = configuration.getint('APP', 'NUMEXPR_MAX_THREADS')
+    assert NUMEXPR_MAX_THREADS > 0, f'NUMEXPR_MAX_THREADS must be an integer greater than 0'
+    os.environ['NUMEXPR_MAX_THREADS'] = str(NUMEXPR_MAX_THREADS)
+
 IDENTIFICATION_ORDER: int = configuration.getint('APP', 'FILE_IDENTIFICATION_ORDER_LEGACY')  # TODO: low: deprecate
 COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
 
@@ -99,7 +104,7 @@ assert COMPILE_CSVS_FOR_TRAINING in {0, 1}, f'Invalid COMP value detected: {COMP
 assert isinstance(PERCENT_FRAMES_TO_LABEL, float) and 0. < PERCENT_FRAMES_TO_LABEL < 1., \
     f'PERCENT_FRAMES_TO_LABEL is invalid. Value = {PERCENT_FRAMES_TO_LABEL}, type = {type(PERCENT_FRAMES_TO_LABEL)}.'
 assert isinstance(IDENTIFICATION_ORDER, int), f'check IDENTIFICATION_ORDER for type validity'
-
+assert isinstance(N_JOBS, int) and N_JOBS > 0, f''
 
 ### STREAMLIT ############################################################
 default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location')
