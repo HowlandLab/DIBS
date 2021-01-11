@@ -598,24 +598,21 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if file_session[key_button_see_advanced_options]:
             st.markdown('## Advanced model options. ')
             st.markdown('### Do not change things here unless you know what you are doing!')
-            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain adv'
-                        'anced parameters changes, ensure that the menu is open when clicking the "Rebuild" button.*')
+            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is open when clicking the "Rebuild" button.*')
+
             # See advanced options for model
             st.markdown('### Advanced TSNE Parameters')
+            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity, min_value=0.1)
+            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01, max_value=200.)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
             input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', min_value=0., max_value=100., value=p.tsne_early_exaggeration, step=0.1, format='%.2f')
+            input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
             input_tsne_n_components = st.slider(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=1, max_value=10, step=1, format='%i')
-            input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=250, max_value=5_000)
-
-
-            # input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity)
-            # input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate)
-
-
             # TODO: n_jobs: n_jobs=-1: all cores being used, set to -2 for all cores but one.
+
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
             input_gmm_tolerance = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
-            input_gmm_max_iter = st.number_input(f'GMM max iterations', min_value=1, max_value=100_000, value=p.gmm_max_iter, step=1, format='%f')
+            input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
             input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, step=1, format="%i")
             st.markdown('### Advanced SVM Parameters')
             ### SVM ###
@@ -623,6 +620,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, format='%.2f')
         else:
             features = p.all_features
+            input_tsne_learning_rate, input_tsne_perplexity, = p.tsne_learning_rate, p.tsne_perplexity
             input_tsne_early_exaggeration, input_tsne_n_components = p.tsne_early_exaggeration, p.tsne_n_components
             input_tsne_n_iter, input_gmm_reg_covar, input_gmm_tolerance = p.tsne_n_iter, p.gmm_reg_covar, p.gmm_tol
             input_gmm_max_iter, input_gmm_n_init = p.gmm_max_iter, p.gmm_n_init
@@ -636,7 +634,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown(f'*Note: changing the above parameters without rebuilding the model will have no effect.*')
 
         # Save above info & rebuild model
-        st.markdown('## Rebuild model with new parameters above?')
+        st.markdown('## Rebuild model with new parameters above?')# asdfasdfasdfsdf asdfsdfsdfasdfsdfsdf
         button_rebuild_model = st.button('I want to rebuild model with new parameters', key_button_rebuild_model)
         if button_rebuild_model: file_session[key_button_rebuild_model] = not file_session[key_button_rebuild_model]
         if file_session[key_button_rebuild_model]:  # Rebuild model button was clicked
@@ -646,7 +644,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 file_session[key_button_rebuild_model_confirmation] = True
             if file_session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
                 try:
-                    with st.spinner('Rebuilding model...'):
+                    with st.spinner('Rebuilding model...'): # Test
                         model_vars = {
                             # General opts
                             'input_videos_fps': video_fps,
@@ -654,7 +652,10 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
                             'gmm_n_components': slider_gmm_n_components,
                             'cross_validation_k': input_k_fold_cross_val,
+
                             # Advanced opts
+                            'tsne_perplexity': input_tsne_perplexity,
+                            'tsne_learning_rate': input_tsne_learning_rate,
                             'tsne_early_exaggeration': input_tsne_early_exaggeration,
                             'tsne_n_components': input_tsne_n_components,
                             'tsne_n_iter': input_tsne_n_iter,
@@ -674,12 +675,12 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                         if not os.path.isdir(os.path.dirname(pipeline_file_path)):
                             st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
                             st.stop()
-                        p = p.build(True, True).save(os.path.dirname(pipeline_file_path))
+                        p = p.build().save(os.path.dirname(pipeline_file_path))
                         file_session[key_button_rebuild_model_confirmation] = False
                     st.balloons()
                     file_session[key_button_see_rebuild_options] = False
                     n = file_session[default_n_seconds_sleep]
-                    st.success(f'Model was successfully re-built!\n\nThis page will auto-refresh in {n} seconds.')
+                    st.success(f'Model was successfully re-built! This page will auto-refresh in {n} seconds.')
                     time.sleep(n)
                     st.experimental_rerun()
                 except Exception as e:
