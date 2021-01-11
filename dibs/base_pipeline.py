@@ -13,6 +13,7 @@ from typing import Any, Collection, Dict, List, Optional, Tuple  # TODO: med: re
 import inspect
 import joblib
 import numpy as np
+from openTSNE import TSNE as OpenTsneObj
 import os
 import pandas as pd
 import time
@@ -86,6 +87,7 @@ class BasePipeline(object):
     # Other model vars (Rename this)
     input_videos_fps = config.VIDEO_FPS
     cross_validation_k: int = config.CROSSVALIDATION_K
+    cross_validation_n_jobs: int = config.CROSSVALIDATION_N_JOBS
     _random_state: int = None
     average_over_n_frames: int = 3
     test_train_split_pct: float = None
@@ -95,7 +97,7 @@ class BasePipeline(object):
     _clf_gmm: GaussianMixture = None
 
     # TSNE
-    tsne_source: str = 'bhtsne'
+    tsne_source: str = config.TSNE_IMPLEMENTATION
     tsne_n_components: int = 3
     tsne_n_iter: int = config.TSNE_N_ITER
     tsne_early_exaggeration: float = config.TSNE_EARLY_EXAGGERATION
@@ -438,6 +440,7 @@ class BasePipeline(object):
                                            if file_name.split('.')[-1] in config.valid_dlc_output_extensions
                                            and file_name not in set(self.df_features_train_raw['data_source'].values)]
                 for file_path in data_sources:
+                    logger.debug(f'Reading in: {file_path}')
                     df_new_data_i = io.read_csv(file_path)
                     self.df_features_train_raw = self.df_features_train_raw.append(df_new_data_i)
                     self._is_training_data_set_different_from_model_input = True
@@ -486,8 +489,10 @@ class BasePipeline(object):
         return self
 
     def remove_train_data_source(self, data_source: str):
-        """"""
-        # TODO: low: ensure function, add tests
+        """
+        Remove a data source from the training data set.
+        If the data source specified does not exist, then nothing changes.
+        """
         check_arg.ensure_type(data_source, str)
         self.df_features_train_raw = self.df_features_train_raw.loc[
             self.df_features_train_raw['data_source'] != data_source]
@@ -534,8 +539,7 @@ class BasePipeline(object):
         for i, df in enumerate(list_dfs_of_raw_data):
             df = df.copy().astype({'frame': float})
             check_arg.ensure_frame_indices_are_integers(df)
-            logger.debug(
-                f'{get_current_function()}(): Engineering df feature set {i + 1} of {len(list_dfs_of_raw_data)}')
+            logger.debug(f'{get_current_function()}(): Engineering df feature set {i+1} of {len(list_dfs_of_raw_data)}')
             df_engineered_features: pd.DataFrame = self.engineer_features(df)
             list_dfs_engineered_features.append(df_engineered_features)
 
@@ -572,8 +576,7 @@ class BasePipeline(object):
         return self
 
     def engineer_features_predict(self):
-        """ TODO
-        """
+        """ Engineer features for the predicted data"""
         # Queue data
         list_dfs_raw_data = [self.df_features_predict_raw.loc[self.df_features_predict_raw['data_source'] == src]
                                  .sort_values('frame').copy()
@@ -626,8 +629,7 @@ class BasePipeline(object):
         check_arg.ensure_type(features, list, tuple)
         check_arg.ensure_columns_in_DataFrame(df_features_train, features)
         # Get scaled data
-        df_scaled_data = self._create_scaled_data(df_features_train, list(features),
-                                                  create_new_scaler=create_new_scaler)
+        df_scaled_data = self._create_scaled_data(df_features_train, list(features), create_new_scaler=create_new_scaler)
         check_arg.ensure_type(df_scaled_data, pd.DataFrame)  # Debugging effort. Remove later.
         # Save data. Return.
         self.df_features_train_scaled = df_scaled_data
@@ -660,7 +662,8 @@ class BasePipeline(object):
         return self
 
     # TSNE Transformations
-    def train_tsne_get_dimension_reduced_data(self, data: pd.DataFrame, **kwargs) -> np.ndarray:
+    @config.log_function_entry_exit
+    def _train_tsne_get_dimension_reduced_data(self, data: pd.DataFrame, **kwargs) -> np.ndarray:
         """
         TODO: elaborate
         TODO: ensure that TSNE obj can be saved and used later for new data? *** Important ***
@@ -692,6 +695,38 @@ class BasePipeline(object):
                 dimensions=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,  # TODO: implement math somewhere else
                 rand_seed=self.random_state,
+                theta=0.5,
+            )
+        elif self.tsne_source == 'opentsne':
+            arr_result = OpenTsneObj(
+                n_components=self.tsne_n_components,
+                perplexity=self.tsne_perplexity,
+                learning_rate='auto',  # TODO: review
+                early_exaggeration=self.tsne_early_exaggeration,
+                n_iter=self.tsne_n_iter,
+                n_jobs=self.tsne_n_jobs,
+                negative_gradient_method='fft',  # TODO: review
+                random_state=self.random_state,
+                verbose=bool(self.tsne_verbose),
+                metric="euclidean",  # TODO: review
+                # early_exaggeration_iter=250,
+                # n_iter=500,
+                # exaggeration=None,
+                # dof=1,
+                # theta=0.5,
+                # n_interpolation_points=3,
+                # min_num_intervals=50,
+                # ints_in_interval=1,
+                # initialization="pca",
+                # metric_params=None,
+                # initial_momentum=0.5,
+                # final_momentum=0.8,
+                # max_grad_norm=None,
+                # max_step_norm=5,
+                # affinities=None,
+                # neighbors="auto",
+                # callbacks=None,
+                # callbacks_every_iters=50,
             )
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_source}'
@@ -767,7 +802,7 @@ class BasePipeline(object):
 
     # Higher level data processing functions
     def tsne_reduce_df_features_train(self):
-        arr_tsne_result = self.train_tsne_get_dimension_reduced_data(self.df_features_train)
+        arr_tsne_result = self._train_tsne_get_dimension_reduced_data(self.df_features_train)
         self.df_features_train_scaled = pd.concat([
             self.df_features_train_scaled,
             pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
@@ -856,6 +891,11 @@ class BasePipeline(object):
         if reengineer_train_data_features or not self.is_built or self.is_in_inconsistent_state:
             self.build_model()
 
+        # TODO: temp exit early for zero test data found
+        if len(self.df_features_predict_raw) == 0:
+            warn = f'Zero test data poiknts found. exiting early. predict features not built.'
+            logger.warning(warn)
+            return self
         # Check if predict features have been engineered
         if reengineer_predict_features or self._has_unengineered_predict_data:
             self.engineer_features_predict()
