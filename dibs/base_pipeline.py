@@ -662,7 +662,6 @@ class BasePipeline(object):
         return self
 
     # TSNE Transformations
-    @config.log_function_entry_exit
     def _train_tsne_get_dimension_reduced_data(self, data: pd.DataFrame, **kwargs) -> np.ndarray:
         """
         TODO: elaborate
