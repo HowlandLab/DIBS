@@ -266,7 +266,12 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
 
 
 def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
-
+    """
+    TODO: explain the math
+    :param body_part_arr_1: (array) Expected dimensions of (n_rows, 2 columns)
+    :param body_part_arr_2: (array) Expected dimensions of (n_rows, 2 columns)
+    :return:
+    """
     # TODO: Aaron this is the function stub
     x = np.array([])
     return x
