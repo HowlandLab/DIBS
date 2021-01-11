@@ -69,11 +69,12 @@ def attach_average_bodypart_xy(df: pd.DataFrame, bodypart_1: str, bodypart_2: st
     feature_1_xy: np.ndarray = df[[f'{bodypart_1}_x', f'{bodypart_1}_y']].values
     feature_2_xy: np.ndarray = df[[f'{bodypart_2}_x', f'{bodypart_2}_y']].values
 
-    output_feature_xy: np.ndarray = np.array(list(map(average_vector_between_n_vectors, feature_1_xy, feature_2_xy)))
+    output_new_bodypart_xy: np.ndarray = np.array(list(map(average_vector_between_n_vectors, feature_1_xy, feature_2_xy)))
 
     # Create DataFrame from result; attach to existing data
-    df_avg = pd.DataFrame(output_feature_xy, columns=[f'{output_bodypart}_x', f'{output_bodypart}_y'])
-    df = pd.concat([df, df_avg], axis=1)
+    # df_avg = pd.DataFrame(output_feature_xy, columns=[f'{output_bodypart}_x', f'{output_bodypart}_y'])
+    # df = pd.concat([df, df_avg], axis=1)
+    df[[f'{output_bodypart}_x', f'{output_bodypart}_y']] = output_new_bodypart_xy
 
     return df
 
@@ -106,8 +107,9 @@ def attach_feature_distance_between_2_bodyparts(df: pd.DataFrame, bodypart_1, bo
 
     distance_between_features_array: np.ndarray = np.array(list(map(distance_between_two_arrays, feature_1_xy_arr, feature_2_xy_arr)))
     # Create DataFrame from result, attach to existing data
-    df_avg = pd.DataFrame(distance_between_features_array, columns=[output_feature_name, ])
-    df = pd.concat([df, df_avg], axis=1)
+    df[output_feature_name] = distance_between_features_array
+    # df_avg = pd.DataFrame(distance_between_features_array, columns=[output_feature_name, ])
+    # df = pd.concat([df, df_avg], axis=1)
 
     return df
 
@@ -167,11 +169,11 @@ def attach_feature_velocity_of_bodypart(df: pd.DataFrame, bodypart: str, action_
     return df
 
 
-def attach_snout_tail_angle(df, output_feature_name, copy=False) -> pd.DataFrame:
-    df = df.copy() if copy else df
-    # TODO: HIGH: implement
-    df[output_feature_name] = 1  # <- this is a stand-in
-    return df
+# def attach_snout_tail_angle(df, output_feature_name, copy=False) -> pd.DataFrame:
+#     df = df.copy() if copy else df
+#     # TODO: HIGH: implement
+#     df[output_feature_name] = 1  # <- this is a stand-in
+#     return df
 
 
 def attach_angle_between_bodyparts(df, bodypart_1, bodypart_2, output_feature_name, copy=False) -> pd.DataFrame:
@@ -186,7 +188,8 @@ def attach_angle_between_bodyparts(df, bodypart_1, bodypart_2, output_feature_na
     """
     df = df.copy() if copy else df
     # TODO: HIGH: implement
-    df[output_feature_name] = 1  # <- this is a stand-in
+
+    df[output_feature_name] = 1.  # <- this is a stand-in
 
     return df
 
@@ -261,6 +264,11 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
 
     return veloc_array
 
+def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2, secs_between_rows: float) -> np.ndarray:
+
+    # TODO: Aaron this is the function stub
+    x = np.array([])
+    return x
 
 ### Binning
 def average_values_over_moving_window(data, method, n_frames: int) -> np.ndarray:
@@ -848,3 +856,20 @@ def win_len_formula(fps: int) -> int:
     """
     win_len = int(round(0.05 / (1 / fps)) * 2 - 1)
     return win_len
+
+
+def run_openTSNE(train_features):
+  x_train = np.array(train_features)
+  n_components = 3
+  tsne = TSNE(
+	n_components=n_components, # https://github.com/pavlin-policar/openTSNE/issues/121
+	negative_gradient_method='bh',
+	perplexity=30,
+	metric='euclidean',
+	verbose=True,
+	n_jobs=10,
+	random_state=42
+      )
+  embedding = tsne.fit(x_train)
+  # np.savetxt(f"tsne{n_components}dims.csv", embedding, delimiter=',', header=",".join([f'X{i}' for i in range(embedding.shape[1])]))
+  return embedding
