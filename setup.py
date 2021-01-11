@@ -8,7 +8,7 @@ with open('README.md', 'r') as readme_file:
     long_description = readme_file.read()
 
 setuptools.setup(
-    name='dibs', # This is likely the name that will be called on `pip install _`, so make it count # TODO: HIGH: change module name
+    name='EXAMPLE-PACKAGE-_yourusernamehere_', # This is likely the name that will be called on `pip install _`, so make it count # TODO: HIGH: change module name
     version='0.0.1',  # TODO: HIGH: change initial version as necessary
     url='https://github.com/HowlandLab/DIBS',
     author='Example Author',  # TODO: HIGH: add author
