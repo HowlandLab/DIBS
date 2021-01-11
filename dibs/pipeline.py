@@ -1684,55 +1684,35 @@ class PipelineMimic(BasePipeline):
         df = df.sort_values('frame').copy()
 
         # 1 dist snout to tail
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('TAILBASE'),
-                                                                             config.get_part('NOSETIP'),
-                                                                             self.feat_body_length)
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('TAILBASE'), config.get_part('NOSETIP'), self.feat_body_length)
 
         # 2: Dist FrontPaws to tail relative to body length
         ## 1/3: Get AvgForepaw location
-        df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('FOREPAW_LEFT'),
-                                                            config.get_part('FOREPAW_RIGHT'),
-                                                            output_bodypart=self.intermediate_bodypart_avgForepaw)
+        df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgForepaw)
         ## 2/3: Get dist from forepaw to tailbase
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgForepaw,
-                                                                             config.get_part('TAILBASE'),
-                                                                             self.intermediate_dist_avgForepaw_to_tailbase)
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgForepaw, config.get_part('TAILBASE'), self.intermediate_dist_avgForepaw_to_tailbase)
         ## 3/3: Get body-length relative distance
-        df[self.feat_dist_front_paws_to_tailbase_relative_to_body_length] = df[self.feat_body_length] - df[
-            self.intermediate_dist_avgForepaw_to_tailbase]
+        df[self.feat_dist_front_paws_to_tailbase_relative_to_body_length] = df[self.feat_body_length] - df[self.intermediate_dist_avgForepaw_to_tailbase]
 
         # 3 Dist back paws to base of tail relative to body length
         ## 1/3: Get AvgHindpaw location
-        df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('HINDPAW_LEFT'),
-                                                            config.get_part('HINDPAW_RIGHT'),
-                                                            output_bodypart=self.intermediate_bodypart_avgHindpaw)
+        df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('HINDPAW_LEFT'), config.get_part('HINDPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgHindpaw)
         ## 2/3: Get dist from hindpaw to tailbase
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgHindpaw,
-                                                                             config.get_part('TAILBASE'),
-                                                                             output_feature_name=self.intermediate_dist_avgHindpaw_to_tailbase)
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgHindpaw, config.get_part('TAILBASE'), output_feature_name=self.intermediate_dist_avgHindpaw_to_tailbase)
         ## 3/3: Get body-length relative distance
-        df[self.feat_dist_hind_paws_to_tailbase_relative_to_body_length] = df[self.feat_body_length] - df[
-            self.intermediate_dist_avgHindpaw_to_tailbase]
+        df[self.feat_dist_hind_paws_to_tailbase_relative_to_body_length] = df[self.feat_body_length] - df[self.intermediate_dist_avgHindpaw_to_tailbase]
 
         # 4: distance between 2 front paws
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'),
-                                                                             config.get_part('FOREPAW_RIGHT'),
-                                                                             self.feat_dist_bw_front_paws)
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT'), self.feat_dist_bw_front_paws)
 
         # 5: snout speed
-        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('NOSETIP'),
-                                                                     action_duration=1 / self.input_videos_fps,
-                                                                     output_feature_name=self.feat_snout_speed)
+        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('NOSETIP'), action_duration=1 / self.input_videos_fps, output_feature_name=self.feat_snout_speed)
 
         # 6 tail speed
-        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('TAILBASE'),
-                                                                     action_duration=1 / self.input_videos_fps,
-                                                                     output_feature_name=self.feat_tail_base_speed)
+        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('TAILBASE'), action_duration=1 / self.input_videos_fps, output_feature_name=self.feat_tail_base_speed)
 
         # 7: snout to base of tail change in angle
-        df = feature_engineering.attach_angle_between_bodyparts(df, config.get_part('NOSETIP'),
-                                                                config.get_part('TAILBASE'),
-                                                                self.feat_snout_tail_delta_angle)
+        df = feature_engineering.attach_angle_between_bodyparts(df, config.get_part('NOSETIP'), config.get_part('TAILBASE'), self.feat_snout_tail_delta_angle)
 
         # BINNING #
         map_feature_to_integrate_method = {
@@ -1746,8 +1726,7 @@ class PipelineMimic(BasePipeline):
         }
 
         logger.debug(f'{get_current_function()}(): # of rows in DataFrame before binning = {len(df)}')
-        df = feature_engineering.integrate_df_feature_into_bins(df, map_feature_to_integrate_method,
-                                                                self.average_over_n_frames)
+        df = feature_engineering.integrate_df_feature_into_bins(df, map_feature_to_integrate_method, self.average_over_n_frames)
         logger.debug(f'{get_current_function()}(): # of rows in DataFrame after binning = {len(df)}')
 
         return df
