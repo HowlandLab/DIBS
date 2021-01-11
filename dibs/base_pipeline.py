@@ -97,8 +97,8 @@ class BasePipeline(object):
     _clf_gmm: GaussianMixture = None
 
     # TSNE
-    tsne_source: str = config.TSNE_IMPLEMENTATION
-    tsne_n_components: int = 3
+    tsne_implementation: str = config.TSNE_IMPLEMENTATION
+    tsne_n_components: int = config.TSNE_N_COMPONENTS
     tsne_n_iter: int = config.TSNE_N_ITER
     tsne_early_exaggeration: float = config.TSNE_EARLY_EXAGGERATION
     tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
@@ -184,7 +184,7 @@ class BasePipeline(object):
         return self._description
 
     @property
-    def tsne_perplexity(self):
+    def tsne_perplexity(self):  # TODO: <---- REVIEW !!!! It's implciit math!
         return self._tsne_perplexity if self._tsne_perplexity else np.sqrt(len(self.all_features))
 
     @property
@@ -282,7 +282,7 @@ class BasePipeline(object):
         tsne_source = kwargs.get('tsne_source', '')
         check_arg.ensure_type(tsne_source, str)
         if tsne_source in self.valid_tsne_sources:
-            self.tsne_source = tsne_source
+            self.tsne_implementation = tsne_source
         #
         self.kwargs = kwargs
         # Final setup
@@ -316,37 +316,37 @@ class BasePipeline(object):
         average_over_n_frames = kwargs.get('average_over_n_frames', self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
         check_arg.ensure_type(average_over_n_frames, int)
         self.average_over_n_frames = average_over_n_frames
-        # TODO: low ensure random state correct
-        random_state = kwargs.get('random_state', config.RANDOM_STATE if read_config_on_missing_param else self.random_state)
+        random_state = kwargs.get('random_state', config.RANDOM_STATE if read_config_on_missing_param else self.random_state)  # TODO: low: ensure random state correct
         check_arg.ensure_type(random_state, int)
         self._random_state = random_state
         ### TSNE ###
-        # TODO: add `tsne_source`?
+        tsne_implementation = kwargs.get('tsne_implementation', config.TSNE_IMPLEMENTATION if read_config_on_missing_param else self.tsne_implementation)
+        check_arg.ensure_type(tsne_implementation, str)
+        self.tsne_implementation = tsne_implementation
+        tsne_init = kwargs.get('tsne_init', config.TSNE_INIT if read_config_on_missing_param else self.tsne_init)
+        check_arg.ensure_type(tsne_init, str)
+        self.tsne_init = tsne_init
+        tsne_early_exaggeration = kwargs.get('tsne_early_exaggeration', config.TSNE_EARLY_EXAGGERATION if read_config_on_missing_param else self.tsne_early_exaggeration)
+        check_arg.ensure_type(tsne_early_exaggeration, float)
+        self.tsne_early_exaggeration = tsne_early_exaggeration
+        tsne_learning_rate = kwargs.get('tsne_learning_rate', config.TSNE_LEARNING_RATE if read_config_on_missing_param else self.tsne_learning_rate)
+        check_arg.ensure_type(tsne_learning_rate, float)
+        self.tsne_learning_rate = tsne_learning_rate
         tsne_n_components = kwargs.get('tsne_n_components', config.TSNE_N_COMPONENTS if read_config_on_missing_param else self.tsne_n_components)  # TODO: low: shape up kwarg name for n components? See string name
         check_arg.ensure_type(tsne_n_components, int)
         self.tsne_n_components = tsne_n_components
         tsne_n_iter = kwargs.get('tsne_n_iter', config.TSNE_N_ITER if read_config_on_missing_param else self.tsne_n_iter)
         check_arg.ensure_type(tsne_n_iter, int)
         self.tsne_n_iter = tsne_n_iter
-        tsne_early_exaggeration = kwargs.get('tsne_early_exaggeration', config.TSNE_EARLY_EXAGGERATION if read_config_on_missing_param else self.tsne_early_exaggeration)
-        check_arg.ensure_type(tsne_early_exaggeration, float)
-        self.tsne_early_exaggeration = tsne_early_exaggeration
-        n_jobs = kwargs.get('tsne_n_jobs', config.TSNE_N_JOBS if read_config_on_missing_param else self.tsne_n_jobs)
-        check_arg.ensure_type(n_jobs, int)
-        self.tsne_n_jobs = n_jobs
-        tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
-        check_arg.ensure_type(tsne_verbose, int)
-        self.tsne_verbose = tsne_verbose
-
-        # TODO: set param for `tsne_init`
-
+        tsne_n_jobs = kwargs.get('tsne_n_jobs', config.TSNE_N_JOBS if read_config_on_missing_param else self.tsne_n_jobs)
+        check_arg.ensure_type(tsne_n_jobs, int)
+        self.tsne_n_jobs = tsne_n_jobs
         tsne_perplexity = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
         check_arg.ensure_type(tsne_perplexity, float)
         self._tsne_perplexity = tsne_perplexity
-
-        tsne_learning_rate = kwargs.get('tsne_learning_rate', config.TSNE_LEARNING_RATE if read_config_on_missing_param else self.tsne_learning_rate)
-        check_arg.ensure_type(tsne_learning_rate, float)
-        self.tsne_learning_rate = tsne_learning_rate
+        tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
+        check_arg.ensure_type(tsne_verbose, int)
+        self.tsne_verbose = tsne_verbose
 
         # GMM vars
         gmm_n_components = kwargs.get('gmm_n_components', config.gmm_n_components if read_config_on_missing_param else self.gmm_n_components)
@@ -674,7 +674,7 @@ class BasePipeline(object):
         check_arg.ensure_type(data, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
         # Execute
-        if self.tsne_source == 'sklearn':
+        if self.tsne_implementation == 'sklearn':
             arr_result = TSNE_sklearn(
                 perplexity=self.tsne_perplexity,
                 learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: encapsulate this later                     !!!
@@ -687,7 +687,7 @@ class BasePipeline(object):
                 init=self.tsne_init,
             ).fit_transform(data[list(self.all_features_list)])
         # # TODO: uncommment this bhtsne later since it was originally commented-out because VCC distrib. problems
-        elif self.tsne_source == 'bhtsne':
+        elif self.tsne_implementation == 'bhtsne':
             arr_result = TSNE_bhtsne(
                 # ValueError: Expected n_neighbors > 0. Got -2
                 data[list(self.all_features)],
@@ -696,7 +696,7 @@ class BasePipeline(object):
                 rand_seed=self.random_state,
                 theta=0.5,
             )
-        elif self.tsne_source == 'opentsne':
+        elif self.tsne_implementation == 'opentsne':
             arr_result = OpenTsneObj(
                 n_components=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,
@@ -728,7 +728,7 @@ class BasePipeline(object):
                 # callbacks_every_iters=50,
             )
         else:
-            err = f'Invalid TSNE source type fell through the cracks: {self.tsne_source}'
+            err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logger.error(err)
             raise RuntimeError(err)
         return arr_result
