@@ -264,11 +264,13 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
 
     return veloc_array
 
-def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2, secs_between_rows: float) -> np.ndarray:
+
+def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
 
     # TODO: Aaron this is the function stub
     x = np.array([])
     return x
+
 
 ### Binning
 def average_values_over_moving_window(data, method, n_frames: int) -> np.ndarray:
