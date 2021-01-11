@@ -11,7 +11,7 @@ test_file_name = dibs.config.DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH
 
 class TestConfig(TestCase):
 
-    def test__get_data_source_from_file_path(self):
+    def test__get_data_source_from_file_path__shouldWorkAsExpected__whenGivenALinuxPath(self):
         # Arrange
         name = expected_output = 'MyPipeline'
         input_path = f'/usr/home/pipelines/{name}.pipeline'
@@ -22,7 +22,7 @@ class TestConfig(TestCase):
         # Assert
         self.assertEqual(expected_output, actual_output)
 
-    def test__get_data_source_from_file_path__2(self):
+    def test__get_data_source_from_file_path__shouldWorkAsExpected__whenGivenAWindowsPath(self):
         # Arrange
         name = expected_output = 'MyPipeline'
         input_path = f'C:\\Users\\MyUser\\DIBS\\{name}.pipeline'
