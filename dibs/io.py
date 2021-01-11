@@ -58,9 +58,11 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
         raise ValueError(err)
     # Read in kwargs
     nrows = kwargs.get('nrows', sys.maxsize)  # TODO: address case where nrows is <= 3 (no data parsed then)
-    file_path = csv_file_path  # os.path.split(csv_file_path)[-1]
-    file_folder, file_name = os.path.split(file_path)
+    # file_path = csv_file_path  # os.path.split(csv_file_path)[-1]
+    file_folder, file_name = os.path.split(csv_file_path)
     file_name_without_extension, extension = file_name.split('.')
+    assert file_name_without_extension == config.get_data_source_from_file_path(csv_file_path)  # TODO: low: delete this line only after a test has been implemented
+
     # # # # # # #
     # Read in CSV
     df = pd.read_csv(csv_file_path, header=None, nrows=nrows)
@@ -102,7 +104,7 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     # Instantiate 'scorer' column so we can track the model if needed later
     df['scorer'] = dlc_scorer
     # File source __________
-    df['file_source'] = file_path
+    df['file_source'] = csv_file_path
     # Save data file name (different from pathing source)
     df['data_source'] = file_name_without_extension
     # Number the frames
