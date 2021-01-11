@@ -84,7 +84,6 @@ VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
 COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
 PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
 SAVE_GRAPHS_TO_FILE: bool = configuration.getboolean('APP', 'SAVE_GRAPHS_TO_FILE')
-GENERATE_VIDEOS: bool = configuration.getboolean('APP', 'GENERATE_VIDEOS')
 FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')
 DEFAULT_SAVED_GRAPH_FILE_FORMAT: str = configuration.get('APP', 'DEFAULT_SAVED_GRAPH_FILE_FORMAT')
 PERCENT_FRAMES_TO_LABEL: float = configuration.getfloat('APP', 'PERCENT_FRAMES_TO_LABEL')
@@ -267,10 +266,12 @@ TSNE_LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
 
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}
+minimum_tsne_n_iter = 250
 assert TSNE_INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
                                                 f'Parameter is currently: {TSNE_INIT}.'
-assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= 250, \
-    f'TSNE_N_ITER should be an integer above 250 but was found to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
+assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= minimum_tsne_n_iter, \
+    f'TSNE_N_ITER should be an integer above {minimum_tsne_n_iter} but was found ' \
+    f'to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
 
 
 ###### VIDEO PARAMETERS #####
@@ -337,8 +338,6 @@ bodyparts = {key: configuration['DLC_FEATURES'][key]
 ### LEGACY ###
 
 # App meta-variables which help standardize things
-PIPELINE_FILENAME = f'bs_pipeline__{PIPELINE_NAME}.sav'
-MODEL_FILENAME = f'bs_model__{MODEL_NAME}.sav'
 map_group_to_behaviour = {
     0: 'UNKNOWN',
     1: 'orient right',
@@ -368,6 +367,12 @@ def get_config_str() -> str:
     for section in configuration.sections():
         config_string += f'SECTION: {section} // OPTIONS: {configuration.options(section)}\n'
     return config_string.strip()
+
+
+def get_data_source_from_file_path(file_path: str):
+    file_folder, file_name = os.path.split(file_path)
+    file_name_without_extension, extension = file_name.split('.')
+    return file_name_without_extension
 
 
 ### Debugging efforts below. __main__ not integral to file. Use __main__ to check in on config vars.
