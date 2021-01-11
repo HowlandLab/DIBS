@@ -2,3 +2,6 @@ conda install -y six setuptools wheel pip
 conda install -y pandas scikit-learn numpy Cython
 pip install future seaborn streamlit tqdm watchdog
 pip install networkx joblib protobuf psutil openTSNE scipy opencv-python bhtsne
+
+# For windows users, also use the below command:
+conda install -y pywin32
