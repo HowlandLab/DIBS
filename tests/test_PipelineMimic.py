@@ -1,7 +1,6 @@
 """
 Create tests specifically for the PipelineMimic object
 """
-from typing import Set
 from unittest import TestCase, skip
 import os
 import random
@@ -24,8 +23,8 @@ class TestPipelineMimic(TestCase):
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path)
+        p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         # Act
-
         p = p.build()
 
         # Assert
@@ -47,6 +46,7 @@ class TestPipelineMimic(TestCase):
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path)
+        p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         p.tsne_implementation = 'bhtsne'
         # Act
 
@@ -67,17 +67,17 @@ class TestPipelineMimic(TestCase):
                                         cross_validation_k=cv,
                                         gmm_n_components=gmm_n_components,
                                         )
+        p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path)
-        p.tsne_implementation = 'opentsne'
         # Act
-
         p = p.build()
 
         # Assert
         self.assertTrue(True)
 
+    @skip
     def test__stub(self):
 
         pass
