@@ -254,21 +254,24 @@ UMAP_PARAMS = {
 # the missing perplexity is scaled with data size (1% of data for nearest neighbors)
 
 TSNE_EARLY_EXAGGERATION: float = configuration.getfloat('TSNE', 'early_exaggeration')
+TSNE_IMPLEMENTATION: str = configuration.get('TSNE', 'implementation')
+TSNE_INIT: str = configuration.get('TSNE', 'init')
+TSNE_LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
 TSNE_N_COMPONENTS: int = configuration.getint('TSNE', 'n_components')
 TSNE_N_ITER: int = configuration.getint('TSNE', 'n_iter')
 TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
-TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
-TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
-TSNE_INIT: str = configuration.get('TSNE', 'init')
 TSNE_PERPLEXITY: Optional[str] = configuration.getfloat('TSNE', 'perplexity')
 # TSNE_PERPLEXITY: Optional[float] = float(TSNE_PERPLEXITY) if TSNE_PERPLEXITY else -1.0
-TSNE_LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
+TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
+TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}
+valid_tsne_implementations = {'sklearn', 'bhtsne', 'opentsne'}
 minimum_tsne_n_iter = 250
 assert TSNE_INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
                                                 f'Parameter is currently: {TSNE_INIT}.'
+assert TSNE_IMPLEMENTATION in valid_tsne_implementations, f''
 assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= minimum_tsne_n_iter, \
     f'TSNE_N_ITER should be an integer above {minimum_tsne_n_iter} but was found ' \
     f'to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
