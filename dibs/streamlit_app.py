@@ -40,6 +40,7 @@ logger = config.initialize_logger(__file__)
 valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
+text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
 pipeline_options = {
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
@@ -179,6 +180,7 @@ def home(**kwargs):
 
     ### MAIN ###
     st.markdown(f'# B-SOiD Streamlit app')
+
     st.markdown('------------------------------------------------------------------------------------------')
     is_pipeline_loaded = False
 
@@ -194,8 +196,19 @@ def home(**kwargs):
         # Option 1/2: Start new project
         if start_select_option == start_new_project_option_text:
             st.markdown(f'## Create new project pipeline')
-            select_pipe_type = st.selectbox('Select a pipeline implementation', options=['']+list(pipeline_options.keys()))  # ('', pipeline_prime_name, pipeline_epm_name, pipelineTimName, pipelineCHBO))
+            st.markdown('')
+
+            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.', [text_bare_pipeline, text_dibs_data_pipeline])  #     def radio(self, label, options, index=0, format_func=str, key=None):
+            st.markdown('*Note: data can be added and removed at any time in the project, so this decision is not final*')
+            st.markdown('')
+            # st.markdown(f'DEBUG: radio selected = {radio_select_create_method}')
+            select_pipe_type = st.selectbox('Select a pipeline implementation', options=['']+list(pipeline_options.keys()))
+            st.markdown('')
             if select_pipe_type:
+                pipeline_class = pipeline_options[select_pipe_type]
+                if str(pipeline_class.__doc__).strip():
+                    st.info(pipeline_class.__doc__)
+                # st.help()
                 text_input_new_project_name = st.text_input(
                     'Enter a name for your project pipeline. Please only use letters, numbers, and underscores.')
                 input_path_to_pipeline_dir = st.text_input(
@@ -219,7 +232,12 @@ def home(**kwargs):
 
                     # If OK: create default pipeline, save, continue
                     if select_pipe_type in pipeline_options:
-                        p = pipeline_options[select_pipe_type](text_input_new_project_name).save(input_path_to_pipeline_dir)
+                        p = pipeline_class(text_input_new_project_name).save(input_path_to_pipeline_dir)
+                        if radio_select_create_method == text_dibs_data_pipeline:
+                            with st.spinner('Instantiating pipeline with data now...'):
+                                p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
+                                p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
+                        p = p.save_to_folder(input_path_to_pipeline_dir)
                         pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename(text_input_new_project_name))
                         file_session[key_pipeline_path] = pipeline_file_path
                         st.balloons()
@@ -231,6 +249,9 @@ Success! Your new project pipeline has been saved to disk to the following path:
 """.strip())
                         n_secs_til_refresh = file_session[default_n_seconds_sleep]
                         st.info(f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
+                        st.markdown('')
+                        st.markdown('')
+                        st.markdown('')
                         time.sleep(n_secs_til_refresh)
                         st.experimental_rerun()
                     else:
@@ -320,7 +341,9 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
     st.markdown(f'## Pipeline basic information')
     st.markdown(f'- Name: **{p.name}**')
     st.markdown(f'- Description: **{p.description}**')
-    st.markdown(f'- Local file location: **{pipeline_path}**')
+    st.markdown(f'- File location: **{pipeline_path}**')
+    st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
+    st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
     st.markdown(f'- Is the model built: **{p.is_built}**')
 
     ### Menu button: show more info
@@ -342,21 +365,21 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
             st.markdown(f'- - **None**')
 
         st.markdown(f'- Number of data points in training data set: '
-                    f'**{len(p.df_features_train_scaled) if p.df_features_train_scaled is not None else None}**')
+                    f'**{len(p.df_features_train_raw)//p.average_over_n_frames if not p.is_built else len(p.df_features_train_scaled)}**')
         st.markdown(f' - Total unique behaviours clusters: **{len(p.unique_assignments)}**')
         if len(p.cross_val_scores) > 0:
             cross_val_decimals_round = 3
             cross_val_score_text = f'- - Median cross validation score: **{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round)}** (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})'
         else:
-            cross_val_score_text = f'- Cross validation score not available'
+            cross_val_score_text = f'- [Cross validation score not available]'
         st.markdown(f'{cross_val_score_text}')
-        st.markdown(f'Model Features:')
+        st.markdown(f'Model Feature Names:')
         for feat in p.all_features:
             st.markdown(f'- {feat}')
 
         if p.is_built:
             st.markdown(f'- Seconds to build model: {p.seconds_to_engineer_train_features}')
-            st.markdown(f'- Raw assignment values: **{p.unique_assignments}**')
+            st.markdown(f'- Raw assignment values: **{p.unique_assignments}**')  # TODO: low: remove this?
 
     ###
 
@@ -472,7 +495,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     time.sleep(n)
                     st.experimental_rerun()
             st.markdown('')
-        # C:\Users\killian\projects\DIBS\epm_data_test
+        # C:\Users\killian\projects\DIBS\epm_data_csv_test
 
         # 2/2: Button for adding data to prediction set
         button_add_predict_data_source = st.button('-> Add data to be evaluated by the model', key=key_button_add_predict_data_source)
@@ -740,6 +763,9 @@ def see_model_diagnostics(p, pipeline_file_path):
 
 
             df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts()
+            st.bar_chart(df_assignment_histogram)
+            st.markdown('')
+            df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts(normalize=True)
             st.bar_chart(df_assignment_histogram)
         else:
             st.info('There are no assignment distributions available for display because '
