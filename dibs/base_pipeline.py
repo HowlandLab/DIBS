@@ -703,7 +703,7 @@ class BasePipeline(object):
         check_arg.ensure_type(data, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
         # Execute
-        if self.tsne_implementation == 'sklearn':
+        if self.tsne_implementation == 'SKLEARN':
             logger.debug(f'Now reducing data with SKLEARN implementation...')
             arr_result = TSNE_sklearn(
                 perplexity=self.tsne_perplexity,
@@ -716,7 +716,7 @@ class BasePipeline(object):
                 verbose=self.tsne_verbose,
                 init=self.tsne_init,
             ).fit_transform(data[list(self.all_features_list)])
-        elif self.tsne_implementation == 'bhtsne':
+        elif self.tsne_implementation == 'BHTSNE':
             logger.debug(f'Now reducing data with bhtsne implementation...')
             arr_result = TSNE_bhtsne(
                 data[list(self.all_features)],
@@ -725,7 +725,7 @@ class BasePipeline(object):
                 rand_seed=self.random_state,
                 theta=0.5,
             )
-        elif self.tsne_implementation == 'opentsne':
+        elif self.tsne_implementation == 'OPENTSNE':
             logger.debug(f'Now reducing data with OpenTSNE implementation...')
             tsne = OpenTsneObj(
                 n_components=self.tsne_n_components,

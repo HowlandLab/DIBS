@@ -252,13 +252,6 @@ SVM_PARAMS = {
     'random_state': RANDOM_STATE,
 }
 
-### UMAP ################################################################################
-UMAP_PARAMS = {
-    'n_neighbors': configuration.getint('UMAP', 'n_neighbors'),
-    'n_components': configuration.getint('UMAP', 'n_components'),
-    'min_dist': configuration.getfloat('UMAP', 'min_dist'),
-    'random_state': RANDOM_STATE,
-}
 
 ### TSNE ################################################################################
 # TSNE parameters, can tweak if you are getting undersplit/oversplit behaviors
@@ -278,7 +271,7 @@ TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}
-valid_tsne_implementations = {'sklearn', 'bhtsne', 'opentsne'}
+valid_tsne_implementations = {'SKLEARN', 'BHTSNE', 'OPENTSNE'}
 minimum_tsne_n_iter = 250
 assert TSNE_INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
                                                 f'Parameter is currently: {TSNE_INIT}.'
@@ -286,6 +279,14 @@ assert TSNE_IMPLEMENTATION in valid_tsne_implementations, f''
 assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= minimum_tsne_n_iter, \
     f'TSNE_N_ITER should be an integer above {minimum_tsne_n_iter} but was found ' \
     f'to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
+
+### UMAP ################################################################################
+UMAP_PARAMS = {
+    'n_neighbors': configuration.getint('UMAP', 'n_neighbors'),
+    'n_components': configuration.getint('UMAP', 'n_components'),
+    'min_dist': configuration.getfloat('UMAP', 'min_dist'),
+    'random_state': RANDOM_STATE,
+}
 
 
 ###### VIDEO PARAMETERS #####
