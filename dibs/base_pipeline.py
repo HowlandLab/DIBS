@@ -332,7 +332,7 @@ class BasePipeline(object):
             raise ValueError(err)
         self.classifier_type = classifier_type
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
-        video_fps = kwargs.get('videos_fps', config.VIDEO_FPS if read_config_on_missing_param else self.video_fps)
+        video_fps = kwargs.get('video_fps', config.VIDEO_FPS if read_config_on_missing_param else self.video_fps)
         check_arg.ensure_type(video_fps, int, float)
         self.video_fps = float(video_fps)
         average_over_n_frames = kwargs.get('average_over_n_frames', self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
@@ -349,11 +349,11 @@ class BasePipeline(object):
         check_arg.ensure_type(tsne_init, str)
         self.tsne_init = tsne_init
         tsne_early_exaggeration = kwargs.get('tsne_early_exaggeration', config.TSNE_EARLY_EXAGGERATION if read_config_on_missing_param else self.tsne_early_exaggeration)
-        check_arg.ensure_type(tsne_early_exaggeration, float)
-        self.tsne_early_exaggeration = tsne_early_exaggeration
+        check_arg.ensure_type(tsne_early_exaggeration, float, int)
+        self.tsne_early_exaggeration = float(tsne_early_exaggeration)
         tsne_learning_rate = kwargs.get('tsne_learning_rate', config.TSNE_LEARNING_RATE if read_config_on_missing_param else self.tsne_learning_rate)
-        check_arg.ensure_type(tsne_learning_rate, float)
-        self.tsne_learning_rate = tsne_learning_rate
+        check_arg.ensure_type(tsne_learning_rate, float, int)
+        self.tsne_learning_rate = float(tsne_learning_rate)
         tsne_n_components = kwargs.get('tsne_n_components', config.TSNE_N_COMPONENTS if read_config_on_missing_param else self.tsne_n_components)  # TODO: low: shape up kwarg name for n components? See string name
         check_arg.ensure_type(tsne_n_components, int)
         self.tsne_n_components = tsne_n_components
@@ -380,8 +380,8 @@ class BasePipeline(object):
         check_arg.ensure_type(gmm_tol, float)
         self.gmm_tol = gmm_tol
         gmm_reg_covar = kwargs.get('gmm_reg_covar', config.gmm_reg_covar if read_config_on_missing_param else self.gmm_reg_covar)
-        check_arg.ensure_type(gmm_reg_covar, float)
-        self.gmm_reg_covar = gmm_reg_covar
+        check_arg.ensure_type(gmm_reg_covar, float, int)
+        self.gmm_reg_covar = float(gmm_reg_covar)
         gmm_max_iter = kwargs.get('gmm_max_iter',config.gmm_max_iter if read_config_on_missing_param else self.gmm_max_iter)
         check_arg.ensure_type(gmm_max_iter, int)
         self.gmm_max_iter = gmm_max_iter
@@ -397,9 +397,6 @@ class BasePipeline(object):
         gmm_verbose_interval = kwargs.get('gmm_verbose_interval', config.gmm_verbose_interval if read_config_on_missing_param else self.gmm_verbose_interval)
         check_arg.ensure_type(gmm_verbose_interval, int)
         self.gmm_verbose_interval = gmm_verbose_interval
-        # # General classifier vars
-        # classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
-        # self.classifier_type = classifier_type
         # Random Forest vars
         rf_n_estimators = kwargs.get('rf_n_estimators', config.rf_n_estimators if read_config_on_missing_param else self.rf_n_estimators)
         check_arg.ensure_type(rf_n_estimators, int)
