@@ -1628,15 +1628,15 @@ class PipelineCHBO(BasePipeline):
 class PipelineMimic(BasePipeline):
     """
     A pipeline implementation for mimicking the B-SOID implementation.
-    This is sa revised version of PipelinePrime that uses a better feature engineering pathway.
+    This is a revised version of PipelinePrime that uses a more efficient feature engineering pathway.
 
     7 Features listed in paper (terms in brackets are cursive and were written in math format. See paper page 12/13):
+
     1. body length (or "[d_ST]"): distance from snout to base of tail
     2. [d_SF]: distance of front paws to base of tail relative to body length (formally: [d_SF] = [d_ST] - [d_FT],
         where [d_FT] is the distance between front paws and base of tail
     3. [d_SB]: distance of back paws to base of tail relative to body length (formally: [d_SB] = [d_ST] - [d_BT]
     4. Inter-forepaw distance (or "[d_FP]"): the distance between the two front paws
-
     5. snout speed (or "[v_s]"): the displacement of the snout location over a period of 16ms
     6. base-of-tail speed (or ["v_T"]): the displacement of the base of the tail over a period of 16ms
     7. snout to base-of-tail change in angle:
