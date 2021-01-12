@@ -199,12 +199,17 @@ class BasePipeline(object):
     def random_state(self):
         return self._random_state
 
-    def get_desc(self) -> str:
-        return self._description
-
     @property
     def is_built(self):
         return self._is_built
+
+    @property
+    def has_train_data(self):
+        return bool(len(self.df_features_train_raw))
+
+    @property
+    def has_test_data(self):
+        return bool(len(self.df_features_predict_raw))
 
     @property
     def accuracy_score(self):
