@@ -15,6 +15,7 @@ from typing import Dict, List
 import matplotlib
 import numpy as np
 import os
+import pandas as pd
 import random
 import streamlit as st
 import sys
@@ -40,11 +41,11 @@ valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 pipeline_options = {
-    'PipelinePrime': pipeline.PipelinePrime,
-    'Pipeline EPM: Elevated Plus Maze': pipeline.PipelineEPM,
-    'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
+    'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
+    'PipelinePrime': pipeline.PipelinePrime,
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
+    'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
 }
 # pipeline_prime_name, pipeline_epm_name, pipelineTimName, pipelineCHBO = 'PipelinePrime', 'pipeline_epm_name', 'PipelineTim', 'CHBO Pipeline'  # TODO: deprecate this line
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
@@ -731,14 +732,20 @@ def see_model_diagnostics(p, pipeline_file_path):
         file_session[key_button_view_assignments_distribution] = not file_session[key_button_view_assignments_distribution]
     if file_session[key_button_view_assignments_distribution]:
         if p.is_built:
-            matplotlib.use('Agg')  # <- Hopefully this fixes crashes; no guarantees. TODO: med: review this line later.
-            fig, ax = p.get_plot_svm_assignments_distribution()
-            st.pyplot(fig)
-            matplotlib.use('TkAgg')
+            # matplotlib.use('Agg')  # <- Hopefully this fixes crashes; no guarantees. TODO: med: review this line later.
+            # fig, ax = p.get_plot_svm_assignments_distribution()
+            # st.pyplot(fig)
+            # matplotlib.use('TkAgg')
+
+
+
+            df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts()
+            st.bar_chart(df_assignment_histogram)
         else:
             st.info('There are no assignment distributions available for display because '
                     'the model is not currently built.')
 
+        st.markdown('')
     ###
     # View 3d Plot
     st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better

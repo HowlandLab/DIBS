@@ -65,7 +65,7 @@ class BasePipeline(object):
     # data_ext: str = 'csv'  # Extension which data is read from  # TODO: deprecate, delete line
     # dims_cols_names = None  # Union[List[str], Tuple[str]]
     valid_tsne_sources: set = {'bhtsne', 'sklearn', }
-    gmm_assignment_col_name, svm_assignment_col_name, = 'gmm_assignment', 'svm_assignment'
+    gmm_assignment_col_name, clf_assignment_col_name, = 'gmm_assignment', 'classifier_assignment'
     behaviour_col_name = 'behaviour'
 
     # Tracking vars
@@ -76,7 +76,7 @@ class BasePipeline(object):
     _has_modified_model_variables: bool = False
 
     # Data
-    default_cols = ['data_source', 'file_source']  # , svm_assignment_col_name, gmm_assignment_col_name]
+    default_cols = ['data_source', 'file_source']  # ,  clf_assignment_col_name, gmm_assignment_col_name]
     df_features_train_raw = pd.DataFrame(columns=default_cols)
     df_features_train = pd.DataFrame(columns=default_cols)
     df_features_train_scaled = pd.DataFrame(columns=default_cols)
@@ -216,11 +216,11 @@ class BasePipeline(object):
 
     @property
     def svm_col(self) -> str:
-        return self.svm_assignment_col_name
+        return self.clf_assignment_col_name
 
     @property
     def svm_assignment(self) -> str:
-        return self.svm_assignment_col_name
+        return self.clf_assignment_col_name
 
     @property
     def cross_val_scores(self):  # Union[List, np.ndarray]
@@ -873,17 +873,17 @@ class BasePipeline(object):
         self.train_classifier()  # self.train_SVM()
 
         # Set predictions
-        self.df_features_train_scaled[self.svm_assignment_col_name] = self.clf.predict(
+        self.df_features_train_scaled[self.clf_assignment_col_name] = self.clf.predict(
             self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
-        self.df_features_train_scaled[self.svm_assignment_col_name] = self.df_features_train_scaled[
-            self.svm_assignment_col_name].astype(int)  # Coerce into int
+        self.df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[
+            self.clf_assignment_col_name].astype(int)  # Coerce into int
 
         logger.debug(f'Generating cross-validation scores...')
         # # Get cross-val accuracy scores
         self._cross_val_scores = cross_val_score(
             self.clf,
             self.df_features_train_scaled[list(self.all_features)],
-            self.df_features_train_scaled[self.svm_assignment_col_name],
+            self.df_features_train_scaled[self.clf_assignment_col_name],
             cv=self.cross_validation_k,
         )
 
@@ -892,7 +892,7 @@ class BasePipeline(object):
             ~self.df_features_train_scaled[self.test_col_name]]
         self._acc_score = accuracy_score(
             y_pred=self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)]),
-            y_true=df_features_train_scaled_test_data[self.svm_assignment_col_name].values)
+            y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
         logger.debug(f'Pipeline train accuracy: {self.accuracy_score}')
         # TODO: low: save the confusion matrix after accuracy score too?
 
@@ -934,7 +934,7 @@ class BasePipeline(object):
 
         # Add prediction labels
         if len(self.df_features_predict_scaled) > 0:
-            self.df_features_predict_scaled[self.svm_assignment_col_name] = self.clf.predict(
+            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf.predict(
                 self.df_features_predict_scaled[list(self.all_features_list)].values)
         else:
             logger.debug(f'{get_current_function()}(): 0 records were detected '
@@ -1122,7 +1122,7 @@ class BasePipeline(object):
         df = df.loc[df["data_source"] == data_source].astype({'frame': int}).sort_values('frame').copy()
 
         # Get Run-Length Encoding of assignments
-        assignments = df[self.svm_assignment_col_name].values
+        assignments = df[self.clf_assignment_col_name].values
         rle: Tuple[List, List, List] = statistics.augmented_runlength_encoding(assignments)
 
         # Zip RLE according to order
@@ -1165,7 +1165,7 @@ class BasePipeline(object):
 
                 # Compile labels list via SVM assignment for now...Later, we should get the actual behavioural labels instead of the numerical assignments
                 logger.debug(f'df_frames_selection["frame"].dypes.dtypes: {df_frames_selection["frame"].dtypes}')
-                assignments_list = list(df_frames_selection[self.svm_assignment_col_name].values)
+                assignments_list = list(df_frames_selection[self.clf_assignment_col_name].values)
                 current_behaviour_list = [self.get_assignment_label(a) for a in assignments_list]
                 frames_indices_list = list(df_frames_selection['frame'].astype(int).values)
                 color_map_array = visuals.generate_color_map(len(self.unique_assignments))
@@ -1189,12 +1189,12 @@ class BasePipeline(object):
         return self
 
     # Diagnostics and graphs
-    def get_plot_svm_assignments_distribution(self) -> Tuple[object, object]:
+    def get_plot_figure_of_classifier_assignments_distribution(self) -> Tuple[object, object]:
         """
         Get a histogram of assignments in order to review their distribution in the TRAINING data
         """
         fig, ax = visuals.plot_assignment_distribution_histogram(
-            self.df_features_train_scaled[self.svm_assignment_col_name])
+            self.df_features_train_scaled[self.clf_assignment_col_name])
         return fig, ax
 
     def plot_assignments_in_3d(self, show_now=False, save_to_file=False, azim_elev=(70, 135), **kwargs) -> Tuple[object, object]:
@@ -1230,7 +1230,7 @@ class BasePipeline(object):
         diag = f"""
 self.is_built: {self.is_built}
 unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_train[self.gmm_assignment_col_name].values))}
-unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train[self.svm_assignment_col_name].values))}
+unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train[self.clf_assignment_col_name].values))}
 self._is_training_data_set_different_from_model_input: {self._is_training_data_set_different_from_model_input}
 """.strip()
         return diag
@@ -1250,3 +1250,6 @@ def generate_pipeline_filename(name: str):
     file_name = f'{name}.pipeline'
     return file_name
 
+
+
+# streamlit run main.py streamlit -- -p "C:\Users\killian\projects\DIBS\output\epm1.pipeline"
