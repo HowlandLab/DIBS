@@ -562,7 +562,6 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('')
         st.markdown('## Model Parameters')
         st.markdown(f'### General parameters')
-        # TODO: average over n frames
         video_fps = st.number_input(f'Video FPS of input data', value=float(p.input_videos_fps), min_value=0., max_value=500., format='%.2f', step=1.0)
         average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10)
         st.markdown(f'By averaging features over **{average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
@@ -588,6 +587,16 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         # Hack solution: specify params here so that the variable exists even though advanced params section not opened.
 
         st.markdown('')
+        ### Set up default values for advanced parameters in case the user does not set advanced parameters at all
+        features = p.all_features
+        video_fps, average_over_n_frames = p.input_videos_fps, p.average_over_n_frames
+        select_classifier = p.classifier_type
+        select_rf_n_estimators = p.rf_n_estimators
+        input_svm_c, input_svm_gamma = p.svm_c, p.svm_gamma
+        input_tsne_learning_rate, input_tsne_perplexity, = p.tsne_learning_rate, p.tsne_perplexity
+        input_tsne_early_exaggeration, input_tsne_n_components = p.tsne_early_exaggeration, p.tsne_n_components
+        input_tsne_n_iter, input_gmm_reg_covar, input_gmm_tolerance = p.tsne_n_iter, p.gmm_reg_covar, p.gmm_tol
+        input_gmm_max_iter, input_gmm_n_init = p.gmm_max_iter, p.gmm_n_init
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
         # TODO: HIGH IMPORTANCE! The advanced parameters should reflect the classifier type being used (SVM vs RF vs something new in the future)
@@ -599,8 +608,10 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             st.markdown('## Advanced model options. ')
             st.markdown('### Do not change things here unless you know what you are doing!')
             st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is open when clicking the "Rebuild" button.*')
-
-            # See advanced options for model
+            ### See advanced options for model ###
+            # Choose model type
+            select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
+            # TSNE
             st.markdown('### Advanced TSNE Parameters')
             input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity, min_value=0.1)
             input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01, max_value=200.)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
@@ -614,18 +625,14 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             input_gmm_tolerance = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
             input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
             input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, step=1, format="%i")
-            st.markdown('### Advanced SVM Parameters')
-            ### SVM ###
-            input_svm_c = st.number_input(f'SVM C', value=p.svm_c, format='%.2f')
-            input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, format='%.2f')
-        else:
-            features = p.all_features
-            input_tsne_learning_rate, input_tsne_perplexity, = p.tsne_learning_rate, p.tsne_perplexity
-            input_tsne_early_exaggeration, input_tsne_n_components = p.tsne_early_exaggeration, p.tsne_n_components
-            input_tsne_n_iter, input_gmm_reg_covar, input_gmm_tolerance = p.tsne_n_iter, p.gmm_reg_covar, p.gmm_tol
-            input_gmm_max_iter, input_gmm_n_init = p.gmm_max_iter, p.gmm_n_init
-            input_svm_c, input_svm_gamma = p.svm_c, p.svm_gamma
-            video_fps, average_over_n_frames = p.input_videos_fps, p.average_over_n_frames
+
+            if select_classifier == 'SVM':
+                st.markdown('### Advanced SVM Parameters')
+                ### SVM ###
+                input_svm_c = st.number_input(f'SVM C', value=p.svm_c, format='%.2f')
+                input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, format='%.2f')
+            elif select_classifier == 'RANDOMFOREST':
+                select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p.rf_n_estimators, min_value=1, max_value=1_000, format='%i')
         ### End of Show Advanced Params Section
 
         st.markdown('')
@@ -634,7 +641,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown(f'*Note: changing the above parameters without rebuilding the model will have no effect.*')
 
         # Save above info & rebuild model
-        st.markdown('## Rebuild model with new parameters above?')# asdfasdfasdfsdf asdfsdfsdfasdfsdfsdf
+        st.markdown('## Rebuild model with new parameters above?')
         button_rebuild_model = st.button('I want to rebuild model with new parameters', key_button_rebuild_model)
         if button_rebuild_model: file_session[key_button_rebuild_model] = not file_session[key_button_rebuild_model]
         if file_session[key_button_rebuild_model]:  # Rebuild model button was clicked
@@ -644,9 +651,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 file_session[key_button_rebuild_model_confirmation] = True
             if file_session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
                 try:
-                    with st.spinner('Rebuilding model...'): # Test
+                    with st.spinner('Building model...'):
                         model_vars = {
                             # General opts
+                            'classifier_type': select_classifier,
+                            'rf_n_estimators': select_rf_n_estimators,
                             'input_videos_fps': video_fps,
                             'average_over_n_frames': average_over_n_frames,
 
@@ -684,7 +693,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     time.sleep(n)
                     st.experimental_rerun()
                 except Exception as e:
-                    err = f'EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}'
+                    err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}. SEE LOGS FOR DETAILS.'
                     logger.error(err, exc_info=True)
                     st.error(err)
                     st.stop()
