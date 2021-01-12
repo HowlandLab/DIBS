@@ -1706,10 +1706,10 @@ class PipelineMimic(BasePipeline):
         df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT'), self.feat_dist_bw_front_paws)
 
         # 5: snout speed
-        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('NOSETIP'), action_duration=1 / self.input_videos_fps, output_feature_name=self.feat_snout_speed)
+        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('NOSETIP'), action_duration=1 / self.video_fps, output_feature_name=self.feat_snout_speed)
 
         # 6 tail speed
-        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('TAILBASE'), action_duration=1 / self.input_videos_fps, output_feature_name=self.feat_tail_base_speed)
+        df = feature_engineering.attach_feature_velocity_of_bodypart(df, config.get_part('TAILBASE'), action_duration=1 / self.video_fps, output_feature_name=self.feat_tail_base_speed)
 
         # 7: snout to base of tail change in angle
         df = feature_engineering.attach_angle_between_bodyparts(df, config.get_part('NOSETIP'), config.get_part('TAILBASE'), self.feat_snout_tail_delta_angle)
