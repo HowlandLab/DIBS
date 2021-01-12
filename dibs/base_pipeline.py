@@ -369,7 +369,6 @@ class BasePipeline(object):
         tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
         check_arg.ensure_type(tsne_verbose, int)
         self.tsne_verbose = tsne_verbose
-
         # GMM vars
         gmm_n_components = kwargs.get('gmm_n_components', config.gmm_n_components if read_config_on_missing_param else self.gmm_n_components)
         check_arg.ensure_type(gmm_n_components, int)
@@ -399,8 +398,8 @@ class BasePipeline(object):
         check_arg.ensure_type(gmm_verbose_interval, int)
         self.gmm_verbose_interval = gmm_verbose_interval
         # Classifier vars
-        clf_type = kwargs.get('clf_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
-        self.classifier_type = clf_type
+        classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
+        self.classifier_type = classifier_type
         # Random Forest vars
         rf_n_estimators = kwargs.get('rf_n_estimators', config.rf_n_estimators if read_config_on_missing_param else self.rf_n_estimators)
         check_arg.ensure_type(rf_n_estimators, int)
