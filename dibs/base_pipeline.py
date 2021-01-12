@@ -85,7 +85,7 @@ class BasePipeline(object):
     df_features_predict_scaled = pd.DataFrame(columns=default_cols)
 
     # Other model vars (Rename this)
-    input_videos_fps = config.VIDEO_FPS
+    video_fps: float = config.VIDEO_FPS
     cross_validation_k: int = config.CROSSVALIDATION_K
     cross_validation_n_jobs: int = config.CROSSVALIDATION_N_JOBS
     _random_state: int = None
@@ -303,7 +303,7 @@ class BasePipeline(object):
         classifier_type : str
             Must be one of { 'SVM', 'RANDOMFOREST' }
 
-        input_video_fps : int
+        video_fps : int
             Explanation goes here
 
         random_state : int
@@ -325,16 +325,16 @@ class BasePipeline(object):
         check_arg.ensure_type(read_config_on_missing_param, bool)
         ### General Params ###
         classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
-        check_arg.ensure_type(classifier_type)
+        check_arg.ensure_type(classifier_type, str)
         if classifier_type not in config.valid_classifiers:
             err = f'Input classifier type is not valid. Value = {classifier_type}'
             logger.error(err)
             raise ValueError(err)
         self.classifier_type = classifier_type
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
-        video_fps = kwargs.get('input_videos_fps', config.VIDEO_FPS if read_config_on_missing_param else self.input_videos_fps)
+        video_fps = kwargs.get('videos_fps', config.VIDEO_FPS if read_config_on_missing_param else self.video_fps)
         check_arg.ensure_type(video_fps, int, float)
-        self.input_videos_fps = video_fps
+        self.video_fps = float(video_fps)
         average_over_n_frames = kwargs.get('average_over_n_frames', self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
         check_arg.ensure_type(average_over_n_frames, int)
         self.average_over_n_frames = average_over_n_frames
@@ -364,8 +364,8 @@ class BasePipeline(object):
         check_arg.ensure_type(tsne_n_jobs, int)
         self.tsne_n_jobs = tsne_n_jobs
         tsne_perplexity = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
-        check_arg.ensure_type(tsne_perplexity, float)
-        self._tsne_perplexity = tsne_perplexity
+        check_arg.ensure_type(tsne_perplexity, float, int)
+        self._tsne_perplexity = float(tsne_perplexity)
         tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
         check_arg.ensure_type(tsne_verbose, int)
         self.tsne_verbose = tsne_verbose
@@ -397,9 +397,9 @@ class BasePipeline(object):
         gmm_verbose_interval = kwargs.get('gmm_verbose_interval', config.gmm_verbose_interval if read_config_on_missing_param else self.gmm_verbose_interval)
         check_arg.ensure_type(gmm_verbose_interval, int)
         self.gmm_verbose_interval = gmm_verbose_interval
-        # Classifier vars
-        classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
-        self.classifier_type = classifier_type
+        # # General classifier vars
+        # classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
+        # self.classifier_type = classifier_type
         # Random Forest vars
         rf_n_estimators = kwargs.get('rf_n_estimators', config.rf_n_estimators if read_config_on_missing_param else self.rf_n_estimators)
         check_arg.ensure_type(rf_n_estimators, int)
