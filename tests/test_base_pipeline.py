@@ -5,17 +5,16 @@ https://docs.python.org/3/library/unittest.html
 """
 from typing import Any, Dict, List, Set
 from unittest import TestCase, skip
-import itertools
-import numpy as np
 import os
-import pandas as pd
 import random
-import time
 
 from dibs.logging_enhanced import get_current_function, get_caller_function
 import dibs
 
+
 csv_test_file_path = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
+
+default_pipeline_class = dibs.pipeline.PipelineMimic
 
 
 def get_unique_pipe_name() -> str:
@@ -26,6 +25,343 @@ def get_unique_pipe_name() -> str:
 class TestPipeline(TestCase):
 
     ### Param adds, changes, checks ###
+    def test__set_params__average_over_n_frames(self):
+        property_of_note = 'average_over_n_frames'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__cross_validation_k(self):
+        property_of_note = 'cross_validation_k'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+        Expected {property_of_note} value: {expected_value}
+        Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__video_fps(self):
+        # Arrange
+        property_of_note = 'video_fps'
+        old_value = 100.
+        expected_value = new_value = 30.3
+
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__classifier_type__svmtorandomforest(self):
+        property_of_note = 'classifier_type'
+        old_value = 'SVM'
+        expected_value = new_value = 'RANDOMFOREST'
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__classifier_type__rftosvm(self):
+        property_of_note = 'classifier_type'
+        old_value = 'RANDOMFOREST'
+        expected_value = new_value = 'SVM'
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    # GMM
+    def test__set_params__gmm_n_components(self):
+        property_of_note = 'gmm_n_components'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__gmm_n_init(self):
+        property_of_note = 'gmm_n_init'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+    
+    def test__set_params__gmm_max_iter(self):
+        property_of_note = 'gmm_max_iter'
+        old_value = 100
+        expected_value = new_value = 50
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__gmm_gmm_tol(self):
+        property_of_note = 'gmm_tol'
+        old_value = 100.
+        expected_value = new_value = 50.
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__gmm_reg_covar(self):
+        property_of_note = 'gmm_reg_covar'
+        old_value = 100
+        expected_value = new_value = 50
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    # TSNE
+    def test__set_params__tsne_perplexity(self):
+        property_of_note = 'tsne_perplexity'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name(), **{property_of_note: old_value})
+        assert old_value != new_value
+        # setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__tsne_learning_rate(self):
+        property_of_note = 'tsne_learning_rate'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__tsne_early_exaggeration(self):
+        property_of_note = 'tsne_early_exaggeration'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__tsne_n_iter(self):
+        property_of_note = 'tsne_n_iter'
+        old_value = 100
+        expected_value = new_value = 50
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__tsne_n_components(self):
+        property_of_note = 'tsne_n_components'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    # SVM
+    def test__set_params__svm_c(self):
+        property_of_note = 'svm_c'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_params__svm_gamma(self):
+        property_of_note = 'svm_gamma'
+        old_value = 10
+        expected_value = new_value = 20
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assert old_value != new_value
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    # RANDOMFOREST
+    def test__set_params__rf_n_estimators(self):
+        property_of_note = 'rf_n_estimators'
+        old_value = 100
+        expected_value = new_value = 50
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        setattr(p, property_of_note, old_value)
+
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
     def test__set_params__shouldKeepDefaultsWhileChangingSpecifiedVars__whenOptionalArgForReadingInConfigVarsNotTrue(self):
         # Arrange
         p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
@@ -52,6 +388,70 @@ TODO: {get_current_function()}
         # Assert
         err = f"""Error: cv cross val did not get read-in correctly. TODO: elaborate. """.strip()
         self.assertEqual(expected_cv, actual_cv, err)
+
+    def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
+        # Arrange
+        gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
+        p = dibs.pipeline.PipelineMimic(f'TestPipeline_{random.randint(0, 100_000_000)}',
+                                        cross_validation_k=cv,
+                                        gmm_n_components=gmm_n_components,
+                                        )
+        p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
+        err = f"""Sanity Check: Something bad happened and cross val is not right"""
+        self.assertEqual(cv, p.cross_validation_k, err)
+        p = p.add_train_data_source(csv_test_file_path)
+
+        select_classifier = 'SVM'
+
+        select_rf_n_estimators = 100
+        video_fps = 30.1
+        average_over_n_frames = 4
+        slider_gmm_n_components = 10
+        input_k_fold_cross_val = 2
+        input_tsne_perplexity = 12
+        input_tsne_learning_rate = 13
+        input_tsne_early_exaggeration = 16.
+        input_tsne_n_iter = 250
+        input_tsne_n_components = 3
+        input_gmm_reg_covar = 1.
+        input_gmm_tolerance = 0.001
+        input_gmm_max_iter = 300
+        input_gmm_n_init = 20
+        input_svm_c = 1.
+        input_svm_gamma = 2.
+
+        model_vars = {
+            # General opts
+            'classifier_type': select_classifier,
+            'rf_n_estimators': select_rf_n_estimators,
+            'input_videos_fps': video_fps,
+            'average_over_n_frames': average_over_n_frames,
+
+            'gmm_n_components': slider_gmm_n_components,
+            'cross_validation_k': input_k_fold_cross_val,
+
+            # Advanced opts
+            'tsne_perplexity': float(input_tsne_perplexity),
+            'tsne_learning_rate': float(input_tsne_learning_rate),
+            'tsne_early_exaggeration': input_tsne_early_exaggeration,
+            'tsne_n_iter': input_tsne_n_iter,
+            'tsne_n_components': input_tsne_n_components,
+
+            'gmm_reg_covar': input_gmm_reg_covar,
+            'gmm_tol': input_gmm_tolerance,
+            'gmm_max_iter': input_gmm_max_iter,
+            'gmm_n_init': input_gmm_n_init,
+
+            'svm_c': input_svm_c,
+            'svm_gamma': input_svm_gamma,
+
+        }
+
+        # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
+        p = p.set_params(**model_vars)
+
+        # Act
+        p = p.build()
 
     ### Scaling data ###
     @skip  # Temporary skip since it takes forever to run this due to sample size
