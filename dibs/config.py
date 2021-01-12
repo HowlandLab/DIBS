@@ -60,7 +60,12 @@ configuration.read(os.path.join(DIBS_BASE_PROJECT_PATH, config_file_name))
 assert os.path.isdir(default_log_folder_path), f'log file save folder does not exist: {default_log_folder_path}'
 
 ### PATH ################################################################################
-DLC_PROJECT_PATH = configuration.get('PATH', 'DLC_PROJECT_PATH', fallback='')
+DEFAULT_TRAIN_DATA_DIR = configuration.get('PATH', 'DEFAULT_TRAIN_DATA_DIR')
+if not os.path.isabs(DEFAULT_TRAIN_DATA_DIR):
+    DEFAULT_TRAIN_DATA_DIR = os.path.join(DIBS_BASE_PROJECT_PATH, DEFAULT_TRAIN_DATA_DIR)
+DEFAULT_TEST_DATA_DIR = configuration.get('PATH', 'DEFAULT_TEST_DATA_DIR')
+if not os.path.isabs(DEFAULT_TEST_DATA_DIR):
+    DEFAULT_TEST_DATA_DIR = os.path.join(DIBS_BASE_PROJECT_PATH, DEFAULT_TEST_DATA_DIR)
 OUTPUT_PATH = config_output_path = configuration.get('PATH', 'OUTPUT_PATH').strip() \
     if configuration.get('PATH', 'OUTPUT_PATH').strip() \
     else default_output_path
@@ -69,8 +74,10 @@ GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
 EXAMPLE_VIDEOS_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'example_videos')
 VIDEO_TO_LABEL_PATH: str = configuration.get('PATH', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: evaluate if remove or not
-
+DLC_PROJECT_PATH = configuration.get('PATH', 'DLC_PROJECT_PATH', fallback='')  # TODO: deprecate?
 ### PATH asserts
+assert os.path.isdir(DEFAULT_TRAIN_DATA_DIR), f'Path could not be found: {DEFAULT_TRAIN_DATA_DIR}'
+assert os.path.isdir(DEFAULT_TEST_DATA_DIR), f'Path could not be found: {DEFAULT_TEST_DATA_DIR}'
 assert not DLC_PROJECT_PATH or os.path.isdir(DLC_PROJECT_PATH),\
     f'DLC_PROJECT_PATH SPECIFIED DOES NOT EXIST: {DLC_PROJECT_PATH}'
 assert os.path.isdir(OUTPUT_PATH), f'SPECIFIED OUTPUT PATH INVALID/DOES NOT EXIST: {OUTPUT_PATH}'
@@ -399,6 +406,7 @@ def get_data_source_from_file_path(file_path: str):
 
 ### Debugging efforts below. __main__ not integral to file. Use __main__ to check in on config vars.
 
+
 if __name__ == '__main__':
     # print(get_config_str())
     # print(f'bodyparts: {bodyparts}')
@@ -411,4 +419,5 @@ if __name__ == '__main__':
     # print(VIDEO_TO_LABEL_PATH)
     # print('OUTPUT_VIDEO_FPS', OUTPUT_VIDEO_FPS)
     # print(f'DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH = {DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH}')
+    print(DEFAULT_TRAIN_DATA_DIR)
     pass
