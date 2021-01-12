@@ -562,7 +562,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('')
         st.markdown('## Model Parameters')
         st.markdown(f'### General parameters')
-        video_fps = st.number_input(f'Video FPS of input data', value=float(p.input_videos_fps), min_value=0., max_value=500., format='%.2f', step=1.0)
+        video_fps = st.number_input(f'Video FPS of input data', value=float(p.video_fps), min_value=0., max_value=500., format='%.2f', step=1.0)
         average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10)
         st.markdown(f'By averaging features over **{average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
         st.markdown(f'*By averaging over larger windows, the model can provide better generalizability, but using smaller windows is more likely to find more minute actions*')
@@ -581,7 +581,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
         ### Other model info ###
         st.markdown('### Other model information')
-        input_k_fold_cross_val = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
+        input_cross_validation_k = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
         # TODO: med/high: add number input for % holdout for test/train split
 
         # Hack solution: specify params here so that the variable exists even though advanced params section not opened.
@@ -589,13 +589,13 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('')
         ### Set up default values for advanced parameters in case the user does not set advanced parameters at all
         features = p.all_features
-        video_fps, average_over_n_frames = p.input_videos_fps, p.average_over_n_frames
+        video_fps, average_over_n_frames = p.video_fps, p.average_over_n_frames
         select_classifier = p.classifier_type
         select_rf_n_estimators = p.rf_n_estimators
         input_svm_c, input_svm_gamma = p.svm_c, p.svm_gamma
         input_tsne_learning_rate, input_tsne_perplexity, = p.tsne_learning_rate, p.tsne_perplexity
         input_tsne_early_exaggeration, input_tsne_n_components = p.tsne_early_exaggeration, p.tsne_n_components
-        input_tsne_n_iter, input_gmm_reg_covar, input_gmm_tolerance = p.tsne_n_iter, p.gmm_reg_covar, p.gmm_tol
+        input_tsne_n_iter, input_gmm_reg_covar, input_gmm_tol = p.tsne_n_iter, p.gmm_reg_covar, p.gmm_tol
         input_gmm_max_iter, input_gmm_n_init = p.gmm_max_iter, p.gmm_n_init
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
@@ -622,7 +622,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
-            input_gmm_tolerance = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
+            input_gmm_tol = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
             input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
             input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, step=1, format="%i")
 
@@ -656,11 +656,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                             # General opts
                             'classifier_type': select_classifier,
                             'rf_n_estimators': select_rf_n_estimators,
-                            'input_videos_fps': video_fps,
+                            'video_fps': video_fps,
                             'average_over_n_frames': average_over_n_frames,
 
                             'gmm_n_components': slider_gmm_n_components,
-                            'cross_validation_k': input_k_fold_cross_val,
+                            'cross_validation_k': input_cross_validation_k,
 
                             # Advanced opts
                             'tsne_perplexity': input_tsne_perplexity,
@@ -670,7 +670,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                             'tsne_n_components': input_tsne_n_components,
 
                             'gmm_reg_covar': input_gmm_reg_covar,
-                            'gmm_tol': input_gmm_tolerance,
+                            'gmm_tol': input_gmm_tol,
                             'gmm_max_iter': input_gmm_max_iter,
                             'gmm_n_init': input_gmm_n_init,
 
