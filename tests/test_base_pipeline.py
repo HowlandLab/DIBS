@@ -389,6 +389,7 @@ TODO: {get_current_function()}
         err = f"""Error: cv cross val did not get read-in correctly. TODO: elaborate. """.strip()
         self.assertEqual(expected_cv, actual_cv, err)
 
+    @skip  # TODO: review this test. It looks like individual tests supersede it now.
     def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
