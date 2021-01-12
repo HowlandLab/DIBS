@@ -1,5 +1,5 @@
 conda install -y six setuptools wheel pip
-conda install -y pandas scikit-learn numpy Cython
+conda install -y pandas scikit-learn numpy Cython joblib
 pip install future seaborn streamlit tqdm watchdog
 pip install networkx joblib protobuf psutil openTSNE scipy opencv-python bhtsne
 
