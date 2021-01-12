@@ -696,7 +696,7 @@ class BasePipeline(object):
         return self
 
     # TSNE Transformations
-    def _train_tsne_get_dimension_reduced_data(self, data: pd.DataFrame, **kwargs) -> np.ndarray:
+    def _train_tsne_get_dimension_reduced_data(self, data: pd.DataFrame) -> np.ndarray:
         """
         TODO: elaborate
         TODO: ensure that TSNE obj can be saved and used later for new data? *** Important ***
@@ -708,6 +708,7 @@ class BasePipeline(object):
         check_arg.ensure_type(data, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
         # Execute
+        start = time.perf_counter()
         if self.tsne_implementation == 'SKLEARN':
             logger.debug(f'Now reducing data with SKLEARN implementation...')
             arr_result = TSNE_sklearn(
@@ -767,8 +768,19 @@ class BasePipeline(object):
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logger.error(err)
             raise RuntimeError(err)
+        logger.debug(f'Number of seconds it took to train TSNE: {round(time.perf_counter() - start, 1)}')
         return arr_result
 
+    def tsne_reduce_df_features_train(self):
+        arr_tsne_result = self._train_tsne_get_dimension_reduced_data(self.df_features_train)
+        self.df_features_train_scaled = pd.concat([
+            self.df_features_train_scaled,
+            pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
+        ], axis=1)
+
+        return self
+
+    # GMM
     def train_GMM(self, data: pd.DataFrame):
         """"""
         self._clf_gmm = GaussianMixture(
@@ -789,6 +801,7 @@ class BasePipeline(object):
         assignments = self.clf_gmm.predict(data)
         return assignments
 
+    # Classifier
     def train_classifier(self):
         # TODO: HIGH: finish this function!
         df = self.df_features_train_scaled
@@ -835,18 +848,8 @@ class BasePipeline(object):
         # Save classifier
         self._classifier = clf
 
-    # Higher level data processing functions
-    def tsne_reduce_df_features_train(self):
-        arr_tsne_result = self._train_tsne_get_dimension_reduced_data(self.df_features_train)
-        self.df_features_train_scaled = pd.concat([
-            self.df_features_train_scaled,
-            pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
-        ], axis=1)
-
-        return self
-
     # Model building
-    def build_model(self, reengineer_train_features: bool = False):
+    def _build_model(self, reengineer_train_features: bool = False):
         """
         Builds the model for predicting behaviours.
         :param reengineer_train_features: (bool) If True, forces the training data to be re-engineered.
@@ -915,7 +918,7 @@ class BasePipeline(object):
         warn = f'Pipeline.build_classifier(): was called, but this is the ' \
                f'legacy name. Instead, use Pipeline.build_model() from now on.'
         logger.warning(warn)
-        return self.build_model(reengineer_train_features=reengineer_train_features)
+        return self._build_model(reengineer_train_features=reengineer_train_features)
 
     def generate_predict_data_assignments(self, reengineer_train_data_features: bool = False, reengineer_predict_features=False):  # TODO: low: rename?
         """
@@ -925,7 +928,7 @@ class BasePipeline(object):
 
         # Check that classifiers are built on the training data
         if reengineer_train_data_features or not self.is_built or self.is_in_inconsistent_state:
-            self.build_model()
+            self._build_model()
 
         # TODO: temp exit early for zero test data found
         if len(self.df_features_predict_raw) == 0:
@@ -953,7 +956,7 @@ class BasePipeline(object):
         """
         start = time.perf_counter()
         # Build model
-        self.build_model(reengineer_train_features=reengineer_train_features)
+        self._build_model(reengineer_train_features=reengineer_train_features)
         # Get predict data
         self.generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
         end = time.perf_counter()
