@@ -586,9 +586,9 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('')
         st.markdown('## Model Parameters')
         st.markdown(f'### General parameters')
-        video_fps = st.number_input(f'Video FPS of input data', value=float(p.video_fps), min_value=0., max_value=500., format='%.2f', step=1.0)
-        average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10)
-        st.markdown(f'By averaging features over **{average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
+        input_video_fps = st.number_input(f'Video FPS of input data', value=float(p.video_fps), min_value=0., max_value=500., format='%.2f', step=1.0)
+        input_average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10)
+        st.markdown(f'By averaging features over **{input_average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(input_average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
         st.markdown(f'*By averaging over larger windows, the model can provide better generalizability, but using smaller windows is more likely to find more minute actions*')
 
         # # TODO: Low/Med: implement variable feature selection
@@ -613,7 +613,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('')
         ### Set up default values for advanced parameters in case the user does not set advanced parameters at all
         features = p.all_features
-        video_fps, average_over_n_frames = p.video_fps, p.average_over_n_frames
+        input_average_over_n_frames = p.average_over_n_frames
         select_classifier = p.classifier_type
         select_rf_n_estimators = p.rf_n_estimators
         input_svm_c, input_svm_gamma = p.svm_c, p.svm_gamma
@@ -672,7 +672,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             st.markdown('Are you sure?')
             button_confirmation_of_rebuild = st.button('Confirm', key_button_rebuild_model_confirmation)
             if button_confirmation_of_rebuild:
-                file_session[key_button_rebuild_model_confirmation] = True
+                file_session[key_button_rebuild_model_confirmation] = not file_session[key_button_rebuild_model_confirmation]
             if file_session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
                 try:
                     with st.spinner('Building model...'):
@@ -680,8 +680,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                             # General opts
                             'classifier_type': select_classifier,
                             'rf_n_estimators': select_rf_n_estimators,
-                            'video_fps': video_fps,
-                            'average_over_n_frames': average_over_n_frames,
+                            'video_fps': input_video_fps,
+                            'average_over_n_frames': input_average_over_n_frames,
 
                             'gmm_n_components': slider_gmm_n_components,
                             'cross_validation_k': input_cross_validation_k,
@@ -712,6 +712,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                         file_session[key_button_rebuild_model_confirmation] = False
                     st.balloons()
                     file_session[key_button_see_rebuild_options] = False
+                    file_session[key_button_rebuild_model_confirmation] = False
                     n = file_session[default_n_seconds_sleep]
                     st.success(f'Model was successfully re-built! This page will auto-refresh in {n} seconds.')
                     time.sleep(n)
