@@ -157,10 +157,16 @@ assert os.path.isdir(log_file_folder_path), f'Path does not exist: {log_file_fol
 
 ##### TESTING VARIABLES ################################################################################################
 
+# Prime data files
 DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE: str = configuration.get('TESTING', 'DEFAULT_PIPELINE_PRIME_CSV_TEST_FILE')
 DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE)
-DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE: str = configuration.get('TESTING', 'DEFAULT_PIPELINE_MIMIC_CSV_TEST_FILE')
-DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE)
+
+# Mimic data files
+TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE')
+TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE)
+TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE')
+TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE)
+
 
 # DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH = os.path.join()
 
@@ -181,8 +187,8 @@ max_rows_to_read_in_from_csv: int = configuration.getint('TESTING', 'max_rows_to
 ### Testing variables asserts
 
 assert os.path.isfile(DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH), f'CSV test file was not found: {DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH}'
-assert os.path.isfile(DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH), f'CSV test file was not found: {DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH}'
-
+assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH), f'CSV test file was not found: {TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH}'
+assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH), f'CSV test file not found: {TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH}'
 # assert os.path.isfile(DEFAULT_H5_TEST_FILE), f'h5 test file was not found: {DEFAULT_H5_TEST_FILE}'  # TODO: low: when h5 format finally figured-out (From an actual DLC project outcome), re-instate this assert
 
 

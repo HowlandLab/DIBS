@@ -9,7 +9,7 @@ import dibs
 
 ########################################################################################################################
 
-single_test_file_location = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
+single_test_file_location = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 
 
 class TestCheckArg(TestCase):

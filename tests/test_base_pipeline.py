@@ -12,7 +12,7 @@ from dibs.logging_enhanced import get_current_function, get_caller_function
 import dibs
 
 
-csv_test_file_path = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
+csv_test_file_path = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 
 default_pipeline_class = dibs.pipeline.PipelineMimic
 

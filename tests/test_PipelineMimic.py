@@ -7,8 +7,8 @@ import random
 
 import dibs
 
-csv__train_data__file_path__TRAINING_DATA = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
-csv__train_data__file_path__PREDICT_DATA = dibs.config.DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH
+csv__train_data__file_path__TRAINING_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
+csv__train_data__file_path__PREDICT_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 assert os.path.isfile(csv__train_data__file_path__TRAINING_DATA)
 
 
@@ -37,6 +37,7 @@ class TestPipelineMimic(TestCase):
         p = dibs.pipeline.PipelineMimic(get_unique_pipe_name(),
                                         cross_validation_k=cv,
                                         gmm_n_components=gmm_n_components,
+                                        # tsne_n_jobs=1,
                                         )
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
