@@ -419,5 +419,5 @@ if __name__ == '__main__':
     # print(VIDEO_TO_LABEL_PATH)
     # print('OUTPUT_VIDEO_FPS', OUTPUT_VIDEO_FPS)
     # print(f'DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH = {DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH}')
-    print(DEFAULT_TRAIN_DATA_DIR)
+    # print(DEFAULT_TRAIN_DATA_DIR)
     pass
