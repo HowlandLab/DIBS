@@ -125,7 +125,7 @@ expected output: {expected_output_distance}
 
 actual output: {actual_output_distance}
 """.strip()
-        self.assertEquals(expected_output_distance, actual_output_distance, err_msg)
+        self.assertEqual(expected_output_distance, actual_output_distance, err_msg)
 
     def test__average_arr_location(self):
         # Arrange
@@ -183,6 +183,26 @@ actual actual_output_arr: {actual_output_arr}
         # Arrange
         x0, y0 = 1, 1
         x1, y1 = 100, 100
+        expected_output = 0.
+        # Act
+        actual_output = dibs.feature_engineering.delta_angle(x0, y0, x1, y1)
+        # Assert
+        self.assertEqual(expected_output, actual_output)
+
+    def test__delta_angle__shouldBe0__when0DegreeChangeInput_1(self):
+        # Arrange
+        x0, y0 = 1., 1.
+        x1, y1 = -1., 1.
+        expected_output = 0.
+        # Act
+        actual_output = dibs.feature_engineering.delta_angle(x0, y0, x1, y1)
+        # Assert
+        self.assertEqual(expected_output, actual_output)
+
+    def test__delta_angle__shouldBe0__when0DegreeChangeInput_2(self):
+        # Arrange
+        x0, y0 = -1., -1.
+        x1, y1 = 1., -1.
         expected_output = 0.
         # Act
         actual_output = dibs.feature_engineering.delta_angle(x0, y0, x1, y1)
