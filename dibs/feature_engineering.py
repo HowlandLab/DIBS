@@ -268,7 +268,8 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
 def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     # TODO: evaluate
     # TODO: add NUMBA for fast computation?
-    x = statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
+    change_in_angle = \
+        statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (180/np.pi) * \
         np.arctan(
             (pos_x_1*pos_y_0 - pos_x_0*pos_y_1) /
@@ -276,7 +277,7 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
         (180/np.pi) * \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (1 - statistics.sign(pos_x_0*pos_x_1 + pos_y_0*pos_y_1))
-    return x
+    return change_in_angle
 
 
 def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
