@@ -7,31 +7,48 @@ dependencies:
   - ca-certificates=2020.12.8=haa95532_0
   - certifi=2020.12.5=py39haa95532_0
   - cython=0.29.21=py39hd77b12b_0
+  - freetype=2.10.4=hd328e21_0
   - icc_rt=2019.0.0=h0cc432a_1
+  - icu=58.2=ha925a31_3
   - intel-openmp=2020.2=254
   - joblib=1.0.0=pyhd3eb1b0_0
+  - jpeg=9b=hb83a4c4_2
+  - libpng=1.6.37=h2a8f88b_0
+  - libtiff=4.1.0=h56a325e_1
+  - lz4-c=1.9.2=hf4a77e7_3
+  - matplotlib-base=3.3.2=py39h35d3fe4_0
   - mkl=2020.2=256
   - mkl-service=2.3.0=py39h196d8e1_0
   - mkl_fft=1.0.6=py39h054117c_0
   - mkl_random=1.0.2=py39h848d8c7_0
+  - olefile=0.46=py_0
   - openssl=1.1.1i=h2bbff1b_0
   - pandas=1.2.0=py39hf11a4ad_0
+  - pillow=8.1.0=py39h4fa10fc_0
   - pip=20.3.3=py39haa95532_0
+  - pyparsing=2.4.7=py_0
+  - pyqt=5.9.2=py39hd77b12b_6
   - python=3.9.1=h6244533_2
   - python-dateutil=2.8.1=py_0
   - pytz=2020.5=pyhd3eb1b0_0
+  - qt=5.9.7=vc14h73c81de_0
   - scikit-learn=0.23.2=py39hf11a4ad_0
   - scipy=1.5.2=py39h14eb087_0
   - setuptools=51.1.2=py39haa95532_4
+  - sip=4.19.13=py39hd77b12b_0
   - six=1.15.0=py39haa95532_0
   - sqlite=3.33.0=h2a8f88b_0
   - threadpoolctl=2.1.0=pyh5ca1d4c_0
+  - tk=8.6.10=he774522_0
+  - tornado=6.1=py39h2bbff1b_0
   - tzdata=2020d=h14c3975_0
   - vc=14.2=h21ff451_1
   - vs2015_runtime=14.27.29016=h5e58377_2
   - wheel=0.36.2=pyhd3eb1b0_0
   - wincertstore=0.2=py39h2bbff1b_0
+  - xz=5.2.5=h62dcd97_0
   - zlib=1.2.11=h62dcd97_4
+  - zstd=1.4.5=h04227a9_0
   - pip:
     - altair==4.1.0
     - argon2-cffi==20.1.0
@@ -88,7 +105,6 @@ dependencies:
     - pandocfilters==1.4.3
     - parso==0.8.1
     - pickleshare==0.7.5
-    - pillow==8.1.0
     - prometheus-client==0.9.0
     - prompt-toolkit==3.0.10
     - protobuf==3.14.0
@@ -96,7 +112,6 @@ dependencies:
     - pycparser==2.20
     - pydeck==0.5.0
     - pygments==2.7.4
-    - pyparsing==2.4.7
     - pyrsistent==0.17.3
     - pywin32==300
     - pywinpty==0.5.7
@@ -112,7 +127,6 @@ dependencies:
     - testpath==0.4.4
     - toml==0.10.2
     - toolz==0.11.1
-    - tornado==6.1
     - tqdm==4.56.0
     - traitlets==5.0.5
     - tzlocal==2.1
