@@ -803,7 +803,7 @@ class BasePipeline(object):
 
     # Classifier
     def train_classifier(self):
-        # TODO: HIGH: finish this function!
+        """ TODO: """
         df = self.df_features_train_scaled
 
         if self.classifier_type == 'SVM':
@@ -813,10 +813,12 @@ class BasePipeline(object):
                 probability=self.svm_probability,
                 verbose=self.svm_verbose,
                 random_state=self.random_state,
+                cache_size=200,  # TODO: add variable to CONFIG.INI later. Measured in MB.
             )
         elif self.classifier_type == 'RANDOMFOREST':
             clf = RandomForestClassifier(
                 n_estimators=self.rf_n_estimators,
+                n_jobs=config.N_JOBS,  # TODO: TODO: address later for speed
                 # criterion='gini',
                 # max_depth=None,
                 # min_samples_split=2,
@@ -932,7 +934,7 @@ class BasePipeline(object):
 
         # TODO: temp exit early for zero test data found
         if len(self.df_features_predict_raw) == 0:
-            warn = f'Zero test data poiknts found. exiting early. predict features not built.'
+            warn = f'Zero test data points found. Exiting early. predict features not built.'
             logger.warning(warn)
             return self
         # Check if predict features have been engineered
@@ -976,7 +978,7 @@ class BasePipeline(object):
 
         # with warnings.catch_warnings():
         #     warnings.filterwarnings('ignore', category=SettingWithCopyWarning)
-        df_shuffled[test_data_col_name] = False  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
+        df_shuffled[test_data_col_name] = [False for _ in range(len(df_shuffled))]  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
         df_shuffled.loc[:int(len(df) * self.test_train_split_pct), test_data_col_name] = True
 
         df_shuffled = df_shuffled.reset_index()
@@ -1029,6 +1031,15 @@ class BasePipeline(object):
         logger.debug(f'{inspect.stack()[0][3]}(): Pipeline ({self.name}) saved to: {final_out_path}')
         return io.read_pipeline(final_out_path)
 
+    def save_as(self, out_path):
+        """
+
+        :param out_path:
+        :return:
+        """
+        check_arg.ensure_is_valid_path(out_path)
+        return io.read_pipeline(out_path)
+
     # Video stuff
 
     def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str,
@@ -1079,6 +1090,7 @@ class BasePipeline(object):
         # Generate video with variables
         logger.debug(f'{get_current_function()}(): labels[:5] example = {labels[:5]}')
         logger.debug(f'frames[:5] example: {frames[:5]}')
+
         videoprocessing.make_labeled_video_according_to_frame(
             labels,
             frames,
@@ -1090,15 +1102,14 @@ class BasePipeline(object):
 
         return self
 
-    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, file_name_prefix=None,
-                                      min_rows_of_behaviour=1, max_examples=3, num_frames_buffer=0, output_fps=15):
+    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, file_name_prefix=None, min_rows_of_behaviour=1, max_examples=3, num_frames_buffer=0, output_fps=15):
         """
         Create video clips of behaviours
 
         :param data_source: (str)
         :param video_file_path: (str)
         :param file_name_prefix:
-        :param min_rows_of_behaviour:
+        :param min_rows_of_behaviour: (int) The number of frames that precede and succeed the points of interest
         :param max_examples:
         :return:
         """
@@ -1257,7 +1268,3 @@ def generate_pipeline_filename(name: str):
     """
     file_name = f'{name}.pipeline'
     return file_name
-
-
-
-# streamlit run main.py streamlit -- -p "C:\Users\killian\projects\DIBS\output\epm1.pipeline"
