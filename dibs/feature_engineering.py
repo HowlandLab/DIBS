@@ -27,6 +27,7 @@ from typing import List, Tuple
 import inspect
 import itertools
 import math
+# import numba
 import numpy as np
 import pandas as pd
 
@@ -265,9 +266,14 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
     return veloc_array
 
 
+# @numba.jit
 def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     # TODO: evaluate
     # TODO: add NUMBA for fast computation?
+    # Case: if the numerator of the arctan() portion of the equation equals zero, then
+    #   DivideByZero error occurs.
+    if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
+        return 0.
     change_in_angle = \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (180/np.pi) * \
@@ -277,6 +283,7 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
         (180/np.pi) * \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (1 - statistics.sign(pos_x_0*pos_x_1 + pos_y_0*pos_y_1))
+
     return change_in_angle
 
 
