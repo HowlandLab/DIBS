@@ -30,7 +30,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from dibs import check_arg, config, statistics, logging_enhanced
+from dibs import check_arg, config, logging_enhanced, statistics
 
 
 logger = config.initialize_logger(__name__)
@@ -265,6 +265,17 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
     return veloc_array
 
 
+def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
+    # TODO: evaluate
+    x = statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
+        (180/np.pi) * \
+        np.arctan((pos_x_1*pos_y_0 - pos_x_0*pos_y_1)/(pos_x_1*pos_x_0 + pos_y_1*pos_y_0)) * \
+        (180/np.pi) * \
+        statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
+        (1 - statistics.sign(pos_x_0*pos_x_1 + pos_y_0*pos_y_1))
+    return x
+
+
 def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
     """
     TODO: explain the math
@@ -275,6 +286,24 @@ def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
     # TODO: Aaron this is the function stub
     x = np.array([])
     return x
+
+
+def delta_two_body_parts_angle_killian_try(body_part_arr_1, body_part_arr_2) -> np.ndarray:
+    """
+    K's attempt at implementing this function without overwriting potentail work by other dev
+    """
+    # Check args
+    check_arg.ensure_type(body_part_arr_1, np.ndarray)
+    check_arg.ensure_type(body_part_arr_2, np.ndarray)
+    check_arg.ensure_numpy_arrays_are_same_shape(body_part_arr_1, body_part_arr_2)
+    # Execute
+    output_array = np.full((len(body_part_arr_1),), np.NaN)
+    # TODO: low: implement a vectorized solution? Performance OK for now, but worth inspecting later
+    for i in range(1, len(body_part_arr_1)):
+        output_array[i] = delta_angle(body_part_arr_1[i-1][0], body_part_arr_2[i-1][1],
+                                      body_part_arr_1[i][0], body_part_arr_2[i][1])
+
+    return output_array
 
 
 ### Binning
@@ -866,17 +895,17 @@ def win_len_formula(fps: int) -> int:
 
 
 def run_openTSNE(train_features):
-  x_train = np.array(train_features)
-  n_components = 3
-  tsne = TSNE(
-	n_components=n_components, # https://github.com/pavlin-policar/openTSNE/issues/121
-	negative_gradient_method='bh',
-	perplexity=30,
-	metric='euclidean',
-	verbose=True,
-	n_jobs=10,
-	random_state=42
-      )
-  embedding = tsne.fit(x_train)
-  # np.savetxt(f"tsne{n_components}dims.csv", embedding, delimiter=',', header=",".join([f'X{i}' for i in range(embedding.shape[1])]))
-  return embedding
+    x_train = np.array(train_features)
+    n_components = 3
+    tsne = TSNE(
+        n_components=n_components, # https://github.com/pavlin-policar/openTSNE/issues/121
+        negative_gradient_method='bh',
+        perplexity=30,
+        metric='euclidean',
+        verbose=True,
+        n_jobs=10,
+        random_state=42
+    )
+    embedding = tsne.fit(x_train)
+    # np.savetxt(f"tsne{n_components}dims.csv", embedding, delimiter=',', header=",".join([f'X{i}' for i in range(embedding.shape[1])]))
+    return embedding
