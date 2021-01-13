@@ -1,6 +1,6 @@
 bhtsne>=0.1.9
 easygui
-ffmpeg
+ffmpeg-python
 future
 hdbscan>=0.8.26
 joblib>=0.14.1
