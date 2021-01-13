@@ -12,6 +12,18 @@ from dibs import check_arg, config
 logger = config.initialize_logger(__file__)
 
 
+def sign(x) -> int:
+    if isinstance(x, complex):
+        err = f'Value submitted is complex but this function cannot (yet) handle complex numbers. Value = {x}'
+        logger.error(err)
+        raise TypeError(err)
+    if x < 0:
+        return -1
+    elif x > 0:
+        return 1
+    return 0
+
+
 def mean(*args):
     """
     Get the mean average for all arguments for those that are not NaN.
