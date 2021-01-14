@@ -170,6 +170,7 @@ def attach_feature_velocity_of_bodypart(df: pd.DataFrame, bodypart: str, action_
     return df
 
 
+# # TODO: delete below function
 # def attach_snout_tail_angle(df, output_feature_name, copy=False) -> pd.DataFrame:
 #     df = df.copy() if copy else df
 #     # TODO: HIGH: implement
