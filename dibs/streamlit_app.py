@@ -366,20 +366,22 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
 
         st.markdown(f'- Number of data points in training data set: '
                     f'**{len(p.df_features_train_raw)//p.average_over_n_frames if not p.is_built else len(p.df_features_train_scaled)}**')
-        st.markdown(f' - Total unique behaviours clusters: **{len(p.unique_assignments)}**')
-        if len(p.cross_val_scores) > 0:
-            cross_val_decimals_round = 3
-            cross_val_score_text = f'- - Median cross validation score: **{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round)}** (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})'
-        else:
-            cross_val_score_text = f'- [Cross validation score not available]'
+        # if p.is_built:
+        st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
+
+        cross_val_decimals_round = 2
+        cross_val_score_text = f'- Median cross validation score: ' \
+                               f'**{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
+        # else:
+        #     cross_val_score_text = f'- **[Cross validation score not available]**'
         st.markdown(f'{cross_val_score_text}')
         st.markdown(f'Model Feature Names:')
         for feat in p.all_features:
-            st.markdown(f'- {feat}')
+            st.markdown(f'- - {feat}')
 
         if p.is_built:
-            st.markdown(f'- Seconds to build model: {p.seconds_to_engineer_train_features}')
-            st.markdown(f'- Raw assignment values: **{p.unique_assignments}**')  # TODO: low: remove this?
+            st.markdown('')
+            st.markdown(f'- Seconds to build model: {p.seconds_to_build}')
 
     ###
 
