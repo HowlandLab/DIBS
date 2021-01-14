@@ -1203,7 +1203,9 @@ logger = config.initialize_logger(__file__)
 # Concrete pipeline implementations
 
 class DemoPipeline(BasePipeline):
-    """ Demo pipeline used for demonstration on Pipeline usage. Do not implement this into any real projects. """
+    """
+    Non-functioning. Demo pipeline used for demonstration on Pipeline usage. Do not implement this into any real projects.
+    """
 
     def engineer_features(self, data: pd.DataFrame):
         """
@@ -1218,7 +1220,7 @@ class DemoPipeline(BasePipeline):
 
 class PipelinePrime(BasePipeline):
     """
-    First implementation of a full pipeline. Utilizes the 7 features from the B-SOiD paper.
+    Deprecated. First implementation of a full pipeline. Utilizes the feature set from the B-SOiD paper.
     """
 
     def engineer_features(self, in_df) -> pd.DataFrame:
@@ -1304,7 +1306,7 @@ class PipelinePrime(BasePipeline):
 
 class PipelineRetreat(BasePipeline):
     """
-    A one-off pipeline for Tim to use at his retreat :)
+    Deprecated. A one-off pipeline for Tim to use at his retreat.
     """
 
     def engineer_features(self, in_df) -> pd.DataFrame:
@@ -1352,7 +1354,7 @@ class PipelineRetreat(BasePipeline):
 
 class PipelineEPM(BasePipeline):
     """
-    First try implementation for Elevated Plus Maze whose features match those in B-SOID specs
+    Deprecated. First try implementation for Elevated Plus Maze whose features match those in the B-SOiD paper
     """
 
     def engineer_features(self, in_df) -> pd.DataFrame:
@@ -1403,7 +1405,7 @@ class PipelineEPM(BasePipeline):
 
 
 class PipelineFlex(BasePipeline):
-
+    """ (WIP) """
     # TODO: WIP: creating a flexible class to use with streamlit that allows for flexible feature selection
 
     def engineer_features(self, data: pd.DataFrame):
@@ -1510,18 +1512,18 @@ class PipelineTim(BasePipeline):
 
 class PipelineCHBO(BasePipeline):
     """
-
+    New features set created by the Howland Lab.
     """
     # Feature names
     intermediate_bodypart_avgForepaw = 'AvgForepaw'
     intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
-    feat_name_dist_forepawleft_nosetip = 'distForepawLeftNosetip'
-    feat_name_dist_forepawright_nosetip = 'distForepawRightNosetip'
-    feat_name_dist_forepawLeft_hindpawLeft = 'distForepawLeftHindpawLeft'
-    feat_name_dist_forepawRight_hindpawRight = 'distForepawRightHindpawRight'
-    feat_name_dist_AvgHindpaw_Nosetip = 'distAvgHindpawNoseTip'
-    feat_name_dist_AvgForepaw_NoseTip = 'distAvgForepawNoseTip'
-    feat_name_velocity_AvgForepaw = 'velocAvgForepaw'
+    feat_name_dist_forepawleft_nosetip = 'DistanceForepawLeftToNosetip'
+    feat_name_dist_forepawright_nosetip = 'DistanceForepawRightToNosetip'
+    feat_name_dist_forepawLeft_hindpawLeft = 'DistanceForepawLeftToHindpawLeft'
+    feat_name_dist_forepawRight_hindpawRight = 'DistanceForepawRightToHindpawRight'
+    feat_name_dist_AvgHindpaw_Nosetip = 'DistanceAvgHindpawToNosetip'
+    feat_name_dist_AvgForepaw_NoseTip = 'DistanceAvgForepawToNosetip'
+    feat_name_velocity_AvgForepaw = 'VelocityAvgForepaw'
     _all_features = (
         feat_name_dist_forepawleft_nosetip,
         feat_name_dist_forepawright_nosetip,
@@ -1643,17 +1645,17 @@ class PipelineMimic(BasePipeline):
     """
 
     # Feature names
-    feat_body_length = 'bodyLength'  # 1
+    feat_body_length = 'BodyLength'  # 1
     intermediate_bodypart_avgForepaw = 'AvgForepaw'
     intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
-    intermediate_dist_avgForepaw_to_tailbase = 'dist_avgForepaw_to_tailbase'  # TODO: rename
-    feat_dist_front_paws_to_tailbase_relative_to_body_length = 'dist_front_paws_to_tailbase_relative_to_body_length'  # 2  # TODO: rename
-    intermediate_dist_avgHindpaw_to_tailbase = 'dist_avgHindpaw_to_tailbase'  # TODO: rename
-    feat_dist_hind_paws_to_tailbase_relative_to_body_length = 'distHindpawsToTailBaseRelativetobodylength'  # 3  # TODO: rename str
-    feat_dist_bw_front_paws = 'distBetweenFrontPaws'  # 4
-    feat_snout_speed = 'snoutSpeed'  # 5
-    feat_tail_base_speed = 'tailSpeed'  # 6
-    feat_snout_tail_delta_angle = 'snoutTailAngle'  # 7
+    intermediate_dist_avgForepaw_to_tailbase = 'DistanceAvgForepawToTailbase'
+    feat_dist_front_paws_to_tailbase_relative_to_body_length = 'DistanceForepawsToTailbaseMinusBodyLength'  # 2
+    intermediate_dist_avgHindpaw_to_tailbase = 'DistanceAvgHindpawToTailbase'
+    feat_dist_hind_paws_to_tailbase_relative_to_body_length = 'DistanceHindpawsToTailBaseMinusBodyLength'  # 3
+    feat_dist_bw_front_paws = 'DistanceBetweenForepaws'  # 4
+    feat_snout_speed = 'SnoutSpeed'  # 5
+    feat_tail_base_speed = 'TailSpeed'  # 6
+    feat_snout_tail_delta_angle = 'DeltaAngleTailToSnout'  # 7
 
     _all_features = (
         feat_body_length,

@@ -139,6 +139,7 @@ class BasePipeline(object):
     # SORT ME
     _acc_score: float = None
     _cross_val_scores: np.ndarray = np.array([])
+
     seconds_to_engineer_train_features: float = None
     seconds_to_build: float = -1.
 
@@ -962,7 +963,7 @@ class BasePipeline(object):
         # Get predict data
         self.generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
         end = time.perf_counter()
-        self.seconds_to_build = round(end - start, 3)
+        self.seconds_to_build = round(end - start, 2)
         return self
 
     # More data transformations
