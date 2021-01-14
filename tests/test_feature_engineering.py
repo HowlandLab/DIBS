@@ -15,6 +15,7 @@ single_test_file_location = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DAT
 
 class TestFeatureEngineering(TestCase):
 
+    @skip  # TODO: Temporary skip
     def test__adaptively_filter_dlc_output__shouldReturnSameNumberOfRowsAsInput__always(self):
         # Arrange
         df_input = dibs.io.read_csv(single_test_file_location, nrows=dibs.config.max_rows_to_read_in_from_csv)
@@ -149,7 +150,10 @@ actual actual_output_arr: {actual_output_arr}
         self.assertTrue(is_equals, err_msg)
 
     def test__attach_average_feature_xy__shouldOnlyAttach2ColumnsInResult(self):
-        """ Test that the number of output columns matches expected """
+        """
+        Test that the number of output columns matches expected output.
+        Upon creating a new "average bodypart", it should add 2 extra columns, one for the x and one for the y values
+        """
         # Arrange
         df = dibs.io.read_csv(single_test_file_location)
         df_cols_set = set(df.columns)
@@ -168,81 +172,3 @@ actual actual_output_arr: {actual_output_arr}
 
         # Assert
         self.assertEqual(expected_num_cols, actual_num_output_cols)
-
-    def test__delta_angle__shouldReturnZero__whenNoChangeOccurs(self):
-        # Arrange
-        x0, y0 = 1, 1
-        x1, y1 = 1, 1
-        expected_output = 0.
-        # Act
-        actual_output = dibs.feature_engineering.delta_angle(x0, y0, x1, y1)
-        # Assert
-        self.assertEqual(expected_output, actual_output)
-
-    def test__delta_angle__shouldReturnZero__whenPositionChangesButSameAngle(self):
-        # Arrange
-        x0, y0 = 1, 1
-        x1, y1 = 100, 100
-        expected_output = 0.
-        # Act
-        actual_output = dibs.feature_engineering.delta_angle(x0, y0, x1, y1)
-        # Assert
-        self.assertEqual(expected_output, actual_output)
-
-    def test__delta_angle__shouldBe0__when0DegreeChangeInput_1(self):
-        # Arrange
-        x0, y0 = 1., 1.
-        x1, y1 = -1., 1.
-        expected_output = 0.
-        # Act
-        actual_output = dibs.feature_engineering.delta_angle(x0, y0, x1, y1)
-        # Assert
-        self.assertEqual(expected_output, actual_output)
-
-    def test__delta_angle__shouldBe0__when0DegreeChangeInput_2(self):
-        # Arrange
-        x0, y0 = -1., -1.
-        x1, y1 = 1., -1.
-        expected_output = 0.
-        # Act
-        actual_output = dibs.feature_engineering.delta_angle(x0, y0, x1, y1)
-        # Assert
-        self.assertEqual(expected_output, actual_output)
-
-    def test__delta_two_body_parts_angle_killian_try__shouldGiveZeroes__whenNoAngleChangesOccur(self):
-        """
-        TODO: When a single delta function is decided-upon,
-        """
-        # Create a
-        fill_first = 321321321
-        assert fill_first == fill_first
-        # Arrange
-        data_xy_1 = [[1, 1], [1, 1], [1, 1]]
-        arr_xy_1 = np.array(data_xy_1)
-        data_xy_2 = [[2, 2], [2, 2], [2, 2]]
-        arr_xy_2 = np.array(data_xy_2)
-        data_for_expected_output = [np.NaN, 0, 0]
-        expected_output = np.array(data_for_expected_output)
-        # Act
-        actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(arr_xy_1, arr_xy_2)
-        # and actual_output[0] != expected_output[0]
-        self.assertTrue(actual_output[0] != expected_output[0], f'{actual_output[0]}, {expected_output[0]}')
-        # Note: we fill first entry in array since we cannot find equality between arrays when values are NaN.
-        expected_output[0] = fill_first
-        actual_output[0] = fill_first
-        # Assert
-
-        is_equal = (expected_output == actual_output).all()
-        err = f"""
-Expected output = {expected_output}
-
-Actual output   = {actual_output}
-"""
-        self.assertTrue(is_equal, err)
-
-    def test__stub(self):
-        # Arrange
-        # Act
-        # Assert
-        self.assertTrue(True)
-    pass
