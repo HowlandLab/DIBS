@@ -180,7 +180,7 @@ def attach_feature_velocity_of_bodypart(df: pd.DataFrame, bodypart: str, action_
 
 def attach_angle_between_bodyparts(df, bodypart_1, bodypart_2, output_feature_name, copy=False) -> pd.DataFrame:
     """
-
+    # TODO: med: add docstring
     :param df: (DataFrame)
     :param bodypart_1: (str)
     :param bodypart_2: (str)
@@ -188,10 +188,11 @@ def attach_angle_between_bodyparts(df, bodypart_1, bodypart_2, output_feature_na
     :param copy: (bool)
     :return: (DataFrame)
     """
+    # TODO: add check for body parts existing in dataframe
     df = df.copy() if copy else df
-    # TODO: HIGH: implement
-
-    df[output_feature_name] = 1.  # <- this is a stand-in
+    # TODO: HIGH: Review which function for delta_angle is used below
+    df[output_feature_name] = delta_two_body_parts_angle_killian_try(df[[f'{bodypart_1}_x', f'{bodypart_1}_y']].values,
+                                                                     df[[f'{bodypart_2}_x', f'{bodypart_2}_y']].values)
 
     return df
 
@@ -267,14 +268,47 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
     return veloc_array
 
 
+def angle_between_two_vectors_by_position(ax, ay, bx, by):
+    for i in (ax, ay, bx, by):
+        if i != i:
+            raise ValueError(f'i is nan')
+    if ax == bx and ay == by:  # TODO: high : review if to keep this
+        # Points on top of each other
+        return np.NaN
+    return round(
+        (180/np.pi) *
+        np.arccos(
+            (ax*bx + ay*by) /
+            ((np.sqrt(ax**2 + ay**2)) * (np.sqrt(bx**2 + by**2)))
+        ), 5)
+
+
+def delta_angle_lazy(angle0, angle1):
+    return angle1 - angle0
+
+
 # @numba.jit
 def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
+    """
+    TODO: docstring
+    :param pos_x_0: (float)
+    :param pos_y_0: (float)
+    :param pos_x_1: (float)
+    :param pos_y_1: (float)
+    :return: (float)
+    """
+    for i in (pos_x_0, pos_y_0, pos_x_1, pos_y_1):
+        if np.isnan(i):
+            raise ValueError(f'NAN dtectex')
+    pos_x_0, pos_y_0, pos_x_1, pos_y_1 = float(pos_x_0), float(pos_y_0), float(pos_x_1), float(pos_y_1)
+
+    # First implementation
     # TODO: evaluate
     # TODO: add NUMBA for fast computation?
     # Case: if the numerator of the arctan() portion of the equation equals zero, then
     #   DivideByZero error occurs.
     if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
-        return 0.
+        return np.NaN
     change_in_angle = \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (180/np.pi) * \
@@ -285,6 +319,58 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (1 - statistics.sign(pos_x_0*pos_x_1 + pos_y_0*pos_y_1))
 
+    # # SEcond implementation
+    # # neg_x = -1 * pos_x_0
+    # # neg_y = -1 * pos_y_0
+    # # pos_x_0 = pos_x_0 + neg_x
+    # # pos_y_0 = pos_y_0 + neg_y
+    # # pos_x_1 = pos_x_1 + neg_x
+    # # pos_y_1 = pos_y_1 + neg_y
+    # if pos_x_1 > 0:
+    #     if pos_y_1 > 0:
+    #         # Quadrant 1
+    #         if pos_x_1 == 0:
+    #             change_in_angle = 0
+    #             # f = lambda x, y: 0
+    #         else:
+    #             # f = lambda x, y: np.arctan(y/x)
+    #             change_in_angle = 1 / (1 + (pos_y_1 / pos_x_1) ** 2)
+    #         pass
+    #     else:
+    #
+    #         # Quadrant 4
+    #         if pos_x_1 == 0:
+    #             change_in_angle = -1
+    #         else:
+    #             change_in_angle = -1 * (1 / (1 + (pos_y_1/pos_x_1)**2))
+    # else:
+    #     if pos_y_1 > 0:
+    #         # quadrant 2
+    #         if pos_x_1 == 0:
+    #             change_in_angle = np.pi
+    #         else:
+    #             # change_in_angle = np.pi - (1 / (1 + (pos_y_1/pos_x_1)**2))
+    #             change_in_angle = (1 / (1 + (pos_y_1 / pos_x_1) ** 2))
+    #         pass
+    #     else:
+    #         # quadrant 3
+    #         if pos_x_1 == 0:
+    #             change_in_angle = -np.pi
+    #         else:
+    #             change_in_angle = (1 / (1 + (pos_y_1/pos_x_1)**2)) - np.pi
+    #             change_in_angle = (1 / (1 + (pos_y_1 / pos_x_1) ** 2))
+    # # angle_1 = lambda x,y: np.arctan(y/x)
+    # # angle_2 = lambda x, y: np.pi - np.arctan(y/x)
+    # # angle_3 = lambda x, y: np.pi
+    # # change_in_angle =
+    #
+    # # angle_0 =
+    # # angle_1 =
+    # # change_in_angle = (angle_1 - angle_0) * (180/np.pi)
+    # # change_in_angle = change_in_angle * (180/np.pi)
+
+    # # Third implementation
+    # angle_0 = angle
     return change_in_angle
 
 
@@ -308,12 +394,12 @@ def delta_two_body_parts_angle_killian_try(body_part_arr_1, body_part_arr_2) -> 
     check_arg.ensure_type(body_part_arr_1, np.ndarray)
     check_arg.ensure_type(body_part_arr_2, np.ndarray)
     check_arg.ensure_numpy_arrays_are_same_shape(body_part_arr_1, body_part_arr_2)
+
     # Execute
-    output_array = np.full((len(body_part_arr_1),), np.NaN)
-    # TODO: low: implement a vectorized solution? Performance OK for now, but worth inspecting later
-    for i in range(1, len(body_part_arr_1)):
-        output_array[i] = delta_angle(body_part_arr_1[i-1][0], body_part_arr_2[i-1][1],
-                                      body_part_arr_1[i][0], body_part_arr_2[i][1])
+    output_array = np.full(body_part_arr_1.shape[0], np.NaN)
+    # # TODO: low: implement a vectorized solution? Performance OK for now, but worth inspecting later
+    for i in range(1, len(output_array)):
+        output_array[i] = angle_between_two_vectors_by_position(body_part_arr_1[i][0], body_part_arr_1[i][1], body_part_arr_2[i][0], body_part_arr_2[i][1]) - angle_between_two_vectors_by_position(body_part_arr_1[i-1][0], body_part_arr_1[i-1][1], body_part_arr_2[i-1][0], body_part_arr_2[i-1][1])
 
     return output_array
 
@@ -921,3 +1007,10 @@ def run_openTSNE(train_features):
     embedding = tsne.fit(x_train)
     # np.savetxt(f"tsne{n_components}dims.csv", embedding, delimiter=',', header=",".join([f'X{i}' for i in range(embedding.shape[1])]))
     return embedding
+
+
+if __name__ == '__main__':
+    # ax, ay, bx, by = 1, 1, -1, -1
+    # print(angle_between_two_vectors_by_position(ax, ay, bx, by))
+    pos = []
+
