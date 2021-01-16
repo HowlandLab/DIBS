@@ -73,12 +73,14 @@ key_button_show_example_videos_options = 'key_button_show_example_videos_options
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
 key_button_menu_label_entire_video = 'key_button_menu_label_entire_video'
 default_n_seconds_sleep = 'default_n_seconds_wait_until_auto_refresh'
+key_checkbox_show_extra_text = 'Show additional descriptive text'  # TODO: low: update text here
 ### Page variables data ###
 streamlit_persistence_variables = {  # Instantiate default variable values here
     key_pipeline_path: '',  #  TODO: med: review usage. Could be strong than passing paths between funcs?
     key_open_pipeline_path: config.DIBS_BASE_PROJECT_PATH,
     key_iteration_page_refresh_count: 0,
     default_n_seconds_sleep: 3,
+    key_checkbox_show_extra_text: False,
     key_button_show_adv_pipeline_information: False,
     key_button_see_rebuild_options: False,
     key_button_see_advanced_options: False,
@@ -102,7 +104,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here
 
 ##### Page layout #####
 
-def home(**kwargs):
+def start_app(**kwargs):
     """
     The designated home page/entry point when Streamlit is used.
     -------------
@@ -117,7 +119,6 @@ def home(**kwargs):
         up to the user to fill out.
 
     """
-    logger.debug('    < Start of Streamlit page >    ')
     ### Set up session variables
     global file_session
     file_session = streamlit_session_state.get(**streamlit_persistence_variables)
@@ -132,14 +133,23 @@ def home(**kwargs):
         else:
             pipeline_file_path = file_session[key_pipeline_path]
 
+    home(pipeline_file_path)
+
+
+def home(pipeline_file_path):
+    """
+    Start of the streamlit app page for drawing
+    """
+    logger.debug('    < Start of Streamlit page >    ')
+
     ######################################################################################
     ### SIDEBAR ###
-    st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')
+    st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
     st.sidebar.markdown('------')
-    
-    # button_refresh_page = st.sidebar.button('Refresh page safely')
-    # if button_refresh_page:
-    #     st.experimental_rerun()
+
+    is_checked = st.sidebar.checkbox(key_checkbox_show_extra_text, value=True)  # TODO: low: remove value=True after debugging is done.
+    file_session[key_checkbox_show_extra_text] = is_checked
+    # st.sidebar.markdown(f'Checkbox checked: {is_checked}')
 
     ### MAIN ###
     st.markdown(f'# B-SOiD Streamlit app')
@@ -161,17 +171,24 @@ def home(**kwargs):
             st.markdown(f'## Create new project pipeline')
             st.markdown('')
 
-            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.', [text_bare_pipeline, text_dibs_data_pipeline])  #     def radio(self, label, options, index=0, format_func=str, key=None):
-            st.markdown('*Note: data can be added and removed at any time in the project, so this decision is not final*')
+            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.',
+                                                  [text_bare_pipeline,
+                                                   text_dibs_data_pipeline])  # def radio(self, label, options, index=0, format_func=str, key=None):
+            st.markdown(
+                '*Note: data can be added and removed at any time in the project, so this decision is not final*')
             st.markdown('')
             # st.markdown(f'DEBUG: radio selected = {radio_select_create_method}')
-            select_pipe_type = st.selectbox('Select a pipeline implementation', options=['']+list(pipeline_options.keys()))
+            select_pipe_type = st.selectbox('Select a pipeline implementation',
+                                            options=[''] + list(pipeline_options.keys()))
             st.markdown('')
             if select_pipe_type:
-                pipeline_class = pipeline_options[select_pipe_type]
-                if str(pipeline_class.__doc__).strip():
-                    st.info(pipeline_class.__doc__)
-                # st.help()
+                # After selecting a Pipeline implementation...
+
+                if file_session[key_checkbox_show_extra_text]:
+                    pipeline_class = pipeline_options[select_pipe_type]
+                    if str(pipeline_class.__doc__).strip():
+                        st.info(pipeline_class.__doc__)
+
                 text_input_new_project_name = st.text_input(
                     'Enter a name for your project pipeline. Please only use letters, numbers, and underscores.')
                 input_path_to_pipeline_dir = st.text_input(
@@ -201,17 +218,20 @@ def home(**kwargs):
                                 p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
                                 p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
                         p = p.save_to_folder(input_path_to_pipeline_dir)
-                        pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename(text_input_new_project_name))
+                        pipeline_file_path = os.path.join(input_path_to_pipeline_dir,
+                                                          pipeline.generate_pipeline_filename(
+                                                              text_input_new_project_name))
                         file_session[key_pipeline_path] = pipeline_file_path
                         st.balloons()
                         st.success(f"""
-Success! Your new project pipeline has been saved to disk to the following path: 
+    Success! Your new project pipeline has been saved to disk to the following path: 
 
-{os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
+    {os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
 
-""".strip())
+    """.strip())
                         n_secs_til_refresh = file_session[default_n_seconds_sleep]
-                        st.info(f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
+                        st.info(
+                            f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
                         st.markdown('')
                         st.markdown('')
                         st.markdown('')
@@ -436,7 +456,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             #            f'{", ".join([os.path.split(x)[-1] for x in file_paths])}. Refresh the page to see the changes')
             # file_session[key_button_add_new_data] = False
             # st.stop()
-
+            ############
 
             # Original implementation below: dont delete yet!
             st.markdown(f"_Input a file path below to data which will be used to train the model._\n\n_You may input a file path or a path to a directory. If a directory is entered, all CSVs directly within will be added as training data_")
@@ -551,8 +571,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('')
         st.markdown('## Model Parameters')
         st.markdown(f'### General parameters')
-        input_video_fps = st.number_input(f'Video FPS of input data', value=float(p.video_fps), min_value=0., max_value=500., format='%.2f', step=1.0)
-        input_average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10)
+        input_video_fps = st.number_input(f'Video FPS of input data', value=float(p.video_fps), min_value=0., max_value=500., step=1.0, format='%.2f')
+        input_average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10, step=1)
         st.markdown(f'By averaging features over **{input_average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(input_average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
         st.markdown(f'*By averaging over larger windows, the model can provide better generalizability, but using smaller windows is more likely to find more minute actions*')
 
@@ -613,13 +633,13 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
             input_gmm_tol = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
             input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
-            input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, step=1, format="%i")
+            input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, min_value=1, step=1, format="%i")
 
             if select_classifier == 'SVM':
                 st.markdown('### Advanced SVM Parameters')
                 ### SVM ###
-                input_svm_c = st.number_input(f'SVM C', value=p.svm_c, format='%.2f')
-                input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, format='%.2f')
+                input_svm_c = st.number_input(f'SVM C', value=p.svm_c, min_value=1e-10, format='%.2f')
+                input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, min_value=1e-10, format='%.2f')
             elif select_classifier == 'RANDOMFOREST':
                 select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p.rf_n_estimators, min_value=1, max_value=1_000, format='%i')
         ### End of Show Advanced Params Section
@@ -649,6 +669,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                             'average_over_n_frames': input_average_over_n_frames,
 
                             'gmm_n_components': slider_gmm_n_components,
+
                             'cross_validation_k': input_cross_validation_k,
 
                             # Advanced opts
