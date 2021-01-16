@@ -37,6 +37,7 @@ logger = config.initialize_logger(__file__)
 
 ##### Instantiate names for buttons, options that can be changed on the fly but logic below stays the same #####
 
+webpage_head_title = 'DIBS'
 valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
@@ -48,11 +49,11 @@ pipeline_options = {
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
 }
-# pipeline_prime_name, pipeline_epm_name, pipelineTimName, pipelineCHBO = 'PipelinePrime', 'pipeline_epm_name', 'PipelineTim', 'CHBO Pipeline'  # TODO: deprecate this line
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
-key_iteration_page_refresh_count = 'key_iteration_page_refresh_count'
-
+key_iteration_page_refresh_count = 'key_iteration_page_refresh_count'  # A debugging effort. Remove when done debugging.
+key_checkbox_show_extra_text = 'Show additional descriptive text'  # TODO: low: update text here
 # Set keys for objects (mostly buttons) for streamlit components that need some form of persistence.
+key_selected_layout, initial_sidebar_state = 'key_selected_layout', 'initial_sidebar_state'
 key_pipeline_path = 'key_pipeline_path'  # <- for saving pipe path when loaded??? ????
 key_open_pipeline_path = 'key_open_pipeline_path'  # For selecting a pipeline using hack dialog box
 key_button_show_adv_pipeline_information = 'key_button_show_more_pipeline_information'
@@ -73,9 +74,11 @@ key_button_show_example_videos_options = 'key_button_show_example_videos_options
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
 key_button_menu_label_entire_video = 'key_button_menu_label_entire_video'
 default_n_seconds_sleep = 'default_n_seconds_wait_until_auto_refresh'
-key_checkbox_show_extra_text = 'Show additional descriptive text'  # TODO: low: update text here
-### Page variables data ###
-streamlit_persistence_variables = {  # Instantiate default variable values here
+
+### Page variables data & default values ###
+streamlit_persistence_variables = {  # Instantiate default variable values here.
+    key_selected_layout: 'centered',  # Valid values include: "centered" and "wide"
+    initial_sidebar_state: 'collapsed',  # Valid values include: "expanded" and "collapsed"
     key_pipeline_path: '',  #  TODO: med: review usage. Could be strong than passing paths between funcs?
     key_open_pipeline_path: config.DIBS_BASE_PROJECT_PATH,
     key_iteration_page_refresh_count: 0,
@@ -125,6 +128,12 @@ def start_app(**kwargs):
     matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows
     file_session[key_iteration_page_refresh_count] = file_session[key_iteration_page_refresh_count] + 1
 
+    # Set page config
+    st.set_page_config(page_title=webpage_head_title,
+                       page_icon=':shark:',
+                       layout=file_session[key_selected_layout],
+                       initial_sidebar_state='expanded')
+
     # Load up pipeline if specified on command line or specified in config.ini
     pipeline_file_path: str = kwargs.get('pipeline_path', '')
     if not pipeline_file_path:  # If not specified on command line, use config.ini path as default if possible.
@@ -133,6 +142,15 @@ def start_app(**kwargs):
         else:
             pipeline_file_path = file_session[key_pipeline_path]
 
+    # Show app variables in sidebar
+    st.sidebar.markdown(f'## App Settings')
+    st.sidebar.markdown(f'----------------')
+    selected_layout = st.sidebar.selectbox('Select a page layout', options=["Wide", "Centered"])
+    if selected_layout.lower() != file_session[key_selected_layout]:
+        file_session[key_selected_layout] = selected_layout.lower()
+        st.experimental_rerun()
+
+    # Begin app
     home(pipeline_file_path)
 
 
@@ -140,8 +158,27 @@ def home(pipeline_file_path):
     """
     Start of the streamlit app page for drawing
     """
-    logger.debug('    < Start of Streamlit page >    ')
+    # # TODO: review use of columns
+    # col1, col2, col3 = st.beta_columns(3)
+    # with col1:
+    #     st.header("A cat")
+    #     st.image("https://static.streamlit.io/examples/cat.jpg", use_column_width=True)
+    # with col2:
+    #     st.header("A dog")
+    #     st.image("https://static.streamlit.io/examples/dog.jpg", use_column_width=True)
+    # with col3:
+    #     st.header("An owl")
+    #     st.image("https://static.streamlit.io/examples/owl.jpg", use_column_width=True)
+    # # TODO: review use of expanders
+    # st.line_chart({"data": [1, 5, 2, 6, 2, 1]})
+    # with st.beta_expander("See explanation"):
+    #     st.write("""
+    #         The chart above shows some numbers I picked for you.
+    #         I rolled actual dice for these, so they're *guaranteed* to
+    #         be random.""")
+    #     st.image("https://static.streamlit.io/examples/dice.jpg")
 
+    logger.debug('    < Start of Streamlit page >    ')
     ######################################################################################
     ### SIDEBAR ###
     st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
@@ -171,24 +208,19 @@ def home(pipeline_file_path):
             st.markdown(f'## Create new project pipeline')
             st.markdown('')
 
-            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.',
-                                                  [text_bare_pipeline,
-                                                   text_dibs_data_pipeline])  # def radio(self, label, options, index=0, format_func=str, key=None):
-            st.markdown(
-                '*Note: data can be added and removed at any time in the project, so this decision is not final*')
+            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.', [text_bare_pipeline, text_dibs_data_pipeline])
+            st.markdown('*Note: data can be added and removed at any time in the project, so this decision is not final*')
             st.markdown('')
-            # st.markdown(f'DEBUG: radio selected = {radio_select_create_method}')
-            select_pipe_type = st.selectbox('Select a pipeline implementation',
-                                            options=[''] + list(pipeline_options.keys()))
+            select_pipe_type = st.selectbox('Select a pipeline implementation', options=[''] + list(pipeline_options.keys()))
             st.markdown('')
-            if select_pipe_type:
-                # After selecting a Pipeline implementation...
+            if select_pipe_type:  # After selecting a Pipeline implementation...
+                pipeline_class = pipeline_options[select_pipe_type]
 
+                # Show extra pipeline text if necessary
                 if file_session[key_checkbox_show_extra_text]:
-                    pipeline_class = pipeline_options[select_pipe_type]
-                    if str(pipeline_class.__doc__).strip():
-                        st.info(pipeline_class.__doc__)
-
+                    pipe_info = pipeline_class.__doc__ if str(pipeline_class.__doc__).strip() else f'No documentation detected for {pipeline_class.__name__}'
+                    st.info(pipe_info)
+                # Input parameters for new Pipeline
                 text_input_new_project_name = st.text_input(
                     'Enter a name for your project pipeline. Please only use letters, numbers, and underscores.')
                 input_path_to_pipeline_dir = st.text_input(
@@ -520,9 +552,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     if button_remove_data:
         file_session[key_button_menu_remove_data] = not file_session[key_button_menu_remove_data]
     if file_session[key_button_menu_remove_data]:
-
         select_train_or_predict_remove = st.selectbox('Select which data you want to remove', options=['', training_data_option, predict_data_option])
-
         if select_train_or_predict_remove == training_data_option:
             select_train_data_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.training_data_sources)
             if select_train_data_to_remove:
@@ -877,7 +907,7 @@ def review_behaviours(p, pipeline_file_path):
                 st.experimental_rerun()
         st.markdown('--------------------------------------------------------------------------------------')
 
-    ###
+    ### End section: create new example videos ###
 
     ### Review labels for behaviours ###
     button_review_assignments_is_clicked = st.button('Toggle: review behaviour/assignments labels', key=key_button_review_assignments)
@@ -906,7 +936,7 @@ def review_behaviours(p, pipeline_file_path):
                     # assert os.path.isdir(os.path.dirname(pipeline_file_path))
                     p = p.set_label(assignment_a, text_input_new_label).save(os.path.dirname(pipeline_file_path))
 
-    ###
+    ### End section: review labels for behaviours ###
 
     st.markdown('')
 
@@ -964,6 +994,7 @@ def results_section(p, pipeline_file_path, **kwargs):
 
 def display_footer(p, pipeline_file_path, *args, **kwargs):
     """ Footer of Streamlit page """
+    # TODO: low: consider: add link to GitHub page and/or credits?
     st.markdown('')
     logger.debug('   < End of streamlit page >   ')
     return p
