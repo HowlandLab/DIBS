@@ -102,44 +102,6 @@ streamlit_persistence_variables = {  # Instantiate default variable values here
 
 ##### Page layout #####
 
-def st_file_selector(st_placeholder, label='', path='.'):
-    """
-    TODO: NOTE: THIS FUNCTION DOES NOT CURRENTLY WORK!!! wip
-    """
-    # get base path (directory)
-    logger.debug(f'st_file_selector(): label = {label} / path = {path}')
-    initial_base_path = '.' if not path else path
-    # If initial base path is a file, get the directory
-    base_path = initial_base_path if os.path.isdir(initial_base_path) else os.path.dirname(initial_base_path)
-
-    base_path = '.' if not base_path else base_path
-    logger.debug(f'st_file_selector(): base_path finally resolves to: {base_path}')
-
-    # list files in base path directory
-    files: List[str] = ['.', '..', ] + os.listdir(base_path)
-    # logger.debug(f'st_file_selector(): files list: {files} ')
-
-    # Create select box
-    selected_file = st_placeholder.selectbox(label=label, options=files, key=base_path+str(random.randint(0, 1000)))
-    selected_path = os.path.normpath(os.path.join(base_path, selected_file))
-    logger.debug(f'st_file_selector(): ')
-
-    if selected_file == '.':
-        logger.debug(f'st_file_selector(): selected_file = {selected_file}')
-        return selected_path
-    if selected_file == '..':
-        logger.debug(f'st_file_selector(): SELECTED PATH = {selected_path}')
-        selected_path = st_file_selector(st_placeholder=st_placeholder,
-                                         path=os.path.dirname(base_path),
-                                         label=label)
-    if os.path.isdir(selected_path):
-        logger.debug(f'st_file_selector(): SELECTED PATH = {selected_path}')
-        selected_path = st_file_selector(st_placeholder=st_placeholder,
-                                         path=selected_path,
-                                         label=label)
-    return selected_path
-
-
 def home(**kwargs):
     """
     The designated home page/entry point when Streamlit is used.
@@ -174,9 +136,10 @@ def home(**kwargs):
     ### SIDEBAR ###
     st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')
     st.sidebar.markdown('------')
-    button_refresh_page = st.sidebar.button('Refresh page safely')
-    if button_refresh_page:
-        st.experimental_rerun()
+    
+    # button_refresh_page = st.sidebar.button('Refresh page safely')
+    # if button_refresh_page:
+    #     st.experimental_rerun()
 
     ### MAIN ###
     st.markdown(f'# B-SOiD Streamlit app')
@@ -995,6 +958,44 @@ def get_video_bytes(path_to_video):
 
 
 # Misc.
+
+def st_file_selector(st_placeholder, label='', path='.'):
+    """
+    TODO: NOTE: THIS FUNCTION DOES NOT CURRENTLY WORK!!! wip
+    """
+    # get base path (directory)
+    logger.debug(f'st_file_selector(): label = {label} / path = {path}')
+    initial_base_path = '.' if not path else path
+    # If initial base path is a file, get the directory
+    base_path = initial_base_path if os.path.isdir(initial_base_path) else os.path.dirname(initial_base_path)
+
+    base_path = '.' if not base_path else base_path
+    logger.debug(f'st_file_selector(): base_path finally resolves to: {base_path}')
+
+    # list files in base path directory
+    files: List[str] = ['.', '..', ] + os.listdir(base_path)
+    # logger.debug(f'st_file_selector(): files list: {files} ')
+
+    # Create select box
+    selected_file = st_placeholder.selectbox(label=label, options=files, key=base_path+str(random.randint(0, 1000)))
+    selected_path = os.path.normpath(os.path.join(base_path, selected_file))
+    logger.debug(f'st_file_selector(): ')
+
+    if selected_file == '.':
+        logger.debug(f'st_file_selector(): selected_file = {selected_file}')
+        return selected_path
+    if selected_file == '..':
+        logger.debug(f'st_file_selector(): SELECTED PATH = {selected_path}')
+        selected_path = st_file_selector(st_placeholder=st_placeholder,
+                                         path=os.path.dirname(base_path),
+                                         label=label)
+    if os.path.isdir(selected_path):
+        logger.debug(f'st_file_selector(): SELECTED PATH = {selected_path}')
+        selected_path = st_file_selector(st_placeholder=st_placeholder,
+                                         path=selected_path,
+                                         label=label)
+    return selected_path
+
 
 def example_of_value_saving():
     """ A toy function for showing patterns of saving button presses/values """
