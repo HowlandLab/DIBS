@@ -13,8 +13,8 @@ class TestConfig(TestCase):
 
     def test__get_data_source_from_file_path__shouldWorkAsExpected__whenGivenALinuxPath(self):
         # Arrange
-        name = expected_output = 'MyPipeline'
-        input_path = f'/usr/home/pipelines/{name}.pipeline'
+        expected_output = 'MyPipeline'
+        input_path = f'/usr/home/pipelines/{expected_output}.pipeline'
 
         # Act
         actual_output = dibs.config.get_data_source_from_file_path(input_path)
@@ -24,8 +24,8 @@ class TestConfig(TestCase):
 
     def test__get_data_source_from_file_path__shouldWorkAsExpected__whenGivenAWindowsPath(self):
         # Arrange
-        name = expected_output = 'MyPipeline'
-        input_path = f'C:\\Users\\MyUser\\DIBS\\{name}.pipeline'
+        expected_output = 'MyPipeline'
+        input_path = f'C:\\Users\\MyUser\\DIBS\\{expected_output}.pipeline'
 
         # Act
         actual_output = dibs.config.get_data_source_from_file_path(input_path)
