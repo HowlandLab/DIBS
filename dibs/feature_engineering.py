@@ -269,11 +269,14 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
 
 
 def angle_between_two_vectors_by_position(ax, ay, bx, by):
+    """
+    Returns angle between two vectors in degrees
+    """
     for i in (ax, ay, bx, by):
         if i != i:
             raise ValueError(f'i is nan')
     if ax == bx and ay == by:  # TODO: high : review if to keep this
-        # Points on top of each other
+        # Points on top of each other, no angle possible
         return np.NaN
     return round(
         (180/np.pi) *
@@ -284,6 +287,9 @@ def angle_between_two_vectors_by_position(ax, ay, bx, by):
 
 
 def delta_angle_lazy(angle0, angle1):
+    assert angle0 == angle0
+    assert angle1 == angle1
+
     return angle1 - angle0
 
 
@@ -308,7 +314,7 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     # Case: if the numerator of the arctan() portion of the equation equals zero, then
     #   DivideByZero error occurs.
     if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
-        return np.NaN
+        return 0.
     change_in_angle = \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (180/np.pi) * \
