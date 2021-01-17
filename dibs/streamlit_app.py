@@ -49,9 +49,10 @@ pipeline_options = {
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
 }
+valid_layouts = {'centered', 'wide'}
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
 key_iteration_page_refresh_count = 'key_iteration_page_refresh_count'  # A debugging effort. Remove when done debugging.
-key_checkbox_show_extra_text = 'Show additional descriptive text'  # TODO: low: update text here
+checkbox_show_extra_text = 'Show additional descriptive text'  # TODO: low: update text here
 # Set keys for objects (mostly buttons) for streamlit components that need some form of persistence.
 key_selected_layout, initial_sidebar_state = 'key_selected_layout', 'initial_sidebar_state'
 key_pipeline_path = 'key_pipeline_path'  # <- for saving pipe path when loaded??? ????
@@ -83,7 +84,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_open_pipeline_path: config.DIBS_BASE_PROJECT_PATH,
     key_iteration_page_refresh_count: 0,
     default_n_seconds_sleep: 3,
-    key_checkbox_show_extra_text: False,
+    checkbox_show_extra_text: False,
     key_button_show_adv_pipeline_information: False,
     key_button_see_rebuild_options: False,
     key_button_see_advanced_options: False,
@@ -144,8 +145,13 @@ def start_app(**kwargs):
 
     # Show app variables in sidebar
     st.sidebar.markdown(f'## App Settings')
-    st.sidebar.markdown(f'----------------')
-    selected_layout = st.sidebar.selectbox('Select a page layout', options=["Wide", "Centered"])
+    # st.sidebar.markdown(f'----------------')
+    # st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
+    # st.sidebar.markdown('------')
+    is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=True)  # TODO: low: remove value=True after debugging is done.
+    file_session[checkbox_show_extra_text] = is_checked
+
+    selected_layout = st.sidebar.selectbox('Select a page layout', options=[file_session[key_selected_layout].title()]+[x.title() for x in ["Wide", "Centered"] if x != file_session[key_selected_layout].title()])
     if selected_layout.lower() != file_session[key_selected_layout]:
         file_session[key_selected_layout] = selected_layout.lower()
         st.experimental_rerun()
@@ -178,14 +184,10 @@ def home(pipeline_file_path):
     #         be random.""")
     #     st.image("https://static.streamlit.io/examples/dice.jpg")
 
-    logger.debug('    < Start of Streamlit page >    ')
     ######################################################################################
+    logger.debug('    < Start of Streamlit page >    ')
     ### SIDEBAR ###
-    st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
-    st.sidebar.markdown('------')
 
-    is_checked = st.sidebar.checkbox(key_checkbox_show_extra_text, value=True)  # TODO: low: remove value=True after debugging is done.
-    file_session[key_checkbox_show_extra_text] = is_checked
     # st.sidebar.markdown(f'Checkbox checked: {is_checked}')
 
     ### MAIN ###
@@ -217,7 +219,7 @@ def home(pipeline_file_path):
                 pipeline_class = pipeline_options[select_pipe_type]
 
                 # Show extra pipeline text if necessary
-                if file_session[key_checkbox_show_extra_text]:
+                if file_session[checkbox_show_extra_text]:
                     pipe_info = pipeline_class.__doc__ if str(pipeline_class.__doc__).strip() else f'No documentation detected for {pipeline_class.__name__}'
                     st.info(pipe_info)
                 # Input parameters for new Pipeline
@@ -256,11 +258,11 @@ def home(pipeline_file_path):
                         file_session[key_pipeline_path] = pipeline_file_path
                         st.balloons()
                         st.success(f"""
-    Success! Your new project pipeline has been saved to disk to the following path: 
+Success! Your new project pipeline has been saved to disk to the following path: 
 
-    {os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
+{os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
 
-    """.strip())
+""".strip())
                         n_secs_til_refresh = file_session[default_n_seconds_sleep]
                         st.info(
                             f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
@@ -332,11 +334,6 @@ def home(pipeline_file_path):
 
     if is_pipeline_loaded:
         logger.debug(f"Leaving home: pipeline_file_path = {pipeline_file_path}")
-        # logger.debug(f'file_session[pipe] = {file_session[key_pipeline_path]}')
-        # file_session[key_pipeline_file_path] = pipeline_file_path
-        # logger.debug(f'Leaving home().file_session[key_pipeline_file_path] == file_session[key_pipeline_file_path] ')
-        start_select_option = load_existing_project_option_text
-        # path_to_project_file = p._source_folder
         st.markdown('----------------------------------------------------------------------------------------------')
         if not os.path.isfile(pipeline_file_path):
             err = f'Pipeline file path got lost along the way. Path = {pipeline_file_path}'
