@@ -603,6 +603,10 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown(f'By averaging features over **{input_average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(input_average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
         st.markdown(f'*By averaging over larger windows, the model can provide better generalizability, but using smaller windows is more likely to find more minute actions*')
 
+        if file_session[checkbox_show_extra_text]:
+            st.info('Increasing the averaging frame will help reduce jitter when labeling,'
+                    ' but it will also smooth out any nuanced behaviours that may be short in duration')
+
         # # TODO: Low/Med: implement variable feature selection
         # st.markdown(f'### Select features')
         # st.multiselect('select features', p.all_features, default=p.all_features)  # TODO: develop this feature selection tool!
@@ -611,6 +615,12 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('### Gaussian Mixture Model Parameters')
         slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=10, min_value=2, max_value=40, step=1)
         st.markdown(f'_You have currently selected __{slider_gmm_n_components}__ clusters_')
+
+        # Extra info: GMM components
+        if file_session[checkbox_show_extra_text]:
+            st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
+                    ' are labeled in the final output.')
+
         st.markdown('')
         # TODO: low: add GMM: probability = True
         # TODO: low: add: GMM: n_jobs = -2
@@ -619,8 +629,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('### Other model information')
         input_cross_validation_k = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
         # TODO: med/high: add number input for % holdout for test/train split
-
         # Hack solution: specify params here so that the variable exists even though advanced params section not opened.
+
+        # Extra info: k-folds
+        if file_session[checkbox_show_extra_text]:
+            st.info('TODO: explain k in k-folds')
 
         st.markdown('')
         ### Set up default values for advanced parameters in case the user does not set advanced parameters at all
@@ -649,18 +662,49 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
             # TSNE
             st.markdown('### Advanced TSNE Parameters')
+            if file_session[checkbox_show_extra_text]:
+                st.info('See the original paper describing this algorithm for more details.'
+                        ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
+                        'Section 2 includes perplexity.')
             input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity, min_value=0.1)
+            # Extra info: tsne-perplexity
+            if file_session[checkbox_show_extra_text]:
+                st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
             input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01, max_value=200.)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
+            # Extra info: learning rate
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: learning rate')
             input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', min_value=0., max_value=100., value=p.tsne_early_exaggeration, step=0.1, format='%.2f')
+            # Extra info: early exaggeration
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: early exaggeration')
             input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
+            # Extra info: number of iterations
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: number of iterations')
             input_tsne_n_components = st.slider(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=1, max_value=10, step=1, format='%i')
+            # Extra info: number of components (dimensions)
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: number of components (dimensions)')
             # TODO: n_jobs: n_jobs=-1: all cores being used, set to -2 for all cores but one.
 
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
+            # Extra info: reg covar
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: reg covar')
             input_gmm_tol = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
+            # Extra info: GMM tolerance
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: GMM tolerance')
             input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
+            # Extra info: GMM max iterations
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: GMM max iterations')
             input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, min_value=1, step=1, format="%i")
+            # Extra info: GMM number of initializations
+            if file_session[checkbox_show_extra_text]:
+                st.info('TODO: GMM number of initializations')
 
             if select_classifier == 'SVM':
                 st.markdown('### Advanced SVM Parameters')
