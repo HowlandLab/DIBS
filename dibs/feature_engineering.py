@@ -296,11 +296,49 @@ def delta_two_body_parts_angle_killian_try(body_part_arr_1, body_part_arr_2) -> 
 
 
 ### Single value math
+def is_angle_change_positive(x0, y0, x1, y1) -> bool:
+    """
+    if(a.x*b.y - a.y*b.x < 0)
+    angle = -angle;
 
-def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1):
+    :param x0:
+    :param y0:
+    :param x1:
+    :param y1:
+    :return:
+    """
+    return not is_angle_change_negative(x0, y0, x1, y1)
+    if x0*y1 - y0*x1 >= 0:  #delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1) >= delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0):
+        return True
+    return False
+
+
+def is_angle_change_negative(x0, y0, x1, y1) -> bool:
+    """
+    if(a.x*b.y - a.y*b.x < 0)
+    angle = -angle;
+
+    :param x0:
+    :param y0:
+    :param x1:
+    :param y1:
+    :return:
+    """
+    if x0*y1 - y0*x1 < 0:  #delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1) >= delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0):
+        return True
+    return False
+
+
+def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
     """
     Returns angle between two vectors in degrees.
     # TODO: med/high: review use of rounding value at end
+    Assumptions: the start of the vector for (x0, y0) and (x1, y1) are both at (0, 0).
+    :param x0: (float)
+    :param y0: (float)
+    :param x1: (float)
+    :param y1: (float)
+    :return: (float)
     """
     # TODO: low: evaluate. Seems to be working!
     # Arg checking -- below is OVERKILL, but necessary for debugging effort
@@ -309,17 +347,23 @@ def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1):
     check_arg.ensure_not_nan(x1)
     check_arg.ensure_not_nan(y1)
 
-    if x0 == x1 and x1 == y1:
+    if x0 == x1 and y0 == y1:
         # Vectors are identical. No angle possible.
         return 0.
-    if ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))) == 0:
-        return 0.
-    return round(
+    # # TODO: low: make tests to ensure that below comment isn't needed anymore
+    # if ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))) == 0:
+    #     return 0.
+
+    theta = round(
         (180 / np.pi) *
         np.arccos(
             (x0 * x1 + y0 * y1) /
             ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2)))
         ), 5)
+
+    signed_theta = theta if is_angle_change_positive else -theta
+
+    return signed_theta
 
 
 def angle_between_two_vectors_by_position(ax, ay, bx, by):
@@ -1041,7 +1085,16 @@ def run_openTSNE(train_features):
 
 
 if __name__ == '__main__':
-    # ax, ay, bx, by = 1, 1, -1, -1
-    # print(angle_between_two_vectors_by_position(ax, ay, bx, by))
-    pos = []
+    x0, y0 = -2, 0
+    x1, y1 = 0, 2
 
+    # print(delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1))
+    print(delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0))
+    print(delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1))
+    print(delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1) - delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0))
+    print(delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1))
+
+
+
+
+    pass

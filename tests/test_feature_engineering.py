@@ -120,7 +120,7 @@ actual actual_output_arr: {actual_output_arr}
 """.strip()
         self.assertTrue(is_equals, err_msg)
 
-    def test__attach_average_feature_xy__shouldOnlyAttach2ColumnsInResult(self):
+    def test__attach_average_bodypart_xy__shouldOnlyAttach2ColumnsInResult(self):
         """
         Test that the number of output columns matches expected output.
         Upon creating a new "average bodypart", it should add 2 extra columns, one for the x and one for the y values
@@ -309,6 +309,125 @@ Actual output   = {actual_output}
     """
         self.assertTrue(is_equal, err)
 
+    # is_angle_change_positive
+    def test__is_angle_change_positive__shouldBeTrue__whenSetUpAsSuchInQuadrant1(self):
+        x0, y0 = 10, 0
+        x1, y1 = 1, 1
+        expected = True
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        self.assertEqual(expected, actual)
+
+    def test__is_angle_change_positive__shouldBeTrue__whenSetUpAsSuchInQuadrant2(self):
+        x0, y0 = 0, 10
+        x1, y1 = -1, 1
+        expected = True
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        self.assertEqual(expected, actual)
+
+    def test__is_angle_change_positive__shouldBeTrue__whenSetUpAsSuchInQuadrant3(self):
+        x0, y0 = -10, 0
+        x1, y1 = -1, -1
+        expected = True
+        # Act
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        # Assert
+        angle = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        err = f"""
+        Angle = {angle}
+        """
+        self.assertEqual(expected, actual, err)
+
+    def test__is_angle_change_positive__shouldBeTrue__whenSetUpAsSuchInQuadrant4(self):
+        x0, y0 = 0, -10
+        x1, y1 = 1, -0.5
+        expected = True
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        angle = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        err = f"""
+        Angle = {angle}
+        """
+        self.assertEqual(expected, actual, err)
+
+    def test__is_angle_change_positive__shouldBeFalse__whenSetUpAsSuchInQuadrant1(self):
+        x0, y0 = 1, 1
+        x1, y1 = 10, 0
+        expected = False
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        self.assertEqual(expected, actual)
+
+    def test__is_angle_change_positive__shouldBeFalse__whenSetUpAsSuchInQuadrant2(self):
+        x0, y0 = -1, 1
+        x1, y1 = 0, 1
+        expected = False
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        angle = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        err = f"""
+        Angle = {angle}
+        """
+        self.assertEqual(expected, actual, err)
+
+    def test__is_angle_change_positive__shouldBeFalse__whenSetUpAsSuchInQuadrant3(self):
+        x0, y0 = -1, -1
+        x1, y1 = -10, 0
+        expected = False
+        # Act
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        # Assert
+        angle = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        err = f"""
+        Angle = {angle}
+        """
+        self.assertEqual(expected, actual, err)
+
+    def test__is_angle_change_positive__shouldBeFalse__whenSetUpAsSuchInQuadrant4(self):
+        x0, y0 = 1, -1
+        x1, y1 = 0, -10
+        expected = False
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        angle = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        err = f"""
+Angle = {angle}
+"""
+        self.assertEqual(expected, actual, err)
+    pass
+
+    def test__is_angle_change_positive__shouldBeFalse__whenNegativeMoving(self):
+        x0, y0 = -1, -1
+        x1, y1 = 0, 1
+        expected = False
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        angle = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        err = f"""
+    Angle = {angle}
+    """
+        self.assertEqual(expected, actual, err)
+
+
+    def test__is_angle_change_positive__shouldBeFalse__whenNegativeMoving2(self):
+        x0, y0 = -2, 0
+        x1, y1 = 0, 2
+        expected = False
+        actual = dibs.feature_engineering.is_angle_change_positive(x0, y0, x1, y1)
+        angle = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        err = f"""
+    Angle = {angle}
+    """
+        self.assertEqual(expected, actual, err)
+
+    # delta_angle_between_two_vectors_starting_at_origin
+    def test__delta_angle_between_two_vectors_starting_at_origin__shouldBeNegative90__whenPointsGoQuadrant2ToQuadrant1(self):
+        x0, y0 = -10, 0
+        x1, y1 = 0, 10
+        expected = -90.0
+
+        # Act
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+
     # delta_angle_between_two_vectors_by_all_positions()
     def test__delta_angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenAllPointsInQuadrant1(self):
         ax0, ay0 = 1, 1
@@ -460,7 +579,7 @@ Actual output   = {actual_output}
             self.assertTrue(is_equal, err)
 
     ### WIP Section. Tests that are either unfinished or not passing go here.
-    # @skip  # TODO: test looks fine but review function implementation
+    @skip  # TODO: test looks fine but review function implementation
     def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant1(self):
         # First vector begins at 45 degrees
         ax0, ay0 = 1, 1
@@ -472,14 +591,14 @@ Actual output   = {actual_output}
         expected = 90.0
 
         # Act
-        actual = dibs.feature_engineering.delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)  # ax0, ay0, bx0, by0, ax1, ay1, bx1, by1
+        actual = dibs.feature_engineering.delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
         # Assert
         err = f"""
 
         """
         self.assertEqual(expected, actual, err)
 
-    # @skip  # TODO: test looks fine but review function implementation
+    @skip  # TODO: test looks fine but review function implementation
     def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant2(self):
         ax0, ay0 = -1, 1
         bx0, by0 = -2, 2
@@ -495,7 +614,7 @@ Actual output   = {actual_output}
         """
         self.assertEqual(expected, actual, err)
 
-    # @skip  # TODO: test looks fine but review function implementation
+    @skip  # TODO: test looks fine but review function implementation
     def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant3(self):
         ax0, ay0 = -1, -1
         bx0, by0 = -2, -2
@@ -511,7 +630,7 @@ Actual output   = {actual_output}
         """
         self.assertEqual(expected, actual, err)
 
-    # @skip  # TODO: test looks fine but review function implementation
+    @skip  # TODO: test looks fine but review function implementation
     def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant4(self):
         ax0, ay0 = 1, -1
         bx0, by0 = 2, -2
@@ -527,7 +646,7 @@ Actual output   = {actual_output}
         """
         self.assertEqual(expected, actual, err)
 
-    # @skip  # TODO: test looks fine but review function implementation
+    @skip  # TODO: test looks fine but review function implementation
     def test__delta_two_body_parts_angle_killian_try__lazy_delta_angle___(self):
         # TODO: WIP: verify expected output!
         # Create a
