@@ -113,6 +113,12 @@ def ensure_numpy_arrays_are_same_shape(*arrays):
         raise ValueError(err)
 
 
+def ensure_not_nan(value):
+    if value != value:
+        err = f'{get_caller_function()}(): Value was expected to be a valid value (not NaN); however, found: {value}'
+        raise ValueError(err)
+
+
 ###
 
 def has_invalid_chars_in_name_for_a_file(file_name, additional_characters: Collection[str] = None) -> bool:
