@@ -308,9 +308,9 @@ def is_angle_change_positive(x0, y0, x1, y1) -> bool:
     :return:
     """
     return not is_angle_change_negative(x0, y0, x1, y1)
-    if x0*y1 - y0*x1 >= 0:  #delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1) >= delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0):
-        return True
-    return False
+    # if x0*y1 - y0*x1 > 0:  #delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1) >= delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0):
+    #     return True
+    # return False
 
 
 def is_angle_change_negative(x0, y0, x1, y1) -> bool:
@@ -347,9 +347,10 @@ def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
     check_arg.ensure_not_nan(x1)
     check_arg.ensure_not_nan(y1)
 
-    if x0 == x1 and y0 == y1:
-        # Vectors are identical. No angle possible.
-        return 0.
+    # if x0 == x1 and y0 == y1:
+    #     # Vectors are identical. No angle possible.
+    #     return 0.
+
     # # TODO: low: make tests to ensure that below comment isn't needed anymore
     # if ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))) == 0:
     #     return 0.
@@ -361,7 +362,7 @@ def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
             ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2)))
         ), 5)
 
-    signed_theta = theta if is_angle_change_positive else -theta
+    signed_theta = -theta if is_angle_change_negative(x0, y0, x1, y1) else theta
 
     return signed_theta
 
