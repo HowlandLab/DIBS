@@ -19,13 +19,13 @@ import os
 import pandas as pd
 import time
 
-import sys
 # from pandas.core.common import SettingWithCopyWarning
 # from tqdm import tqdm
 # import openTSNE  # openTSNE only supports n_components 2 or less
+import sys
 
 from dibs.logging_enhanced import get_current_function
-from dibs import check_arg, config, io, statistics, videoprocessing, visuals
+from dibs import check_arg, config, io, logging_enhanced, statistics, videoprocessing, visuals
 
 logger = config.initialize_logger(__file__)
 
@@ -113,8 +113,9 @@ class BasePipeline(object):
     gmm_verbose_interval: int = None
 
     # Classifier
-    _classifier = None
     classifier_type: str = config.DEFAULT_CLASSIFIER
+    classifier_verbose: int = config.CLASSIFIER_VERBOSE
+    _classifier = None
     # Classifier: SVM
     svm_c, svm_gamma, svm_probability, svm_verbose = None, None, None, None
     # Classifier: Random Forest
@@ -143,7 +144,7 @@ class BasePipeline(object):
     seconds_to_engineer_train_features: float = None
     seconds_to_build: float = -1.
 
-    # TODO: med/high: create tests for this func below
+    # TODO: low: create tests for this func below
     def get_assignment_label(self, assignment: int) -> str:
         """
         Get behavioural label according to assignment value (number).
@@ -153,8 +154,7 @@ class BasePipeline(object):
             assignment = int(assignment)
         except ValueError:
             err = f'TODO: elaborate error: invalid assignment submitted: "{assignment}"'
-            logger.error(err)
-            raise ValueError(err)
+            logging_enhanced.log_then_raise(err, logger, ValueError)
 
         label = getattr(self, f'label_{assignment}', '')
 
@@ -167,7 +167,7 @@ class BasePipeline(object):
         setattr(self, f'label_{assignment}', label)
         return self
 
-    # # # Getters/Properties
+    ### Properties & Getters ###
     @property
     def is_in_inconsistent_state(self):
         """
@@ -185,7 +185,8 @@ class BasePipeline(object):
         return self._description
 
     @property
-    def tsne_perplexity(self):  # TODO: <---- REVIEW !!!! It's implciit math!
+    def tsne_perplexity(self) -> float:
+        """ Should perplexity be set to None, return the square root of the number of features. """  # TODO: review why this math is so useful
         return self._tsne_perplexity if self._tsne_perplexity else np.sqrt(len(self.all_features))
 
     @property
@@ -229,7 +230,7 @@ class BasePipeline(object):
         return self.clf_assignment_col_name
 
     @property
-    def cross_val_scores(self):  # Union[List, np.ndarray]
+    def cross_val_scores(self):
         return self._cross_val_scores
 
     @property
@@ -262,9 +263,12 @@ class BasePipeline(object):
     def total_build_time(self):
         return self.seconds_to_engineer_train_features
 
+    @property
+    def dims_cols_names(self) -> List[str]:
+        return [f'dim_{d+1}' for d in range(self.tsne_n_components)]
+
     # Setters
     def set_name(self, name: str):
-        # TODO: MED: will this cause problems later with naming convention?
         check_arg.ensure_has_valid_chars_for_path(name)
         self._name = name
         return self
@@ -283,12 +287,6 @@ class BasePipeline(object):
         # Pipeline name
         check_arg.ensure_type(name, str)
         self.set_name(name)
-
-        # TSNE source  # TODO: HIGH: move this section to set_params
-        tsne_source = kwargs.get('tsne_source', '')
-        check_arg.ensure_type(tsne_source, str)
-        if tsne_source in self.valid_tsne_sources:
-            self.tsne_implementation = tsne_source
         #
         self.kwargs = kwargs
         # Final setup
@@ -403,6 +401,10 @@ class BasePipeline(object):
         gmm_verbose_interval = kwargs.get('gmm_verbose_interval', config.gmm_verbose_interval if read_config_on_missing_param else self.gmm_verbose_interval)
         check_arg.ensure_type(gmm_verbose_interval, int)
         self.gmm_verbose_interval = gmm_verbose_interval
+        # Classifiers
+        classifier_verbose = kwargs.get('classifier_verbose', config.CLASSIFIER_VERBOSE if read_config_on_missing_param else self.classifier_verbose)
+        check_arg.ensure_type(classifier_verbose, int)
+        self.classifier_verbose = classifier_verbose
         # Random Forest vars
         rf_n_estimators = kwargs.get('rf_n_estimators', config.rf_n_estimators if read_config_on_missing_param else self.rf_n_estimators)
         check_arg.ensure_type(rf_n_estimators, int)
@@ -424,14 +426,8 @@ class BasePipeline(object):
         if self.test_train_split_pct is None:
             self.test_train_split_pct = config.HOLDOUT_PERCENT
 
-        # self.dims_cols_names = [f'dim_{d+1}' for d in range(self.tsne_n_components)]  # TODO: remove this coment, it is now a property
-
         self._has_modified_model_variables = True
         return self
-
-    @property
-    def dims_cols_names(self) -> List[str]:
-        return [f'dim_{d+1}' for d in range(self.tsne_n_components)]
 
     # Functions that should be overwritten by child classes
     def engineer_features(self, data: pd.DataFrame):
@@ -702,7 +698,6 @@ class BasePipeline(object):
         TODO: elaborate
         TODO: ensure that TSNE obj can be saved and used later for new data? *** Important ***
         :param data:
-        :param kwargs:
         :return:
         """
         # Check args
@@ -710,8 +705,8 @@ class BasePipeline(object):
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
         # Execute
         start = time.perf_counter()
+        logger.debug(f'Now reducing data with {self.tsne_implementation} implementation...')
         if self.tsne_implementation == 'SKLEARN':
-            logger.debug(f'Now reducing data with SKLEARN implementation...')
             arr_result = TSNE_sklearn(
                 perplexity=self.tsne_perplexity,
                 learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: encapsulate this later                     !!!
@@ -724,29 +719,21 @@ class BasePipeline(object):
                 init=self.tsne_init,
             ).fit_transform(data[list(self.all_features_list)])
         elif self.tsne_implementation == 'BHTSNE':
-            logger.debug(f'Now reducing data with bhtsne implementation...')
             arr_result = TSNE_bhtsne(
                 data[list(self.all_features)],
                 dimensions=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,
-                rand_seed=self.random_state,
                 theta=0.5,
+                rand_seed=self.random_state,
             )
         elif self.tsne_implementation == 'OPENTSNE':
-            logger.debug(f'Now reducing data with OpenTSNE implementation...')
             tsne = OpenTsneObj(
                 n_components=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,
                 learning_rate='auto',  # TODO: med: review
                 early_exaggeration=self.tsne_early_exaggeration,
+                early_exaggeration_iter=250,  # TODO: med: review
                 n_iter=self.tsne_n_iter,
-                n_jobs=self.tsne_n_jobs,
-                negative_gradient_method='bh',  # Note: default 'fft' does not work with dims >2
-                random_state=self.random_state,
-                verbose=bool(self.tsne_verbose),
-                metric="euclidean",  # TODO: med: review
-                # early_exaggeration_iter=250,
-                # n_iter=500,
                 # exaggeration=None,
                 # dof=1,
                 # theta=0.5,
@@ -754,15 +741,20 @@ class BasePipeline(object):
                 # min_num_intervals=50,
                 # ints_in_interval=1,
                 # initialization="pca",
+                metric="euclidean",  # TODO: med: review
                 # metric_params=None,
                 # initial_momentum=0.5,
                 # final_momentum=0.8,
                 # max_grad_norm=None,
                 # max_step_norm=5,
+                n_jobs=self.tsne_n_jobs,
                 # affinities=None,
                 # neighbors="auto",
+                negative_gradient_method='bh',  # Note: default 'fft' does not work with dims >2
                 # callbacks=None,
                 # callbacks_every_iters=50,
+                random_state=self.random_state,
+                verbose=bool(self.tsne_verbose),
             )
             arr_result = tsne.fit(data[list(self.all_features_list)].values)
         else:
@@ -804,7 +796,11 @@ class BasePipeline(object):
 
     # Classifier
     def train_classifier(self):
-        """ TODO: """
+        """
+        Train classifier on non-test-assigned data from the training data set.
+        For any kwarg that does not take it's value from the it's own Pipeline config., then that
+        variable
+        """
         df = self.df_features_train_scaled
 
         if self.classifier_type == 'SVM':
@@ -814,30 +810,29 @@ class BasePipeline(object):
                 probability=self.svm_probability,
                 verbose=self.svm_verbose,
                 random_state=self.random_state,
-                cache_size=200,  # TODO: add variable to CONFIG.INI later. Measured in MB.
+                cache_size=200,  # TODO: add variable to CONFIG.INI later? Measured in MB.
             )
         elif self.classifier_type == 'RANDOMFOREST':
             clf = RandomForestClassifier(
                 n_estimators=self.rf_n_estimators,
+                criterion='gini',
+                max_depth=None,
+                min_samples_split=2,
+                min_samples_leaf=1,
+                min_weight_fraction_leaf=0,
+                max_features="auto",
+                max_leaf_nodes=None,
+                min_impurity_decrease=0.,
+                min_impurity_split=None,
+                bootstrap=True,
+                oob_score=False,
                 n_jobs=config.N_JOBS,  # TODO: TODO: address later for speed
-                # criterion='gini',
-                # max_depth=None,
-                # min_samples_split=2,
-                # min_samples_leaf=1,
-                # min_weight_fraction_leaf=0,
-                # max_features="auto",
-                # max_leaf_nodes=None,
-                # min_impurity_decrease=0.,
-                # min_impurity_split=None,
-                # bootstrap=True,
-                # oob_score=False,
-                # n_jobs=None,
-                # random_state=None,
-                # verbose=0,
-                # warm_start=False,
-                # class_weight=None,
-                # ccp_alpha=0.0,
-                # max_samples=None,
+                random_state=self.random_state,
+                verbose=self.classifier_verbose,
+                warm_start=False,
+                class_weight=None,
+                ccp_alpha=0.0,
+                max_samples=None,
             )
         else:
             err = f'TODO: elaborate: an invalid classifier type was detected: {self.classifier_type}'
@@ -845,7 +840,7 @@ class BasePipeline(object):
             raise KeyError(err)
         # Fit classifier to non-test data
         clf.fit(
-            X=df.loc[~df[self.test_col_name]][list(self.all_features)],  # TODO: too specific ??? review the veracity of this TODO
+            X=df.loc[~df[self.test_col_name]][list(self.all_features)],
             y=df.loc[~df[self.test_col_name]][self.gmm_assignment_col_name],
         )
         # Save classifier
@@ -862,6 +857,7 @@ class BasePipeline(object):
             logger.debug(f'{inspect.stack()[0][3]}(): Start engineering features...')
             self.engineer_features_train()
 
+        # TODO: exclude all NAN data for features? <------------------------------------------------------------------------
         # Scale data
         logger.debug(f'Scaling data now...')
         self.scale_transform_train_data(features=self.all_features, create_new_scaler=True)
@@ -881,7 +877,7 @@ class BasePipeline(object):
 
         # # Train Classifier
         logger.debug(f'Training classifier now...')
-        self.train_classifier()  # self.train_SVM()
+        self.train_classifier()
 
         # Set predictions
         self.df_features_train_scaled[self.clf_assignment_col_name] = self.clf.predict(
@@ -1170,8 +1166,7 @@ class BasePipeline(object):
         for assignment_val, values_list in rle_by_assignment.items():
             # Loop over examples
             num_examples = min(max_examples, len(values_list))
-            for i in range(
-                    num_examples):  # TODO: HIGH: this part dumbly loops over first n examples...In the future, it would be better to ensure that at least one of the examples has a long runtime for analysis
+            for i in range(num_examples):  # TODO: HIGH: this part dumbly loops over first n examples...In the future, it would be better to ensure that at least one of the examples has a long runtime for analysis
                 output_file_name = f'{file_name_prefix}{time.strftime("%y-%m-%d_%Hh%Mm")}_' \
                                    f'BehaviourExample__assignment_{assignment_val}__example_{i + 1}_of_{num_examples}'
                 frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
@@ -1186,11 +1181,11 @@ class BasePipeline(object):
                 # Compile labels list via SVM assignment for now...Later, we should get the actual behavioural labels instead of the numerical assignments
                 logger.debug(f'df_frames_selection["frame"].dypes.dtypes: {df_frames_selection["frame"].dtypes}')
                 assignments_list = list(df_frames_selection[self.clf_assignment_col_name].values)
-                current_behaviour_list = [self.get_assignment_label(a) for a in assignments_list]
+                current_behaviour_list: List[str] = [self.get_assignment_label(a) for a in assignments_list]
                 frames_indices_list = list(df_frames_selection['frame'].astype(int).values)
                 color_map_array = visuals.generate_color_map(len(self.unique_assignments))
                 text_colors_list: List[Tuple[float]] = [tuple(float(min(255. * x, 255.))  # Multiply the 3 values by 255 since existing values are on a 0 to 1 scale
-                                                              for x in tuple(color_map_array[a][:3]))  # Takes only the first 3 elements since the 4th appears to be brightness value?
+                                                              for x in tuple(color_map_array[a][:3]))  # Takes only the first 3 elements since the 4th appears to be brightness value (?)
                                                         for a in assignments_list]
 
                 #
@@ -1219,9 +1214,9 @@ class BasePipeline(object):
 
     def plot_assignments_in_3d(self, show_now=False, save_to_file=False, azim_elev=(70, 135), **kwargs) -> Tuple[object, object]:
         """
-        TODO: expand
-        :param show_now:
-        :param save_to_file:
+        Get plot of clusters colored by GMM assignment
+        :param show_now: (bool)
+        :param save_to_file: (bool)
         :param azim_elev:
         :return:
         """
@@ -1246,7 +1241,10 @@ class BasePipeline(object):
         return visuals.plot_cross_validation_scores(self._cross_val_scores)
 
     def diagnostics(self) -> str:
-        """ Function for displaying current state of pipeline. Useful for diagnostics. """
+        """
+        Function for displaying current state of pipeline. Useful for diagnosing problems.
+        Changes often and should not be used in final build for anything important.
+        """
         diag = f"""
 self.is_built: {self.is_built}
 unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_train[self.gmm_assignment_col_name].values))}
