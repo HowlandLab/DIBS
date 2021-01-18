@@ -286,7 +286,7 @@ def angle_between_two_vectors_by_position(ax, ay, bx, by):
         ), 5)
 
 
-def delta_angle_lazy(angle0, angle1):
+def delta_angle_given_angles__lazy(angle0, angle1):
     assert angle0 == angle0
     assert angle1 == angle1
 
@@ -313,8 +313,8 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     # TODO: add NUMBA for fast computation?
     # Case: if the numerator of the arctan() portion of the equation equals zero, then
     #   DivideByZero error occurs.
-    if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
-        return 0.
+    # if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
+    #     return 0.
     change_in_angle = \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (180/np.pi) * \
@@ -380,6 +380,36 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     return change_in_angle
 
 
+def angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1):
+    """
+    Returns angle between two vectors in degrees
+    # TODO: review use of rounding value at end
+    """
+    # TODO: low: evaluate. Seems to be working!
+    bx0 -= ax0
+    by0 -= ay0
+    bx1 -= ax1
+    by1 -= ay1
+    x0 = bx0
+    y0 = by0
+    x1 = bx1
+    y1 = by1
+
+    for i in (x0, y0, x1, y1):
+        if i != i:
+            raise ValueError(f'i is nan')
+    if x0 == x1 and y0 == y1:  # TODO: high : review if to keep this
+        # Points on top of each other, no angle possible
+        return 0.
+
+    return round(
+        (180/np.pi) *
+        np.arccos(
+            (x0*x1 + y0*y1) /
+            ((np.sqrt(x0**2 + y0**2)) * (np.sqrt(x1**2 + y1**2)))
+        ), 5)
+
+
 def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
     """
     TODO: explain the math
@@ -405,7 +435,9 @@ def delta_two_body_parts_angle_killian_try(body_part_arr_1, body_part_arr_2) -> 
     output_array = np.full(body_part_arr_1.shape[0], np.NaN)
     # # TODO: low: implement a vectorized solution? Performance OK for now, but worth inspecting later
     for i in range(1, len(output_array)):
-        output_array[i] = angle_between_two_vectors_by_position(body_part_arr_1[i][0], body_part_arr_1[i][1], body_part_arr_2[i][0], body_part_arr_2[i][1]) - angle_between_two_vectors_by_position(body_part_arr_1[i-1][0], body_part_arr_1[i-1][1], body_part_arr_2[i-1][0], body_part_arr_2[i-1][1])
+        # output_array[i] = angle_between_two_vectors_by_position(body_part_arr_1[i][0], body_part_arr_1[i][1], body_part_arr_2[i][0], body_part_arr_2[i][1]) - angle_between_two_vectors_by_position(body_part_arr_1[i-1][0], body_part_arr_1[i-1][1], body_part_arr_2[i-1][0], body_part_arr_2[i-1][1])
+        output_array[i] = angle_between_two_vectors_by_all_positions(body_part_arr_1[i-1][0], body_part_arr_1[i-1][1], body_part_arr_2[i-1][0], body_part_arr_2[i-1][1],
+                                                                     body_part_arr_1[i][0], body_part_arr_1[i][1], body_part_arr_2[i][0], body_part_arr_2[i][1])  # ax0, ay0, bx0, by0, ax1, ay1, bx1, by1
 
     return output_array
 

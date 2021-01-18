@@ -15,7 +15,7 @@ single_test_file_location = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DAT
 
 class TestFeatureEngineering(TestCase):
 
-    @skip  # TODO: Temporary skip
+    @skip  # TODO: Temporary skip due to performance issues
     def test__adaptively_filter_dlc_output__shouldReturnSameNumberOfRowsAsInput__always(self):
         # Arrange
         df_input = dibs.io.read_csv(single_test_file_location, nrows=dibs.config.max_rows_to_read_in_from_csv)
@@ -33,6 +33,7 @@ TODO: improve error message
 """.strip()
         self.assertEqual(input_num_rows, output_num_rows, err_msg)
 
+    # Array feature functions
     def test__average_distance_between_n_features__shouldCalculateAverageLocationOfFeature__whenOneArraySubmitted(self):
         # TODO:
         # Arrange
@@ -143,6 +144,7 @@ actual actual_output_arr: {actual_output_arr}
         # Assert
         self.assertEqual(expected_num_cols, actual_num_output_cols)
 
+    # Delta angle tests
     def test__delta_angle__shouldReturnZero__whenNoChangeOccurs(self):
         # TODO: review test fundies
         # Arrange
@@ -165,14 +167,14 @@ actual actual_output_arr: {actual_output_arr}
         # Assert
         self.assertEqual(expected_output, actual_output)
 
-    def test__delta_angle_lazy__shouldBe180__whenObvious(self):
+    def test__delta_angle_given_angles__lazy__shouldBe180__whenObvious(self):
         """ Check lazy angle """
         # Arrange
         angle0 = 0
         angle1 = 180
         expected_output = 180.
         # Act
-        actual_output = dibs.feature_engineering.delta_angle_lazy(angle0, angle1)
+        actual_output = dibs.feature_engineering.delta_angle_given_angles__lazy(angle0, angle1)
         # Assert
         self.assertEqual(expected_output, actual_output)
 
@@ -228,22 +230,28 @@ Expected output = {expected_output}
 Actual output   = {actual_output}
 """
         self.assertTrue(is_equal, err)
-    pass
 
     def test__delta_two_body_parts_angle_killian_try__shouldGiveZeroes__whenNoAngleChangesOccurAndDifferentLocations(self):
         """
         TODO: When a single delta function is decided-upon,
+
         """
         # Arrange
-        data_xy_1 = [[1, 1],
-                     [2, 2],
-                     [3, 3], ]
-        data_xy_2 = [[0, 0],
-                     [1, 1],
-                     [2, 2], ]
-        data_for_expected_output = [np.NaN,
-                                    0,
-                                    0, ]
+        data_xy_1 = [
+            [1, 1],
+            [2, 2],
+            [3, 3],
+        ]
+        data_xy_2 = [
+            [0, 0],
+            [1, 1],
+            [2, 2],
+        ]
+        data_for_expected_output = [
+            np.NaN,
+            0,
+            0,
+        ]
         arr_xy_1 = np.array(data_xy_1)
         arr_xy_2 = np.array(data_xy_2)
         expected_output = np.array(data_for_expected_output)
@@ -261,7 +269,7 @@ Actual output   = {actual_output}
     """
         self.assertTrue(is_equal, err)
 
-    def test__delta_two_body_parts_angle_killian_try__should2(self):
+    def test__delta_two_body_parts_angle_killian_try__shouldGetZeroChange__whenCoordinatesDoNotMove(self):
         """
         TODO: When a single delta function is decided-upon,
         """
@@ -299,8 +307,93 @@ Actual output   = {actual_output}
     """
         self.assertTrue(is_equal, err)
 
-    ### TODO SECTION
-    # attach_angle_between_bodyparts
+    def test__angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenInQuadrant1(self):
+        ax0, ay0 = 1, 1
+        bx0, by0 = 2, 2
+        ax1, ay1 = 3, 3
+        bx1, by1 = 2, 4
+
+        expected = 90.0
+
+        # Act
+        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+    pass
+
+    def test__angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenInQuadrant3(self):
+        ax0, ay0 = -1, -1
+        bx0, by0 = -2, -2
+        ax1, ay1 = -3, -3
+        bx1, by1 = -2, -4
+
+        expected = 90.0
+
+        # Act
+        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+    pass
+
+    ### TODO SECTION -- problems to be solved
+
+
+    def test__angle_between_two_vectors_by_all_positions___0degrees(self):
+        ax0, ay0 = 1, 1
+        bx0, by0 = 2, 2
+        ax1, ay1 = 3, 3
+        bx1, by1 = 4, 4
+
+        expected = 0.0
+
+        # Act
+        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+    pass
+
+    def test__angle_between_two_vectors_by_all_positions__shouldReturn180Degrees__whenGiven180DegreesChangeAroundOrigin(self):
+        ax0, ay0 = 0, 0
+        bx0, by0 = 1, 0
+        ax1, ay1 = 0, 0
+        bx1, by1 = -1, 0
+
+        expected = 180.0
+
+        # Act
+        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+    pass
+    def test__angle_between_two_vectors_by_all_positions__shouldReturn180Degrees__whenGiven180DegreesChange(self):
+        ax0, ay0 = 1, 1
+        bx0, by0 = 2, 1
+        ax1, ay1 = -1, -1
+        bx1, by1 = -2, -1
+
+        expected = 180.0
+
+        # Act
+        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+    pass
+
     def test__attach_angle_between_bodyparts__shouldResultInOneNanAndOneValue(self):
         # TODO: review inputs & outputs
         # Arrange
@@ -310,11 +403,13 @@ Actual output   = {actual_output}
         data = [
             [1, 0, 0, 0],
             [1, 1, 0, 0],
+            [0, 1, 0, 0],
         ]
         df = pd.DataFrame(data, columns=cols)
         expected_output_data = [
             np.NaN,
-            45.
+            45.,
+            45,
         ]
         expected_output = pd.concat([df, pd.DataFrame(expected_output_data, columns=[output_feature_name])], axis=1)
         expected_output_array = expected_output.values
@@ -338,8 +433,6 @@ Actual    (shape={actual_output_array.shape})  =
     def test__delta_two_body_parts_angle_killian_try__lazy_delta_angle___(self):
         # TODO: WIP: verify expected output!
         # Create a
-        fill_first = -1.
-        assert fill_first == fill_first
         # Arrange
         data_xy_1 = [
             [0, 0],
@@ -361,18 +454,19 @@ Actual    (shape={actual_output_array.shape})  =
         expected_output = np.array(data_for_expected_output)
 
         # Act
-        actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(arr_xy_1, arr_xy_2)
+        actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(body_part_arr_1=arr_xy_1, body_part_arr_2=arr_xy_2)
 
         expected_output_minus_first_row = expected_output[1:]
         actual_output_minus_first_row = actual_output[1:]
 
         # Assert
         is_equal = (expected_output_minus_first_row == actual_output_minus_first_row).all()
+        is_equal = (expected_output == actual_output).all()
         err = f"""
-    Expected output = {expected_output_minus_first_row}
+Expected output = {expected_output}
 
-    Actual output   = {actual_output_minus_first_row}
-    """
+Actual output   = {actual_output}
+"""
         self.assertTrue(is_equal, err)
 
     @skip  # TODO: finish test
@@ -390,6 +484,7 @@ Actual    (shape={actual_output_array.shape})  =
         actual_output = dibs.feature_engineering.delta_angle()  # def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
         # Assert
         self.assertEqual(expected_output, actual_output)
+
     ### END ###
 
     @skip
