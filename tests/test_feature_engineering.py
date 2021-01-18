@@ -34,7 +34,7 @@ TODO: improve error message
         self.assertEqual(input_num_rows, output_num_rows, err_msg)
 
     # Array feature functions
-    def test__average_distance_between_n_features__shouldCalculateAverageLocationOfFeature__whenOneArraySubmitted(self):
+    def test__average_vector_between_n_vectors__shouldCalculateAverageLocationOfFeature__whenOneArraySubmitted(self):
         # TODO:
         # Arrange
         data = [[1, 2, 3],
@@ -54,7 +54,7 @@ Actual output:
 """.strip()  # TODO: elaborate error message to suss out potential problems
         self.assertTrue(is_equal, err)
 
-    def test__average_distance_between_n_features__shouldCalculateAverageLocationOfFeature__whenTwoArraysSubmitted(self):
+    def test__average_vector_between_n_vectors__shouldCalculateAverageLocationOfFeature__whenTwoArraysSubmitted(self):
         # TODO: finish off this test, then remove this TODO if passes.
         # Arrange
         data_1 = [[0, 2],
@@ -80,7 +80,7 @@ Actual output:
 """  # TODO: elaborate error message to suss out potential problems
         self.assertTrue(is_equal, err)
 
-    def test__distance_between_2_arrays(self):
+    def test__distance_between_two_arrays__shouldWorkAsExpected__whenGivenTwoArrays(self):
         # Arrange
         data_1 = [[5, 2, 3], ]
         arr_1 = np.array(data_1)
@@ -99,7 +99,7 @@ actual output: {actual_output_distance}
 """.strip()
         self.assertEqual(expected_output_distance, actual_output_distance, err_msg)
 
-    def test__average_arr_location(self):
+    def test__average_vector_between_n_vectors__shouldProduceSameOutputAsNapkinMath__whenSetUpAsSuch(self):
         # Arrange
         data_1 = [[5., 2., 3.], ]
         arr_1 = np.array(data_1)
@@ -144,7 +144,7 @@ actual actual_output_arr: {actual_output_arr}
         # Assert
         self.assertEqual(expected_num_cols, actual_num_output_cols)
 
-    # Delta angle tests
+    # delta angle
     def test__delta_angle__shouldReturnZero__whenNoChangeOccurs(self):
         # TODO: review test fundies
         # Arrange
@@ -178,6 +178,7 @@ actual actual_output_arr: {actual_output_arr}
         # Assert
         self.assertEqual(expected_output, actual_output)
 
+    # Angle between two vectors by position
     def test__angle_between_two_vectors_by_position__shouldBe90__whenSetUpAsQuadrant3ToQuadrant4(self):
         # Arrange
         ax, ay = -1., -1.
@@ -188,7 +189,7 @@ actual actual_output_arr: {actual_output_arr}
         # Assert
         self.assertEqual(expected_output, actual_output)
 
-    def test__angle_between_two_vectors_by_position__shouldBe180__whenSetUpAsQuadrant3ToQuadrant4(self):
+    def test__angle_between_two_vectors_by_position__shouldBe180__whenSetUpAsQuadrant1ToQuadrant2(self):
         # Arrange
         ax, ay = 1., 0
         bx, by = -1., 0.
@@ -198,6 +199,7 @@ actual actual_output_arr: {actual_output_arr}
         # Assert
         self.assertEqual(expected_output, actual_output)
 
+    # delta angle using two body parts arrays data
     def test__delta_two_body_parts_angle_killian_try__shouldGiveZeroes__whenNoAngleChangesOccur(self):
         fill_first = 321321321
         assert fill_first == fill_first
@@ -307,129 +309,225 @@ Actual output   = {actual_output}
     """
         self.assertTrue(is_equal, err)
 
-    def test__angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenInQuadrant1(self):
+    # delta_angle_between_two_vectors_by_all_positions()
+    def test__delta_angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenAllPointsInQuadrant1(self):
         ax0, ay0 = 1, 1
         bx0, by0 = 2, 2
         ax1, ay1 = 3, 3
         bx1, by1 = 2, 4
-
         expected = 90.0
 
         # Act
-        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
         # Assert
         err = f"""
 
         """
         self.assertEqual(expected, actual, err)
-    pass
 
-    def test__angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenInQuadrant3(self):
+    def test__delta_angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenAllPointsInQuadrant2(self):
+        ax0, ay0 = -1, 1
+        bx0, by0 = -2, 2
+        ax1, ay1 = -3, 3
+        bx1, by1 = -2, 4
+        expected = 90.0
+
+        # Act
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+
+    def test__delta_angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenAllPointsInQuadrant3(self):
         ax0, ay0 = -1, -1
         bx0, by0 = -2, -2
         ax1, ay1 = -3, -3
         bx1, by1 = -2, -4
-
         expected = 90.0
 
         # Act
-        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
         # Assert
         err = f"""
 
         """
         self.assertEqual(expected, actual, err)
-    pass
 
-    ### TODO SECTION -- problems to be solved
-
-
-    def test__angle_between_two_vectors_by_all_positions___0degrees(self):
-        ax0, ay0 = 1, 1
-        bx0, by0 = 2, 2
-        ax1, ay1 = 3, 3
-        bx1, by1 = 4, 4
-
-        expected = 0.0
+    def test__delta_angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenAllPointsInQuadrant4(self):
+        ax0, ay0 = 1, -1
+        bx0, by0 = 2, -2
+        ax1, ay1 = 3, -3
+        bx1, by1 = 2, -4
+        expected = 90.0
 
         # Act
-        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
         # Assert
         err = f"""
 
         """
         self.assertEqual(expected, actual, err)
-    pass
 
-    def test__angle_between_two_vectors_by_all_positions__shouldReturn180Degrees__whenGiven180DegreesChangeAroundOrigin(self):
-        ax0, ay0 = 0, 0
-        bx0, by0 = 1, 0
-        ax1, ay1 = 0, 0
-        bx1, by1 = -1, 0
+        def test__delta_angle_between_two_vectors_by_all_positions__shouldBeZeroDegrees__whenGivenCoordinatesThatAreCongruent(
+                self):
+            ax0, ay0 = 1, 1
+            bx0, by0 = 2, 2
+            ax1, ay1 = 3, 3
+            bx1, by1 = 4, 4
 
-        expected = 180.0
+            expected = 0.0
 
-        # Act
-        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
-        # Assert
-        err = f"""
+            # Act
+            actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1,
+                                                                                               ay1, bx1, by1)
+            # Assert
+            err = f"""
 
-        """
-        self.assertEqual(expected, actual, err)
-    pass
-    def test__angle_between_two_vectors_by_all_positions__shouldReturn180Degrees__whenGiven180DegreesChange(self):
+            """
+            self.assertEqual(expected, actual, err)
+
+        def test__angle_between_two_vectors_by_all_positions__shouldReturn180Degrees__whenGiven180DegreesChangeAroundOrigin(
+                self):
+            ax0, ay0 = 0, 0
+            bx0, by0 = 1, 0
+            ax1, ay1 = 0, 0
+            bx1, by1 = -1, 0
+
+            expected = 180.0
+
+            # Act
+            actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1,
+                                                                                               ay1, bx1, by1)
+            # Assert
+            err = f"""
+
+            """
+            self.assertEqual(expected, actual, err)
+
+        def test__angle_between_two_vectors_by_all_positions__shouldReturn180Degrees__whenGiven180DegreesChange(self):
+            ax0, ay0 = 1, 1
+            bx0, by0 = 2, 1
+            ax1, ay1 = -1, -1
+            bx1, by1 = -2, -1
+
+            expected = 180.0
+
+            # Act
+            actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1,
+                                                                                               ay1, bx1, by1)
+            # Assert
+            err = f"""
+
+            """
+            self.assertEqual(expected, actual, err)
+
+        def test__attach_angle_between_bodyparts__shouldResultInOneNanAndOneValue(self):
+            # TODO: review inputs & outputs
+            # Arrange
+            output_feature_name = 'DeltaAngle'
+            snout, tail = 'Snout', 'Tail'
+            cols = [f'{snout}_x', f'{snout}_y', f'{tail}_x', f'{tail}_y']
+            data = [
+                [1, 0, 0, 0],
+                [1, 1, 0, 0],
+                [0, 1, 0, 0],
+            ]
+            df = pd.DataFrame(data, columns=cols)
+            expected_output_data = [
+                np.NaN,
+                45.,
+                45,
+            ]
+            expected_output = pd.concat([df, pd.DataFrame(expected_output_data, columns=[output_feature_name])], axis=1)
+            expected_output_array = expected_output.values
+            expected_output_array_minus_first_row = expected_output_array[1:]
+            # Act
+            actual_output_dataframe = dibs.feature_engineering.attach_angle_between_bodyparts(df, snout, tail,
+                                                                                              output_feature_name=output_feature_name)
+            actual_output_array = actual_output_dataframe.values
+            actual_output_array_minus_first_row = actual_output_array[1:]
+            # Assert
+            is_equal = (expected_output_array_minus_first_row == actual_output_array_minus_first_row).all()
+            err = f"""
+    Expected (shape={expected_output_array.shape}) = 
+    {expected_output_array}
+
+    Actual    (shape={actual_output_array.shape})  =
+    {actual_output_array}
+    """
+            self.assertTrue(is_equal, err)
+
+    ### WIP Section. Tests that are either unfinished or not passing go here.
+    # @skip  # TODO: test looks fine but review function implementation
+    def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant1(self):
+        # First vector begins at 45 degrees
         ax0, ay0 = 1, 1
         bx0, by0 = 2, 1
-        ax1, ay1 = -1, -1
-        bx1, by1 = -2, -1
-
-        expected = 180.0
+        # Second vector begins at -45 degrees
+        ax1, ay1 = 5, 5
+        bx1, by1 = 4, 6
+        # Therefore, delta total is 90deg
+        expected = 90.0
 
         # Act
-        actual = dibs.feature_engineering.angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        actual = dibs.feature_engineering.delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)  # ax0, ay0, bx0, by0, ax1, ay1, bx1, by1
         # Assert
         err = f"""
 
         """
         self.assertEqual(expected, actual, err)
-    pass
 
-    def test__attach_angle_between_bodyparts__shouldResultInOneNanAndOneValue(self):
-        # TODO: review inputs & outputs
-        # Arrange
-        output_feature_name = 'DeltaAngle'
-        snout, tail = 'Snout', 'Tail'
-        cols = [f'{snout}_x', f'{snout}_y', f'{tail}_x', f'{tail}_y']
-        data = [
-            [1, 0, 0, 0],
-            [1, 1, 0, 0],
-            [0, 1, 0, 0],
-        ]
-        df = pd.DataFrame(data, columns=cols)
-        expected_output_data = [
-            np.NaN,
-            45.,
-            45,
-        ]
-        expected_output = pd.concat([df, pd.DataFrame(expected_output_data, columns=[output_feature_name])], axis=1)
-        expected_output_array = expected_output.values
-        expected_output_array_minus_first_row = expected_output_array[1:]
+    # @skip  # TODO: test looks fine but review function implementation
+    def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant2(self):
+        ax0, ay0 = -1, 1
+        bx0, by0 = -2, 2
+        ax1, ay1 = -3, 3
+        bx1, by1 = -2, 4
+        expected = 90.0
+
         # Act
-        actual_output_dataframe = dibs.feature_engineering.attach_angle_between_bodyparts(df, snout, tail, output_feature_name=output_feature_name)
-        actual_output_array = actual_output_dataframe.values
-        actual_output_array_minus_first_row = actual_output_array[1:]
+        actual = dibs.feature_engineering.delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
         # Assert
-        is_equal = (expected_output_array_minus_first_row == actual_output_array_minus_first_row).all()
         err = f"""
-Expected (shape={expected_output_array.shape}) = 
-{expected_output_array}
 
-Actual    (shape={actual_output_array.shape})  =
-{actual_output_array}
-"""
-        self.assertTrue(is_equal, err)
+        """
+        self.assertEqual(expected, actual, err)
 
-    # Delta angle
+    # @skip  # TODO: test looks fine but review function implementation
+    def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant3(self):
+        ax0, ay0 = -1, -1
+        bx0, by0 = -2, -2
+        ax1, ay1 = -3, -3
+        bx1, by1 = -2, -4
+        expected = 90.0
+
+        # Act
+        actual = dibs.feature_engineering.delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+
+    # @skip  # TODO: test looks fine but review function implementation
+    def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant4(self):
+        ax0, ay0 = 1, -1
+        bx0, by0 = 2, -2
+        ax1, ay1 = 3, -3
+        bx1, by1 = 2, -4
+        expected = 90.0
+
+        # Act
+        actual = dibs.feature_engineering.delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+
+        """
+        self.assertEqual(expected, actual, err)
+
+    # @skip  # TODO: test looks fine but review function implementation
     def test__delta_two_body_parts_angle_killian_try__lazy_delta_angle___(self):
         # TODO: WIP: verify expected output!
         # Create a
@@ -461,29 +559,13 @@ Actual    (shape={actual_output_array.shape})  =
 
         # Assert
         is_equal = (expected_output_minus_first_row == actual_output_minus_first_row).all()
-        is_equal = (expected_output == actual_output).all()
+        # is_equal = (expected_output == actual_output).all()
         err = f"""
 Expected output = {expected_output}
 
 Actual output   = {actual_output}
 """
         self.assertTrue(is_equal, err)
-
-    @skip  # TODO: finish test
-    def test__delta_angle__shouldBe0__when0DegreeChangeInput_10(self):
-        # Arrange
-
-        ax0, ay0, bx0, by0 = 0., 0., 1., 1.
-        ax1, ay1, bx1, by1 = 0, 1, 0, 1
-        abx0 = np.array([ax0, bx0])
-        abx1 = np.array([ax1, bx1])
-        aby0 = np.array([ay0, by0])
-        aby1 = np.array([ay1, by1])
-        expected_output = 45.
-        # Act
-        actual_output = dibs.feature_engineering.delta_angle()  # def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
-        # Assert
-        self.assertEqual(expected_output, actual_output)
 
     ### END ###
 
@@ -499,39 +581,7 @@ Actual output   = {actual_output}
         # Act
         # Assert
         self.assertTrue(True)
-    @skip
-    def test__stu4(self):
-        # Arrange
-        # Act
-        # Assert
-        self.assertTrue(True)
-    @skip
-    def test__stub5(self):
-        # Arrange
-        # Act
-        # Assert
-        self.assertTrue(True)
-    pass
-    @skip
-    def test__FIGUREITOUT_DELTANGLETWOBODYPARTS(self):
-        # TODO: finish test. figure out what youre testing.
-        # Arrange
-        snout_positions_data_xy = [[1, 1],
-                                   [-1, 1],
-                                   [1, 1],
-                                   [-1, 1], ]
-        tail_positions_data_xy = [[0, 0],
-                                  [1, 1],
-                                  [0, 2],
-                                  [1, 3], ]
-        expected_output_delta_angles = [np.NaN, 180, 180, 180]
 
-
-        #
-
-        #
-        self.assertEqual(expected_output, actual_output)
-    pass
     @skip  # TODO: Temporarily skipped while the test is being finished. It's not finished!
     def test__average_distance_between_n_features__shouldCalculateAverageLocationOfFeature__whenThreeArraysSubmitted(self):
         # TODO: finish the 3rd data set and also the expected data output

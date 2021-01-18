@@ -170,15 +170,7 @@ def attach_feature_velocity_of_bodypart(df: pd.DataFrame, bodypart: str, action_
     return df
 
 
-# # TODO: delete below function
-# def attach_snout_tail_angle(df, output_feature_name, copy=False) -> pd.DataFrame:
-#     df = df.copy() if copy else df
-#     # TODO: HIGH: implement
-#     df[output_feature_name] = 1  # <- this is a stand-in
-#     return df
-
-
-def attach_angle_between_bodyparts(df, bodypart_1, bodypart_2, output_feature_name, copy=False) -> pd.DataFrame:
+def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_feature_name: str, copy=False) -> pd.DataFrame:
     """
     # TODO: med: add docstring
     :param df: (DataFrame)
@@ -215,6 +207,8 @@ def distance_between_two_arrays(arr1, arr2) -> float:
         Example output: 20.573040611440984
 
     """
+    check_arg.ensure_type(arr1, np.ndarray)
+    check_arg.ensure_type(arr2, np.ndarray)
     check_arg.ensure_numpy_arrays_are_same_shape(arr1, arr2)
 
     # Execute
@@ -268,148 +262,6 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
     return veloc_array
 
 
-def angle_between_two_vectors_by_position(ax, ay, bx, by):
-    """
-    Returns angle between two vectors in degrees
-    """
-    for i in (ax, ay, bx, by):
-        if i != i:
-            raise ValueError(f'i is nan')
-    if ax == bx and ay == by:  # TODO: high : review if to keep this
-        # Points on top of each other, no angle possible
-        return np.NaN
-    return round(
-        (180/np.pi) *
-        np.arccos(
-            (ax*bx + ay*by) /
-            ((np.sqrt(ax**2 + ay**2)) * (np.sqrt(bx**2 + by**2)))
-        ), 5)
-
-
-def delta_angle_given_angles__lazy(angle0, angle1):
-    assert angle0 == angle0
-    assert angle1 == angle1
-
-    return angle1 - angle0
-
-
-# @numba.jit
-def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
-    """
-    TODO: docstring
-    :param pos_x_0: (float)
-    :param pos_y_0: (float)
-    :param pos_x_1: (float)
-    :param pos_y_1: (float)
-    :return: (float)
-    """
-    for i in (pos_x_0, pos_y_0, pos_x_1, pos_y_1):
-        if np.isnan(i):
-            raise ValueError(f'NAN dtectex')
-    pos_x_0, pos_y_0, pos_x_1, pos_y_1 = float(pos_x_0), float(pos_y_0), float(pos_x_1), float(pos_y_1)
-
-    # First implementation
-    # TODO: evaluate
-    # TODO: add NUMBA for fast computation?
-    # Case: if the numerator of the arctan() portion of the equation equals zero, then
-    #   DivideByZero error occurs.
-    # if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
-    #     return 0.
-    change_in_angle = \
-        statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
-        (180/np.pi) * \
-        np.arctan(
-            (pos_x_1*pos_y_0 - pos_x_0*pos_y_1) /
-            (pos_x_1*pos_x_0 + pos_y_0*pos_y_1)) * \
-        (180/np.pi) * \
-        statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
-        (1 - statistics.sign(pos_x_0*pos_x_1 + pos_y_0*pos_y_1))
-
-    # # SEcond implementation
-    # # neg_x = -1 * pos_x_0
-    # # neg_y = -1 * pos_y_0
-    # # pos_x_0 = pos_x_0 + neg_x
-    # # pos_y_0 = pos_y_0 + neg_y
-    # # pos_x_1 = pos_x_1 + neg_x
-    # # pos_y_1 = pos_y_1 + neg_y
-    # if pos_x_1 > 0:
-    #     if pos_y_1 > 0:
-    #         # Quadrant 1
-    #         if pos_x_1 == 0:
-    #             change_in_angle = 0
-    #             # f = lambda x, y: 0
-    #         else:
-    #             # f = lambda x, y: np.arctan(y/x)
-    #             change_in_angle = 1 / (1 + (pos_y_1 / pos_x_1) ** 2)
-    #         pass
-    #     else:
-    #
-    #         # Quadrant 4
-    #         if pos_x_1 == 0:
-    #             change_in_angle = -1
-    #         else:
-    #             change_in_angle = -1 * (1 / (1 + (pos_y_1/pos_x_1)**2))
-    # else:
-    #     if pos_y_1 > 0:
-    #         # quadrant 2
-    #         if pos_x_1 == 0:
-    #             change_in_angle = np.pi
-    #         else:
-    #             # change_in_angle = np.pi - (1 / (1 + (pos_y_1/pos_x_1)**2))
-    #             change_in_angle = (1 / (1 + (pos_y_1 / pos_x_1) ** 2))
-    #         pass
-    #     else:
-    #         # quadrant 3
-    #         if pos_x_1 == 0:
-    #             change_in_angle = -np.pi
-    #         else:
-    #             change_in_angle = (1 / (1 + (pos_y_1/pos_x_1)**2)) - np.pi
-    #             change_in_angle = (1 / (1 + (pos_y_1 / pos_x_1) ** 2))
-    # # angle_1 = lambda x,y: np.arctan(y/x)
-    # # angle_2 = lambda x, y: np.pi - np.arctan(y/x)
-    # # angle_3 = lambda x, y: np.pi
-    # # change_in_angle =
-    #
-    # # angle_0 =
-    # # angle_1 =
-    # # change_in_angle = (angle_1 - angle_0) * (180/np.pi)
-    # # change_in_angle = change_in_angle * (180/np.pi)
-
-    # # Third implementation
-    # angle_0 = angle
-    return change_in_angle
-
-
-def angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1):
-    """
-    Returns angle between two vectors in degrees
-    # TODO: review use of rounding value at end
-    """
-    # TODO: low: evaluate. Seems to be working!
-    bx0 -= ax0
-    by0 -= ay0
-    bx1 -= ax1
-    by1 -= ay1
-    x0 = bx0
-    y0 = by0
-    x1 = bx1
-    y1 = by1
-
-    for i in (x0, y0, x1, y1):
-        if i != i:
-            raise ValueError(f'i is nan')
-    if x0 == x1 and y0 == y1:  # TODO: high : review if to keep this
-        # Points on top of each other, no angle possible
-        return 0.
-
-    return round(
-        (180/np.pi) *
-        np.arccos(
-            (x0*x1 + y0*y1) /
-            ((np.sqrt(x0**2 + y0**2)) * (np.sqrt(x1**2 + y1**2)))
-        ), 5)
-
-
 def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
     """
     TODO: explain the math
@@ -436,10 +288,151 @@ def delta_two_body_parts_angle_killian_try(body_part_arr_1, body_part_arr_2) -> 
     # # TODO: low: implement a vectorized solution? Performance OK for now, but worth inspecting later
     for i in range(1, len(output_array)):
         # output_array[i] = angle_between_two_vectors_by_position(body_part_arr_1[i][0], body_part_arr_1[i][1], body_part_arr_2[i][0], body_part_arr_2[i][1]) - angle_between_two_vectors_by_position(body_part_arr_1[i-1][0], body_part_arr_1[i-1][1], body_part_arr_2[i-1][0], body_part_arr_2[i-1][1])
-        output_array[i] = angle_between_two_vectors_by_all_positions(body_part_arr_1[i-1][0], body_part_arr_1[i-1][1], body_part_arr_2[i-1][0], body_part_arr_2[i-1][1],
-                                                                     body_part_arr_1[i][0], body_part_arr_1[i][1], body_part_arr_2[i][0], body_part_arr_2[i][1])  # ax0, ay0, bx0, by0, ax1, ay1, bx1, by1
+        output_array[i] = delta_angle_between_two_vectors_by_all_positions(
+            body_part_arr_1[i - 1][0], body_part_arr_1[i - 1][1], body_part_arr_2[i - 1][0], body_part_arr_2[i - 1][1],
+            body_part_arr_1[i][0], body_part_arr_1[i][1], body_part_arr_2[i][0], body_part_arr_2[i][1])  # ax0, ay0, bx0, by0, ax1, ay1, bx1, by1
 
     return output_array
+
+
+### Single value math
+
+def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1):
+    """
+    Returns angle between two vectors in degrees.
+    # TODO: med/high: review use of rounding value at end
+    """
+    # TODO: low: evaluate. Seems to be working!
+    # Arg checking -- below is OVERKILL, but necessary for debugging effort
+    check_arg.ensure_not_nan(x0)
+    check_arg.ensure_not_nan(y0)
+    check_arg.ensure_not_nan(x1)
+    check_arg.ensure_not_nan(y1)
+
+    if x0 == x1 and x1 == y1:
+        # Vectors are identical. No angle possible.
+        return 0.
+    if ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))) == 0:
+        return 0.
+    return round(
+        (180 / np.pi) *
+        np.arccos(
+            (x0 * x1 + y0 * y1) /
+            ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2)))
+        ), 5)
+
+
+def angle_between_two_vectors_by_position(ax, ay, bx, by):
+    """
+    Returns angle between two vectors in degrees
+    """
+    for i in (ax, ay, bx, by):
+        if i != i:
+            raise ValueError(f'i is nan')
+    if ax == bx and ay == by:  # TODO: high : review if to keep this
+        # Points on top of each other, no angle possible
+        return np.NaN
+    return round(
+        (180/np.pi) *
+        np.arccos(
+            (ax*bx + ay*by) /
+            ((np.sqrt(ax**2 + ay**2)) * (np.sqrt(bx**2 + by**2)))
+        ), 5)
+
+
+def delta_angle_given_angles__lazy(angle0, angle1) -> float:
+    # TODO: review usage. Useful only for testing?
+    assert angle0 == angle0
+    assert angle1 == angle1
+
+    return angle1 - angle0
+
+
+def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
+    """
+    TODO: Purpose
+    Assumes that the vector begins at (0, 0)
+    :param pos_x_0: (float)
+    :param pos_y_0: (float)
+    :param pos_x_1: (float)
+    :param pos_y_1: (float)
+    :return: (float)
+    """
+    for i in (pos_x_0, pos_y_0, pos_x_1, pos_y_1):
+        check_arg.ensure_not_nan(i)
+    pos_x_0, pos_y_0, pos_x_1, pos_y_1 = float(pos_x_0), float(pos_y_0), float(pos_x_1), float(pos_y_1)
+
+    # First implementation
+    # TODO: evaluate
+    # TODO: add NUMBA for fast computation?
+    # Case: if the numerator of the arctan() portion of the equation equals zero, then
+    #   DivideByZero error occurs.
+    if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
+        arctan_elem = np.pi / 2
+    else:
+        arctan_elem = np.arctan((pos_x_1*pos_y_0 - pos_x_0*pos_y_1) /
+                                (pos_x_1*pos_x_0 + pos_y_0*pos_y_1))
+    arctan_elem = np.arctan((pos_x_1 * pos_y_0 - pos_x_0 * pos_y_1) /
+                            (pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 + 1e-10))
+    change_in_angle = \
+        statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
+        (180/np.pi) * \
+        arctan_elem * \
+        (180/np.pi) * \
+        statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
+        (1 - statistics.sign(pos_x_0*pos_x_1 + pos_y_0*pos_y_1))
+
+    return change_in_angle
+
+
+def delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1) -> float:
+    """
+    TODO: docstring
+    :param bx0: (float)
+    :param by0: (float)
+    :param bx1: (float)
+    :param by1: (float)
+    :return: (float)
+    """
+    bx0 -= ax0
+    by0 -= ay0
+    bx1 -= ax1
+    by1 -= ay1
+
+    # bx0, by0, bx1, by1 = bx0 - ax0, by0 - ay0, bx1 - ax1, by1 - ay1
+    for i in (bx0, by0, bx1, by1):
+        check_arg.ensure_not_nan(i)
+
+    bx0, by0, bx1, by1 = float(bx0), float(by0), float(bx1), float(by1)
+
+    return delta_angle(bx0, by0, bx1, by1)
+
+
+def delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1):
+    """
+    Returns angle between two vectors in degrees
+    # TODO: review use of rounding value at end
+    """
+    # TODO: new
+    # TODO: low: evaluate. Seems to be working!
+
+    # Arg checking -- below is OVERKILL, but necessary for debugging effort
+    check_arg.ensure_not_nan(ax0)
+    check_arg.ensure_not_nan(ay0)
+    check_arg.ensure_not_nan(bx0)
+    check_arg.ensure_not_nan(by0)
+    check_arg.ensure_not_nan(ax1)
+    check_arg.ensure_not_nan(ay1)
+    check_arg.ensure_not_nan(bx1)
+    check_arg.ensure_not_nan(by1)
+    # First, normalize points s.t. the a_0 and a_1 starts at origin and b_0/b_1 is translated to keep same angle, magnitude
+
+    bx0 -= ax0
+    by0 -= ay0
+    bx1 -= ax1
+    by1 -= ay1
+
+    return delta_angle_between_two_vectors_starting_at_origin(bx0, by0, bx1, by1)
 
 
 ### Binning
