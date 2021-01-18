@@ -199,6 +199,12 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH), f'CSV
 # assert os.path.isfile(DEFAULT_H5_TEST_FILE), f'h5 test file was not found: {DEFAULT_H5_TEST_FILE}'  # TODO: low: when h5 format finally figured-out (From an actual DLC project outcome), re-instate this assert
 
 
+### GENERAL CLASSIFIER VARIABLES ###
+CLASSIFIER_VERBOSE = configuration.getint('CLASSIFIER', 'VERBOSE')
+
+assert CLASSIFIER_VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER_VERBOSE}'
+
+
 ### GMM PARAMS #########################################################################################################
 
 gmm_n_components = configuration.getint('EM/GMM', 'n_components')
