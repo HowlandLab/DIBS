@@ -298,31 +298,26 @@ def delta_two_body_parts_angle_killian_try(body_part_arr_1, body_part_arr_2) -> 
 ### Single value math
 def is_angle_change_positive(x0, y0, x1, y1) -> bool:
     """
-    if(a.x*b.y - a.y*b.x < 0)
-    angle = -angle;
 
-    :param x0:
-    :param y0:
-    :param x1:
-    :param y1:
-    :return:
     """
     return not is_angle_change_negative(x0, y0, x1, y1)
-    # if x0*y1 - y0*x1 > 0:  #delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1) >= delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0):
-    #     return True
-    # return False
 
 
 def is_angle_change_negative(x0, y0, x1, y1) -> bool:
     """
-    if(a.x*b.y - a.y*b.x < 0)
-    angle = -angle;
+    Returns True if the change in angle is negative; otherwise False. Used in
+    determining sign in an angle change where necessary. (x0, y0) are the
+    coordinates for the vector that starts at the origin and extends outwards.
+    The same logic goes for (x1, y1).
 
-    :param x0:
-    :param y0:
-    :param x1:
-    :param y1:
-    :return:
+    Formula used:
+    if(a.x*b.y - a.y*b.x < 0)
+        angle = -angle;
+    :param x0: (float) x-coordinate for first vector
+    :param y0: (float) y-coordinate for first vector
+    :param x1: (float) x-coordinate for second vector
+    :param y1: (float) y-coordinate for second vector
+    :return: (bool)
     """
     if x0*y1 - y0*x1 < 0:  #delta_angle_between_two_vectors_starting_at_origin(10, 0, x1, y1) >= delta_angle_between_two_vectors_starting_at_origin(10, 0, x0, y0):
         return True
@@ -338,7 +333,7 @@ def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
     :param y0: (float)
     :param x1: (float)
     :param y1: (float)
-    :return: (float)
+    :return: (float) Returns the difference in angles between vectors in degrees
     """
     # TODO: low: evaluate. Seems to be working!
     # Arg checking -- below is OVERKILL, but necessary for debugging effort
@@ -347,42 +342,20 @@ def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
     check_arg.ensure_not_nan(x1)
     check_arg.ensure_not_nan(y1)
 
-    # if x0 == x1 and y0 == y1:
-    #     # Vectors are identical. No angle possible.
-    #     return 0.
+    if x0 == x1 and y0 == y1:
+        # Vectors are identical. No angle possible.
+        return 0.
 
     # # TODO: low: make tests to ensure that below comment isn't needed anymore
     # if ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))) == 0:
     #     return 0.
 
-    theta = round(
-        (180 / np.pi) *
-        np.arccos(
-            (x0 * x1 + y0 * y1) /
-            ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2)))
-        ), 5)
+    theta = (180 / np.pi) * np.arccos((x0 * x1 + y0 * y1) / ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))))
+    theta = round(theta, 8)  # TODO: med/high: review rounding
 
     signed_theta = -theta if is_angle_change_negative(x0, y0, x1, y1) else theta
 
     return signed_theta
-
-
-def angle_between_two_vectors_by_position(ax, ay, bx, by):
-    """
-    Returns angle between two vectors in degrees
-    """
-    for i in (ax, ay, bx, by):
-        if i != i:
-            raise ValueError(f'i is nan')
-    if ax == bx and ay == by:  # TODO: high : review if to keep this
-        # Points on top of each other, no angle possible
-        return np.NaN
-    return round(
-        (180/np.pi) *
-        np.arccos(
-            (ax*bx + ay*by) /
-            ((np.sqrt(ax**2 + ay**2)) * (np.sqrt(bx**2 + by**2)))
-        ), 5)
 
 
 def delta_angle_given_angles__lazy(angle0, angle1) -> float:
@@ -417,12 +390,12 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     else:
         arctan_elem = np.arctan((pos_x_1*pos_y_0 - pos_x_0*pos_y_1) /
                                 (pos_x_1*pos_x_0 + pos_y_0*pos_y_1))
-    arctan_elem = np.arctan((pos_x_1 * pos_y_0 - pos_x_0 * pos_y_1) /
-                            (pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 + 1e-10))
+    # arctan_elem =
     change_in_angle = \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (180/np.pi) * \
-        arctan_elem * \
+        np.arctan((pos_x_1 * pos_y_0 - pos_x_0 * pos_y_1) /
+                  (pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 + 1e-10)) * \
         (180/np.pi) * \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (1 - statistics.sign(pos_x_0*pos_x_1 + pos_y_0*pos_y_1))
