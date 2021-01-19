@@ -178,27 +178,6 @@ actual actual_output_arr: {actual_output_arr}
         # Assert
         self.assertEqual(expected_output, actual_output)
 
-    # Angle between two vectors by position
-    def test__angle_between_two_vectors_by_position__shouldBe90__whenSetUpAsQuadrant3ToQuadrant4(self):
-        # Arrange
-        ax, ay = -1., -1.
-        bx, by = 1., -1.
-        expected_output = 90.
-        # Act
-        actual_output = dibs.feature_engineering.angle_between_two_vectors_by_position(ax, ay, bx, by)
-        # Assert
-        self.assertEqual(expected_output, actual_output)
-
-    def test__angle_between_two_vectors_by_position__shouldBe180__whenSetUpAsQuadrant1ToQuadrant2(self):
-        # Arrange
-        ax, ay = 1., 0
-        bx, by = -1., 0.
-        expected_output = 180.
-        # Act
-        actual_output = dibs.feature_engineering.angle_between_two_vectors_by_position(ax, ay, bx, by)
-        # Assert
-        self.assertEqual(expected_output, actual_output)
-
     # delta angle using two body parts arrays data
     def test__delta_two_body_parts_angle_killian_try__shouldGiveZeroes__whenNoAngleChangesOccur(self):
         fill_first = 321321321
@@ -389,7 +368,6 @@ Actual output   = {actual_output}
 Angle = {angle}
 """
         self.assertEqual(expected, actual, err)
-    pass
 
     def test__is_angle_change_positive__shouldBeFalse__whenMovingFromQuadrant1ToQuandrant4(self):
         x0, y0 = 1, 1
@@ -401,7 +379,7 @@ Angle = {angle}
     Angle = {angle}
     """
         self.assertEqual(expected, actual, err)
-    pass
+
     def test__is_angle_change_positive__shouldBeFalse__whenMovingFromQuadrant2ToQuandrant1InACornerCase(self):
         x0, y0 = -1, 0
         x1, y1 = 0, 1
@@ -413,7 +391,6 @@ Angle = {angle}
     """
         self.assertEqual(expected, actual, err)
 
-    pass
     def test__is_angle_change_positive__shouldBeFalse__whenNegativeMoving(self):
         x0, y0 = -1, -1
         x1, y1 = 0, 1
@@ -451,7 +428,6 @@ Expected  = {expected}
 Actual    = {actual}
                     """.strip()
         self.assertEqual(expected, actual, err)
-    pass
 
     def test__delta_angle_between_two_vectors_starting_at_origin__shouldBeNegative90__whenPointsGoQuadrant3ToQuadrant2(self):
         x0, y0 = -10, -10
@@ -467,7 +443,7 @@ Expected  = {expected}
 Actual    = {actual}
                     """.strip()
         self.assertEqual(expected, actual, err)
-    pass
+
     def test__delta_angle_between_two_vectors_starting_at_origin__shouldBeNegative90__whenPointsGoQuadrant4ToQuadrant3(self):
         x0, y0 = 10, -10
         x1, y1 = -1, -1
@@ -482,7 +458,7 @@ Expected  = {expected}
 Actual    = {actual}
                     """.strip()
         self.assertEqual(expected, actual, err)
-    pass
+
     def test__delta_angle_between_two_vectors_starting_at_origin__shouldBeNegative90__whenPointsGoQuadrant1ToQuadrant4(self):
         x0, y0 = 1, 1
         x1, y1 = 1, -1
@@ -497,7 +473,7 @@ Expected  = {expected}
 Actual    = {actual}
             """
         self.assertEqual(expected, actual, err)
-    pass
+
     # delta_angle_between_two_vectors_by_all_positions()
     def test__delta_angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenPointsGoQuadrant1ToQuadrant4(self):
 
@@ -513,7 +489,6 @@ Actual    = {actual}
 """
         self.assertEqual(expected, actual, err)
 
-    pass
     def test__delta_angle_between_two_vectors_by_all_positions__shouldGet90degrees__whenAllPointsInQuadrant1(self):
         ax0, ay0 = 1, 1
         bx0, by0 = 2, 2
@@ -660,7 +635,7 @@ Actual    (shape={actual_output_array.shape})  =
 {actual_output_array}
 """
         self.assertTrue(is_equal, err)
-    pass
+
     ### WIP Section. Tests that are either unfinished or not passing go here.
     @skip  # TODO: test looks fine but review function implementation
     def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant1(self):
