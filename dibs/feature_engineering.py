@@ -375,6 +375,7 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     :param pos_x_1: (float)
     :param pos_y_1: (float)
     :return: (float)
+    # TODO: HIGH: Confirm that this function works as expected with tests. Currently, it's failing.
     """
     for i in (pos_x_0, pos_y_0, pos_x_1, pos_y_1):
         check_arg.ensure_not_nan(i)
