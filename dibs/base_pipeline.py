@@ -1207,26 +1207,29 @@ class BasePipeline(object):
             self.df_features_train_scaled[self.clf_assignment_col_name])
         return fig, ax
 
-    def plot_assignments_in_3d(self, show_now=False, save_to_file=False, azim_elev=(70, 135), **kwargs) -> Tuple[object, object]:
+    def plot_clusters_by_assignments(self, show_now=False, save_to_file=False, azim_elev: tuple = (70, 135), draw_now=False, **kwargs) -> Tuple[object, object]:
         """
+        # TODO: rename function as plot assignments by cluster
         Get plot of clusters colored by GMM assignment
         :param show_now: (bool)
         :param save_to_file: (bool)
         :param azim_elev:
         :return:
         """
+        check_arg.ensure_type(azim_elev, tuple)
         # TODO: low: check for other runtime vars
         if not self.is_built:  # or not self._has_unused_raw_data:
             e = f'{get_current_function()}(): The model has not been built. There is nothing to graph.'
             logger.warning(e)
             raise ValueError(e)
 
-        fig, ax = visuals.plot_GM_assignments_in_3d(
+        fig, ax = visuals.plot_clusters_by_assignment(
             self.df_features_train_scaled[self.dims_cols_names].values,
             self.df_features_train_scaled[self.gmm_assignment_col_name].values,
-            save_to_file,
+            save_fig_to_file=save_to_file,
             show_now=show_now,
             azim_elev=azim_elev,
+            draw_now=draw_now,
             **kwargs
         )
         return fig, ax

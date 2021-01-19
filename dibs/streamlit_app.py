@@ -16,6 +16,7 @@ import matplotlib
 import numpy as np
 import os
 import pandas as pd
+import plotly
 import random
 import streamlit as st
 import sys
@@ -70,6 +71,7 @@ key_button_add_train_data_source = 'key_button_add_train_data_source'
 key_button_add_predict_data_source = 'key_button_add_predict_data_source'
 key_button_review_assignments = 'key_button_update_assignments'
 key_button_view_assignments_distribution = 'key_button_view_assignments_distribution'
+key_button_view_assignments_clusters = 'key_button_view_assignments_clusters'
 key_button_save_assignment = 'key_button_save_assignment'
 key_button_show_example_videos_options = 'key_button_show_example_videos_options'
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
@@ -98,6 +100,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_button_update_description: False,
     key_button_review_assignments: False,
     key_button_view_assignments_distribution: False,
+    key_button_view_assignments_clusters: False,
     key_button_save_assignment: False,
     key_button_show_example_videos_options: False,
     key_button_create_new_example_videos: False,
@@ -126,7 +129,8 @@ def start_app(**kwargs):
     ### Set up session variables
     global file_session
     file_session = streamlit_session_state.get(**streamlit_persistence_variables)
-    matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows
+    # matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows
+    matplotlib.use('Agg')  # For allowing graphs to pop out as separate windows
     file_session[key_iteration_page_refresh_count] = file_session[key_iteration_page_refresh_count] + 1
 
     # Set page config
@@ -835,11 +839,24 @@ def see_model_diagnostics(p, pipeline_file_path):
     st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
     gmm_button = st.button('Pop out window of cluster/assignment distribution')  # TODO: low: phrase this button better?
     if gmm_button:
+        file_session[key_button_view_assignments_clusters] = not file_session[key_button_view_assignments_clusters]
+    if file_session[key_button_view_assignments_clusters]:
         if p.is_built:
-            try:
-                p.plot_assignments_in_3d(show_now=True)
-            except ValueError:
-                st.error('Cannot plot cluster distribution since the model is not currently built.')
+            # if p.tsne_n_components == 2:
+            azim, elevation = 15, 110
+            if p.tsne_n_components == 3:
+                azim = st.slider('azimuth slider', value=azim, min_value=-90, max_value=90)
+                elevation = st.slider('elevation slider', value=elevation, min_value=1, max_value=180)
+            try:  # Debugging try/catch. Remove when both 3-d and 2-d graphs show and don't crash the app.
+                # p.plot_assignments_in_3d(show_now=True)
+                fig, ax = p.plot_clusters_by_assignments(show_now=False, azim_elev=(azim, elevation))
+                # st.graphviz_chart(fig)
+                # x = plotly.tools.mpl_to_plotly(fig)
+                # st.plotly_chart(x)
+                st.write(fig)
+                pass
+            except ValueError as ve:
+                st.error(f'Cannot plot cluster distribution since the model is not currently built. ({repr(ve)}')
         else:
             st.info('A 3d plot of the cluster distributions could not be created because '
                     'the model is not built. ')
