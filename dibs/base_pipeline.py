@@ -47,10 +47,12 @@ class BasePipeline(object):
         Kwargs default to pulling in data from config.ini file unless overtly specified to override. See below.
     ----------
 
-    tsne_source : {'sklearn', 'bhtsne'}
+    tsne_source : {'SKLEARN', 'BHTSNE', 'OPENTSNE}
         Specify a TSNE implementation to use for dimensionality reduction.
+        Note: the SKLEARN implementation seems to be quite slow despite it's widespread use. If
+        time is a limiting factor, try using an alternative.
 
-    clf_type : {'svm', 'rf' }
+    clf_type : {'SVM', 'RANDOMFOREST' }
         Specify a classifier to use.
         Default is 'svm'.
         - 'svm' : Support Vector Machine
@@ -646,7 +648,8 @@ class BasePipeline(object):
         """
         Scales training data. By default, creates new scaler according to train
         data and stores it in pipeline
-
+        Note: this function implicitly filters out NAN results that may be present in the features set.
+        The final result is that all scaled training data will be valid to put into the classifier
         :param features:
         :param create_new_scaler:
 
@@ -655,7 +658,7 @@ class BasePipeline(object):
         # Queue up data to use
         if features is None:  # TODO: low: remove his if statement as a default feature
             features = self.all_features
-        df_features_train = self.df_features_train
+        df_features_train = self.df_features_train.loc[~self.df_features_train[self.all_features_list].isnull().any(axis=1)].copy()
         # Check args
         check_arg.ensure_type(features, list, tuple)
         check_arg.ensure_columns_in_DataFrame(df_features_train, features)
@@ -801,7 +804,7 @@ class BasePipeline(object):
         For any kwarg that does not take it's value from the it's own Pipeline config., then that
         variable
         """
-        df = self.df_features_train_scaled
+        df = self.df_features_train_scaled.loc[~self.df_features_train_scaled[list(self.all_features)].isnull().any(axis=1)]
 
         if self.classifier_type == 'SVM':
             clf = SVC(
@@ -846,7 +849,37 @@ class BasePipeline(object):
         # Save classifier
         self._classifier = clf
 
-    # Model building
+    def generate_predict_data_assignments(self, reengineer_train_data_features: bool = False, reengineer_predict_features=False):  # TODO: low: rename?
+        """
+        Runs after build(). Using terminology from old implementation. TODO: purpose
+        """
+        # TODO: add arg checking for empty predict data?
+
+        # Check that classifiers are built on the training data
+        if reengineer_train_data_features or not self.is_built or self.is_in_inconsistent_state:
+            self._build_model()
+
+        # TODO: temp exit early for zero test data found
+        if len(self.df_features_predict_raw) == 0:
+            warn = f'Zero test data points found. Exiting early. predict features not built.'
+            logger.warning(warn)
+            return self
+        # Check if predict features have been engineered
+        if reengineer_predict_features or self._has_unengineered_predict_data:
+            self.engineer_features_predict()
+            self.scale_transform_predict_data()
+
+        # Add prediction labels
+        if len(self.df_features_predict_scaled) > 0:
+            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf.predict(
+                self.df_features_predict_scaled[list(self.all_features_list)].values)
+        else:
+            logger.debug(f'{get_current_function()}(): 0 records were detected '
+                         f'for PREDICT data. No data was predicted with model.')
+
+        return self
+
+    # Pipeline building
     def _build_model(self, reengineer_train_features: bool = False):
         """
         Builds the model for predicting behaviours.
@@ -857,7 +890,6 @@ class BasePipeline(object):
             logger.debug(f'{inspect.stack()[0][3]}(): Start engineering features...')
             self.engineer_features_train()
 
-        # TODO: exclude all NAN data for features? <------------------------------------------------------------------------
         # Scale data
         logger.debug(f'Scaling data now...')
         self.scale_transform_train_data(features=self.all_features, create_new_scaler=True)
@@ -909,43 +941,6 @@ class BasePipeline(object):
         self._has_modified_model_variables = False
         self._last_built = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
         logger.debug(f'All done with building classifiers/model!')
-
-        return self
-
-    def build_classifier(self, reengineer_train_features: bool = False):
-        """ This is the legacy naming. Method kept for backwards compatibility. This function will be deleted later. """
-        warn = f'Pipeline.build_classifier(): was called, but this is the ' \
-               f'legacy name. Instead, use Pipeline.build_model() from now on.'
-        logger.warning(warn)
-        return self._build_model(reengineer_train_features=reengineer_train_features)
-
-    def generate_predict_data_assignments(self, reengineer_train_data_features: bool = False, reengineer_predict_features=False):  # TODO: low: rename?
-        """
-        Runs after build(). Using terminology from old implementation. TODO: purpose
-        """
-        # TODO: add arg checking for empty predict data?
-
-        # Check that classifiers are built on the training data
-        if reengineer_train_data_features or not self.is_built or self.is_in_inconsistent_state:
-            self._build_model()
-
-        # TODO: temp exit early for zero test data found
-        if len(self.df_features_predict_raw) == 0:
-            warn = f'Zero test data points found. Exiting early. predict features not built.'
-            logger.warning(warn)
-            return self
-        # Check if predict features have been engineered
-        if reengineer_predict_features or self._has_unengineered_predict_data:
-            self.engineer_features_predict()
-            self.scale_transform_predict_data()
-
-        # Add prediction labels
-        if len(self.df_features_predict_scaled) > 0:
-            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf.predict(
-                self.df_features_predict_scaled[list(self.all_features_list)].values)
-        else:
-            logger.debug(f'{get_current_function()}(): 0 records were detected '
-                         f'for PREDICT data. No data was predicted with model.')
 
         return self
 
@@ -1226,7 +1221,7 @@ class BasePipeline(object):
             logger.warning(e)
             raise ValueError(e)
 
-        fig, ax = visuals.plot_GM_assignments_in_3d_tuple(
+        fig, ax = visuals.plot_GM_assignments_in_3d(
             self.df_features_train_scaled[self.dims_cols_names].values,
             self.df_features_train_scaled[self.gmm_assignment_col_name].values,
             save_to_file,
