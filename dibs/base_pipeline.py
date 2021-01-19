@@ -838,7 +838,7 @@ class BasePipeline(object):
                 max_samples=None,
             )
         else:
-            err = f'TODO: elaborate: an invalid classifier type was detected: {self.classifier_type}'
+            err = f'TODO: elaborate: an unexpected classifier type was detected: {self.classifier_type}'
             logger.error(err)
             raise KeyError(err)
         # Fit classifier to non-test data
