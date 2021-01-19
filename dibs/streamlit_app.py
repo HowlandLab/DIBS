@@ -131,7 +131,7 @@ def start_app(**kwargs):
 
     # Set page config
     st.set_page_config(page_title=webpage_head_title,
-                       page_icon=':shark:',
+                       page_icon=':shark:',  # TODO: settle on an emoji later
                        layout=file_session[key_selected_layout],
                        initial_sidebar_state='expanded')
 
