@@ -5,3 +5,6 @@ pip install networkx joblib protobuf psutil openTSNE scipy opencv-python bhtsne 
 
 # For windows users, also use the below command:
 conda install -y pywin32
+
+# If you have problems with starting Jupyter Notebooks, try running the following command:
+pip install --upgrade pyzmq
