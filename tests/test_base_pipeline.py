@@ -364,7 +364,7 @@ class TestPipeline(TestCase):
 
     def test__set_params__shouldKeepDefaultsWhileChangingSpecifiedVars__whenOptionalArgForReadingInConfigVarsNotTrue(self):
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
+        p = default_pipeline_class(get_unique_pipe_name())
         default_gmm_n_components = p.gmm_n_components
 
         # Act
@@ -382,7 +382,7 @@ TODO: {get_current_function()}
         cv = expected_cv = 5
 
         # Act
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name(), cross_validation_k=cv)
+        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv)
         actual_cv = p.cross_validation_k
 
         # Assert
@@ -393,10 +393,7 @@ TODO: {get_current_function()}
     def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = dibs.pipeline.PipelineMimic(f'TestPipeline_{random.randint(0, 100_000_000)}',
-                                        cross_validation_k=cv,
-                                        gmm_n_components=gmm_n_components,
-                                        )
+        p = default_pipeline_class(f'TestPipeline_{random.randint(0, 100_000_000)}', cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
@@ -458,7 +455,7 @@ TODO: {get_current_function()}
     @skip  # Temporary skip since it takes forever to run this due to sample size
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name()).add_train_data_source(csv_test_file_path).build(True)
+        p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv_test_file_path).build(True)
 
         # Act
         p = p.scale_transform_train_data()
@@ -483,7 +480,7 @@ Symmetric diff = {unscaled_features_cols.symmetric_difference(scaled_features_co
         """"""
         # Arrange
         data_source_file_path = csv_test_file_path
-        pipe = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
+        pipe = default_pipeline_class(get_unique_pipe_name())
         num_of_sources_before_addition: int = len(pipe.training_data_sources)
         num_of_sources_should_be_this_after_addition = num_of_sources_before_addition + 1
 
@@ -505,7 +502,7 @@ list_of_sources_after_addition = {num_of_sources_actually_this_after_addition}
     def test__pipeline_adding_train_data_file_source__shouldBeZeroToStart(self):
         """"""
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
+        p = default_pipeline_class(get_unique_pipe_name())
         expected_amount_of_sources = 0
 
         # Act
@@ -523,7 +520,7 @@ actual_amount_of_dataframes = {actual_amount_of_dataframes}
     def test__pipeline_adding_train_data_file_source__shouldAddParticularFileTo____when____(self):
         """"""
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
+        p = default_pipeline_class(get_unique_pipe_name())
         data_source_file_path = csv_test_file_path
 
         # Act
@@ -538,7 +535,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
 
     def test__pipeline_add_train_data__(self):  # TODO: add should/when
         # Arrange
-        p = dibs.pipeline.PipelinePrime('Test_65465465465asddsfasdfde34asdf')
+        p = default_pipeline_class('Test_65465465465asddsfasdfde34asdf')
         num_sources_before_adding_any = len(p.training_data_sources)
 
         # Act
@@ -560,7 +557,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
         *** NOTE: This test usually takes a while since it builds the entire model as part of the test ***
         """
         # Arrange
-        p = dibs.pipeline.PipelinePrime('asdfasdfdfs44444')
+        p = default_pipeline_class('asdfasdfdfs44444')
         p = p.add_train_data_source(csv_test_file_path)
         original_number_of_data_rows = len(dibs.io.read_csv(csv_test_file_path))
 
@@ -608,7 +605,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
         Test to see if output is None if no assignment label found
         """
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
+        p = default_pipeline_class(get_unique_pipe_name())
         expected_label = ''
         # Act
         actual_label = p.get_assignment_label(0)
@@ -617,7 +614,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
 
     def test__set_label__shouldUpdateAssignment__whenUsed(self):
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
+        p = default_pipeline_class(get_unique_pipe_name())
         assignment, input_label = 1, 'Behaviour1'
 
         # Act
@@ -630,7 +627,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
     def test__updatingAssignment__shouldSaveLabel__whenSavedAndRereadIn(self):
         # Arrange
         name = get_unique_pipe_name()
-        p_write = dibs.pipeline.PipelinePrime(name)
+        p_write = default_pipeline_class(name)
         assignment, input_label = 12, 'Behaviour12'
 
         # Act
