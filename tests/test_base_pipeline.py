@@ -552,6 +552,24 @@ Actual label: {actual_label}
 """  # All labels map: {p_read._map_assignment_to_behaviour}
         self.assertEqual(input_label, actual_label, err)
 
+    ### End-to-end tests ###
+    def test___DefaultPipelineListedAbove___buliding_pipeline_start_to_finish(self):
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        data_source_file_path = csv_test_file_path
+        p = p.add_train_data_source(data_source_file_path)
+
+        # Act
+        built_ok = True
+        err = f'Build failed. Error: '
+        try:
+            p = p.build(True, True)
+        except BaseException as e:
+            err += repr(e)
+            built_ok = False
+        # Assert
+        self.assertTrue(built_ok, err)
+
     ### Tests that need to be finished, confirmed, then moved to appropriate section ###
     @skip  # TODO: finish test
     def test__add_train_data_AND_build__shouldHaveSameNumRowsInRawDataAsBuiltData__whenRawDataBuilt(self):
@@ -589,6 +607,8 @@ Actual label: {actual_label}
 p.train_data_files_paths = {p.train_data_files_paths}
 """.strip()
         self.assertTrue(is_path_now_in_list_of_paths, err_msg)
+
+    ### Templates ###
     @skip
     def test__stub7(self):
         """
@@ -600,17 +620,22 @@ p.train_data_files_paths = {p.train_data_files_paths}
         is_equal = 1 + 1 == 2
         # Assert
         self.assertTrue(is_equal)
-
     @skip
-    def test__stub8(self):
-        """
-
-        """
+    def test__stub__pipeline_instantiate(self):
         # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        data_source_file_path = csv_test_file_path
+        p = p.add_train_data_source(data_source_file_path)
 
         # Act
-        is_equal = 1 + 1 == 2
-        # Assert
-        self.assertTrue(is_equal)
+        built_ok = True
+        err = f"""
 
-    # def test__END_TO_END
+"""
+        try:
+            p = p.build(True, True)
+        except BaseException as e:
+
+            pass
+        # Assert
+        self.assertTrue(built_ok, err)
