@@ -389,70 +389,8 @@ TODO: {get_current_function()}
         err = f"""Error: cv cross val did not get read-in correctly. TODO: elaborate. """.strip()
         self.assertEqual(expected_cv, actual_cv, err)
 
-    @skip  # TODO: review this test. It looks like individual tests supersede it now.
-    def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
-        # Arrange
-        gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = default_pipeline_class(f'TestPipeline_{random.randint(0, 100_000_000)}', cross_validation_k=cv, gmm_n_components=gmm_n_components)
-        p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
-        err = f"""Sanity Check: Something bad happened and cross val is not right"""
-        self.assertEqual(cv, p.cross_validation_k, err)
-        p = p.add_train_data_source(csv_test_file_path)
-
-        select_classifier = 'SVM'
-
-        select_rf_n_estimators = 100
-        video_fps = 30.1
-        average_over_n_frames = 4
-        slider_gmm_n_components = 10
-        input_k_fold_cross_val = 2
-        input_tsne_perplexity = 12
-        input_tsne_learning_rate = 13
-        input_tsne_early_exaggeration = 16.
-        input_tsne_n_iter = 250
-        input_tsne_n_components = 3
-        input_gmm_reg_covar = 1.
-        input_gmm_tolerance = 0.001
-        input_gmm_max_iter = 300
-        input_gmm_n_init = 20
-        input_svm_c = 1.
-        input_svm_gamma = 2.
-
-        model_vars = {
-            # General opts
-            'classifier_type': select_classifier,
-            'rf_n_estimators': select_rf_n_estimators,
-            'input_videos_fps': video_fps,
-            'average_over_n_frames': average_over_n_frames,
-
-            'gmm_n_components': slider_gmm_n_components,
-            'cross_validation_k': input_k_fold_cross_val,
-
-            # Advanced opts
-            'tsne_perplexity': float(input_tsne_perplexity),
-            'tsne_learning_rate': float(input_tsne_learning_rate),
-            'tsne_early_exaggeration': input_tsne_early_exaggeration,
-            'tsne_n_iter': input_tsne_n_iter,
-            'tsne_n_components': input_tsne_n_components,
-
-            'gmm_reg_covar': input_gmm_reg_covar,
-            'gmm_tol': input_gmm_tolerance,
-            'gmm_max_iter': input_gmm_max_iter,
-            'gmm_n_init': input_gmm_n_init,
-
-            'svm_c': input_svm_c,
-            'svm_gamma': input_svm_gamma,
-
-        }
-
-        # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
-        p = p.set_params(**model_vars)
-
-        # Act
-        p = p.build()
-
     ### Scaling data ###
-    @skip  # Temporary skip since it takes forever to run this due to sample size
+    # @skip  # Temporary was skip since it takes forever to run this due to sample size
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv_test_file_path).build(True)
@@ -516,23 +454,6 @@ actual_amount_of_dataframes = {actual_amount_of_dataframes}
 """
         self.assertEqual(expected_amount_of_sources, actual_amount_of_dataframes, err_msg)
 
-    @skip  # TODO: review if test completely built
-    def test__pipeline_adding_train_data_file_source__shouldAddParticularFileTo____when____(self):
-        """"""
-        # Arrange
-        p = default_pipeline_class(get_unique_pipe_name())
-        data_source_file_path = csv_test_file_path
-
-        # Act
-        p = p.add_train_data_source(data_source_file_path)
-        is_path_now_in_list_of_paths = data_source_file_path in p.train_data_files_paths
-        # Assert
-
-        err_msg = f"""
-p.train_data_files_paths = {p.train_data_files_paths}
-""".strip()
-        self.assertTrue(is_path_now_in_list_of_paths, err_msg)
-
     def test__pipeline_add_train_data__(self):  # TODO: add should/when
         # Arrange
         p = default_pipeline_class('Test_65465465465asddsfasdfde34asdf')
@@ -548,26 +469,6 @@ p.train_data_files_paths = {p.train_data_files_paths}
 
 """
         self.assertTrue(is_equal, err_msg)
-
-    @skip  # TODO: finish test
-    def test__add_train_data_AND_build__shouldHaveSameNumRowsInRawDataAsBuiltData__whenRawDataBuilt(self):
-        """
-        After adding just 1 train data source,
-
-        *** NOTE: This test usually takes a while since it builds the entire model as part of the test ***
-        """
-        # Arrange
-        p = default_pipeline_class('asdfasdfdfs44444')
-        p = p.add_train_data_source(csv_test_file_path)
-        original_number_of_data_rows = len(dibs.io.read_csv(csv_test_file_path))
-
-        # Act
-        p = p.build()
-        actual_total_rows_after_feature_engineering = len(p.df_features_train)
-
-        # Assert
-        err_msg = f'TODO: err msg'
-        self.assertEqual(original_number_of_data_rows, actual_total_rows_after_feature_engineering, err_msg)
 
     ### Removing train data sources ###
 
@@ -651,6 +552,43 @@ Actual label: {actual_label}
 """  # All labels map: {p_read._map_assignment_to_behaviour}
         self.assertEqual(input_label, actual_label, err)
 
+    ### Tests that need to be finished, confirmed, then moved to appropriate section ###
+    @skip  # TODO: finish test
+    def test__add_train_data_AND_build__shouldHaveSameNumRowsInRawDataAsBuiltData__whenRawDataBuilt(self):
+        """
+        After adding just 1 train data source,
+
+        *** NOTE: This test usually takes a while since it builds the entire model as part of the test ***
+        """
+        # Arrange
+        p = default_pipeline_class('asdfasdfdfs44444')
+        p = p.add_train_data_source(csv_test_file_path)
+        original_number_of_data_rows = len(dibs.io.read_csv(csv_test_file_path))
+
+        # Act
+        p = p.build()
+        actual_total_rows_after_feature_engineering = len(p.df_features_train)
+
+        # Assert
+        err_msg = f'TODO: err msg'
+        self.assertEqual(original_number_of_data_rows, actual_total_rows_after_feature_engineering, err_msg)
+
+    @skip  # TODO: review if test completely built
+    def test__pipeline_adding_train_data_file_source__shouldAddParticularFileTo____when____(self):
+        """"""
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        data_source_file_path = csv_test_file_path
+
+        # Act
+        p = p.add_train_data_source(data_source_file_path)
+        is_path_now_in_list_of_paths = data_source_file_path in p.train_data_files_paths
+        # Assert
+
+        err_msg = f"""
+p.train_data_files_paths = {p.train_data_files_paths}
+""".strip()
+        self.assertTrue(is_path_now_in_list_of_paths, err_msg)
     @skip
     def test__stub7(self):
         """
