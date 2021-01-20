@@ -73,75 +73,57 @@ VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH', fallb
 GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
 EXAMPLE_VIDEOS_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'example_videos')
-VIDEO_TO_LABEL_PATH: str = configuration.get('PATH', 'VIDEO_TO_LABEL_PATH')  # Now, pick an example video that corresponds to one of the csv files from the PREDICT_FOLDERS  # TODO: evaluate if remove or not
-DLC_PROJECT_PATH = configuration.get('PATH', 'DLC_PROJECT_PATH', fallback='')  # TODO: deprecate?
+
 ### PATH asserts
 assert os.path.isdir(DEFAULT_TRAIN_DATA_DIR), f'Path could not be found: {DEFAULT_TRAIN_DATA_DIR}'
 assert os.path.isdir(DEFAULT_TEST_DATA_DIR), f'Path could not be found: {DEFAULT_TEST_DATA_DIR}'
-assert not DLC_PROJECT_PATH or os.path.isdir(DLC_PROJECT_PATH),\
-    f'DLC_PROJECT_PATH SPECIFIED DOES NOT EXIST: {DLC_PROJECT_PATH}'
 assert os.path.isdir(OUTPUT_PATH), f'SPECIFIED OUTPUT PATH INVALID/DOES NOT EXIST: {OUTPUT_PATH}'
 assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
     f'`short_video_output_directory` dir. (value={VIDEO_OUTPUT_FOLDER_PATH}) must exist for runtime but does not.'
-assert not VIDEO_TO_LABEL_PATH or os.path.isfile(VIDEO_TO_LABEL_PATH), \
-    f'Video does not exist: {VIDEO_TO_LABEL_PATH}. Check pathing in config.ini file.'
 
 ### APP #######################################################
+FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')  # E.g. png, jpg, svg, etc.
+N_JOBS = configuration.getint('APP', 'N_JOBS')
 MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
-PIPELINE_NAME = configuration.get('APP', 'PIPELINE_NAME')
-VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
 PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
+VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
 SAVE_GRAPHS_TO_FILE: bool = configuration.getboolean('APP', 'SAVE_GRAPHS_TO_FILE')
-FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')
 DEFAULT_SAVED_GRAPH_FILE_FORMAT: str = configuration.get('APP', 'DEFAULT_SAVED_GRAPH_FILE_FORMAT')
 PERCENT_FRAMES_TO_LABEL: float = configuration.getfloat('APP', 'PERCENT_FRAMES_TO_LABEL')
-N_JOBS = configuration.getint('APP', 'N_JOBS')
-
+COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
+OUTPUT_VIDEO_FPS = configuration.getint('APP', 'OUTPUT_VIDEO_FPS')
 if 'NUMEXPR_MAX_THREADS' not in os.environ and configuration.get('APP', 'NUMEXPR_MAX_THREADS'):
     NUMEXPR_MAX_THREADS = configuration.getint('APP', 'NUMEXPR_MAX_THREADS')
     assert NUMEXPR_MAX_THREADS > 0, f'NUMEXPR_MAX_THREADS must be an integer greater than 0'
     os.environ['NUMEXPR_MAX_THREADS'] = str(NUMEXPR_MAX_THREADS)
 
-IDENTIFICATION_ORDER: int = configuration.getint('APP', 'FILE_IDENTIFICATION_ORDER_LEGACY')  # TODO: low: deprecate
-COMPILE_CSVS_FOR_TRAINING: int = configuration.getint('LEGACY', 'COMPILE_CSVS_FOR_TRAINING')  # COMP = 1: Train one classifier for all CSV files; COMP = 0: Classifier/CSV file.  # TODO: low: remove? re-evaluate
-
-OUTPUT_VIDEO_FPS = configuration.getint('APP', 'OUTPUT_VIDEO_FPS')
-
-
 ### APP asserts
 assert COMPILE_CSVS_FOR_TRAINING in {0, 1}, f'Invalid COMP value detected: {COMPILE_CSVS_FOR_TRAINING}.'
 assert isinstance(PERCENT_FRAMES_TO_LABEL, float) and 0. < PERCENT_FRAMES_TO_LABEL < 1., \
     f'PERCENT_FRAMES_TO_LABEL is invalid. Value = {PERCENT_FRAMES_TO_LABEL}, type = {type(PERCENT_FRAMES_TO_LABEL)}.'
-assert isinstance(IDENTIFICATION_ORDER, int), f'check IDENTIFICATION_ORDER for type validity'
 assert isinstance(N_JOBS, int) and N_JOBS > 0, f'N_JOBS is invalid. Value = `{N_JOBS}`'
 
 ### STREAMLIT ############################################################
-default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location')
+default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location', fallback='')
 
 ### STREAMLIT asserts
 if default_pipeline_file_path:
-    assert os.path.isfile(default_pipeline_file_path), \
-        f'Pipeline location could not be found: {default_pipeline_file_path}'
+    assert os.path.isfile(default_pipeline_file_path), f'Pipeline location could not be found: {default_pipeline_file_path}'
 
 
 ### MODEL ###############################################################
-DEFAULT_CLASSIFIER: str = configuration.get('MODEL', 'DEFAULT_CLASSIFIER')
-RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE', fallback=random.randint(1, 100_000_000))
-HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
 CROSSVALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
 CROSSVALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
-
-valid_classifiers = {'SVM', 'RANDOMFOREST'}
+HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
+RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE') if configuration.get('MODEL', 'RANDOM_STATE') else random.randint(1, 100_000_000)
 
 ### MODEL ASSERTS
-assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detected: "{DEFAULT_CLASSIFIER}". ' \
-                                                f'Valid classifier values include: {valid_classifiers}'
+assert CROSSVALIDATION_K >= 2, f'CROSSVALIDATION_K must be 2 or greater. Instead, found: {CROSSVALIDATION_K}'
+assert CROSSVALIDATION_N_JOBS >= -2, f'CROSSVALIDATION_N_JOBS must be -2 or greater. Instead, found: {CROSSVALIDATION_N_JOBS}'
+assert 0. <= HOLDOUT_PERCENT <= 1., f'HOLDOUT_PERCENT must be between 0 and 1. Instead, found: {HOLDOUT_PERCENT}'
 
 
 ### LOGGING ##########################################################
-
-log_function_entry_exit: callable = logging_enhanced.log_entry_exit  # Temporary measure to enable logging when entering/exiting functions. Times entry/exit for duration and logs it.
-
 config_log_file_folder_path = configuration.get('LOGGING', 'LOG_FILE_FOLDER_PATH')
 log_file_folder_path = config_log_file_folder_path if config_log_file_folder_path else default_log_folder_path
 
@@ -153,10 +135,12 @@ stdout_log_level = configuration.get('LOGGING', 'STREAM_LOG_LEVEL', fallback=Non
 file_log_level = configuration.get('LOGGING', 'FILE_LOG_LEVEL', fallback=None)
 log_file_file_path = str(Path(log_file_folder_path, config_file_name).absolute())
 
-
 # Instantiate file-specific logger. Use at top of file as: "logger = dibs.config.initialize_logger(__file__)"
 initialize_logger: callable = logging_enhanced.preload_logger_with_config_vars(
     logger_name, log_format, stdout_log_level, file_log_level, log_file_file_path)
+
+
+log_function_entry_exit: callable = logging_enhanced.log_entry_exit  # Temporary measure to enable logging when entering/exiting functions. Times entry/exit for duration and logs it.
 
 ### Logging asserts
 assert os.path.isdir(log_file_folder_path), f'Path does not exist: {log_file_folder_path}'
@@ -200,8 +184,14 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH), f'CSV
 
 
 ### GENERAL CLASSIFIER VARIABLES ###
-CLASSIFIER_VERBOSE = configuration.getint('CLASSIFIER', 'VERBOSE')
+DEFAULT_CLASSIFIER: str = configuration.get('CLASSIFIER', 'DEFAULT_CLASSIFIER')
+CLASSIFIER_VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
+### Classifier asserts
+valid_classifiers = {'SVM', 'RANDOMFOREST'}
+
+assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detected: "{DEFAULT_CLASSIFIER}". ' \
+                                                f'Valid classifier values include: {valid_classifiers}'
 assert CLASSIFIER_VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER_VERBOSE}'
 
 
@@ -215,9 +205,7 @@ gmm_max_iter = configuration.getint('EM/GMM', 'max_iter')
 gmm_n_init = configuration.getint('EM/GMM', 'n_init')
 gmm_init_params = configuration.get('EM/GMM', 'init_params')
 gmm_verbose = configuration.getint('EM/GMM', 'verbose')
-gmm_verbose_interval = configuration.getint('EM/GMM', 'verbose_interval') \
-    if configuration.get('EM/GMM', 'verbose_interval') \
-    else 10  # 10 is a default that can be changed  # TODO: low: address
+gmm_verbose_interval = configuration.getint('EM/GMM', 'verbose_interval') if configuration.get('EM/GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
 EMGMM_PARAMS = {
     'n_components': gmm_n_components,
     'covariance_type': gmm_covariance_type,
@@ -268,7 +256,7 @@ SVM_PARAMS = {
 
 ### TSNE ################################################################################
 # TSNE parameters, can tweak if you are getting undersplit/oversplit behaviors
-# the missing perplexity is scaled with data size (1% of data for nearest neighbors)
+#   the missing perplexity is scaled with data size (1% of data for nearest neighbors)
 
 TSNE_EARLY_EXAGGERATION: float = configuration.getfloat('TSNE', 'early_exaggeration')
 TSNE_IMPLEMENTATION: str = configuration.get('TSNE', 'implementation')
@@ -310,20 +298,13 @@ DEFAULT_TEXT_BACKGROUND_BGR: Tuple[int] = literal_eval(configuration.get('VIDEO'
 map_ext_to_fourcc = {
     'mp4': 'mp4v',
     'avi': 'MJPG',
-
 }
 
 ### VIDEO asserts
-assert isinstance(DEFAULT_TEXT_BGR, tuple), f'DEFAULT_TEXT_BGR was expected to be a tuple but ' \
-                                            f'instead found type: {type(DEFAULT_TEXT_BGR)}  (value = {DEFAULT_TEXT_BGR}'
-assert len(DEFAULT_TEXT_BGR) == 3, f'DEFAULT_TEXT_BGR was expected to have 3 elements but ' \
-                                   f'instead found: {len(DEFAULT_TEXT_BGR)}'
-
-assert isinstance(DEFAULT_TEXT_BACKGROUND_BGR, tuple), f'DEFAULT_TEXT_BACKGROUND_BGR was expected to be a tuple but ' \
-                                            f'instead found type: {type(DEFAULT_TEXT_BACKGROUND_BGR)}  ' \
-                                                       f'(value = {DEFAULT_TEXT_BACKGROUND_BGR}'
-assert len(DEFAULT_TEXT_BACKGROUND_BGR) == 3, f'DEFAULT_TEXT_BACKGROUND_BGR was expected to have 3 elements but ' \
-                                   f'instead found: {len(DEFAULT_TEXT_BACKGROUND_BGR)}'
+assert isinstance(DEFAULT_TEXT_BGR, tuple), f'DEFAULT_TEXT_BGR was expected to be a tuple but instead found type: {type(DEFAULT_TEXT_BGR)}  (value = {DEFAULT_TEXT_BGR}'
+assert len(DEFAULT_TEXT_BGR) == 3, f'DEFAULT_TEXT_BGR was expected to have 3 elements but instead found: {len(DEFAULT_TEXT_BGR)}'
+assert isinstance(DEFAULT_TEXT_BACKGROUND_BGR, tuple), f'DEFAULT_TEXT_BACKGROUND_BGR was expected to be a tuple but instead found type: {type(DEFAULT_TEXT_BACKGROUND_BGR)} (value = {DEFAULT_TEXT_BACKGROUND_BGR}'
+assert len(DEFAULT_TEXT_BACKGROUND_BGR) == 3, f'DEFAULT_TEXT_BACKGROUND_BGR was expected to have 3 elements but instead found: {len(DEFAULT_TEXT_BACKGROUND_BGR)}'
 
 
 ##### LEGACY VARIABLES #################################################################################################
@@ -356,8 +337,6 @@ BODYPARTS_VOC_LEGACY = {
 
 bodyparts = {key: configuration['DLC_FEATURES'][key]
              for key in configuration['DLC_FEATURES']}
-
-###
 
 
 ### LEGACY ###
