@@ -91,7 +91,7 @@ def plot_cross_validation_scores(scores, save_to_file=False, fig_file_prefix='cl
     return fig, ax
 
 
-def plot_clusters_by_assignment(data: np.ndarray, assignments, save_fig_to_file: bool, fig_file_prefix='train_assignments', show_now=True, draw_now=False, **kwargs) -> Tuple[object, object]:  # TODO: medium: rename this function
+def plot_clusters_by_assignment(data: np.ndarray, assignments, save_fig_to_file: bool, fig_file_prefix='train_assignments_and_clustering__', show_now=True, draw_now=False, figsize=None, **kwargs) -> Tuple[object, object]:  # TODO: medium: rename this function
     """
     Plot trained TSNE for EM-GMM assignments
     :param show_now:
@@ -112,6 +112,7 @@ def plot_clusters_by_assignment(data: np.ndarray, assignments, save_fig_to_file:
         azim_elev : 2-Tuple[int, int]
 
 
+
     """
     # TODO: find out why attaching the log entry/exit decorator kills the streamlit rotation app. For now, do not attach
     # Arg checks
@@ -122,11 +123,15 @@ def plot_clusters_by_assignment(data: np.ndarray, assignments, save_fig_to_file:
               f'columns. Expected 2 or 3 columns but instead found {data.shape[1]} (data shape: {data.shape}).'
         logger.error(err)
         raise ValueError(err)
+    if figsize is not None:
+        check_arg.ensure_type(figsize, tuple)
+        # TODO: low: add more figsize checks
+
     # Parse kwargs
     s = kwargs.get('s', 0.5)
     marker = kwargs.get('marker', 'o')
     alpha = kwargs.get('alpha', 0.8)
-    title = kwargs.get('title', 'Assignments by GMM')
+    title = kwargs.get('title', 'Assignments by GMM')  # TODO: med: review hiding this param. Maybe push to arg line?
     azim_elev = kwargs.get('azim_elev', (70, 135))
     # Plot graph
 
@@ -137,7 +142,7 @@ def plot_clusters_by_assignment(data: np.ndarray, assignments, save_fig_to_file:
         tsne_x, tsne_y = data[:, 0], data[:, 1]
     elif num_columns == 3:
         tsne_x, tsne_y, tsne_z = data[:, 0], data[:, 1], data[:, 2]
-    fig = plt.figure()
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d' if num_columns == 3 else None)
 
     # Loop over assignments
