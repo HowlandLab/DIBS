@@ -829,7 +829,7 @@ class BasePipeline(object):
                 min_impurity_split=None,
                 bootstrap=True,
                 oob_score=False,
-                n_jobs=config.N_JOBS,  # TODO: TODO: address later for speed
+                n_jobs=config.N_JOBS,  # TODO: HIGH: address later for speed
                 random_state=self.random_state,
                 verbose=self.classifier_verbose,
                 warm_start=False,
@@ -955,6 +955,7 @@ class BasePipeline(object):
         self.generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
+        logger.info(f'Total build time: {self.seconds_to_build} seconds.')
         return self
 
     # More data transformations
