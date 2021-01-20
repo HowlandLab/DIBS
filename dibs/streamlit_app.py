@@ -43,6 +43,7 @@ valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
+text_half_dibs_data_pipeline = 'Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'
 pipeline_options = {
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
@@ -107,9 +108,10 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_button_menu_label_entire_video: False,
 }
 # TODO: propagate file path thru session var?
-
+file_session = {}
 
 ##### Page layout #####
+
 
 def start_app(**kwargs):
     """
@@ -152,7 +154,7 @@ def start_app(**kwargs):
     # st.sidebar.markdown(f'----------------')
     # st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
     # st.sidebar.markdown('------')
-    is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=True)  # TODO: low: remove value=True after debugging is done.
+    is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=False)  # TODO: low: remove value=True after debugging is done.
     file_session[checkbox_show_extra_text] = is_checked
 
     selected_layout = st.sidebar.selectbox('Select a page layout', options=[file_session[key_selected_layout].title()]+[x.title() for x in ["Wide", "Centered"] if x != file_session[key_selected_layout].title()])
@@ -214,7 +216,7 @@ def home(pipeline_file_path):
             st.markdown(f'## Create new project pipeline')
             st.markdown('')
 
-            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.', [text_bare_pipeline, text_dibs_data_pipeline])
+            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
             st.markdown('*Note: data can be added and removed at any time in the project, so this decision is not final*')
             st.markdown('')
             select_pipe_type = st.selectbox('Select a pipeline implementation', options=[''] + list(pipeline_options.keys()))
@@ -254,6 +256,12 @@ def home(pipeline_file_path):
                         if radio_select_create_method == text_dibs_data_pipeline:
                             with st.spinner('Instantiating pipeline with data now...'):
                                 p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
+                                p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
+                        elif radio_select_create_method == text_half_dibs_data_pipeline:
+                            with st.spinner('Instantiating pipeline with data now...'):
+                                all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
+                                half_files = all_files[:len(all_files)//2]
+                                p = p.add_train_data_source(*half_files)
                                 p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
                         p = p.save_to_folder(input_path_to_pipeline_dir)
                         pipeline_file_path = os.path.join(input_path_to_pipeline_dir,
@@ -349,7 +357,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
 def show_pipeline_info(p, pipeline_path, **kwargs):
 
     """  """
-    logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
+    # logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
 
     ### SIDEBAR ###
 
@@ -358,9 +366,10 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
     st.markdown(f'- Name: **{p.name}**')
     st.markdown(f'- Description: **{p.description}**')
     st.markdown(f'- File location: **{pipeline_path}**')
-    st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
-    st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
+    # st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
+    # st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
     st.markdown(f'- Is the model built: **{p.is_built}**')
+    st.markdown(f'- Build time: {p.seconds_to_build} seconds')  # TODO: low: remove this line after debugging
 
     ### Menu button: show more info
     button_show_advanced_pipeline_information = st.button(
@@ -391,13 +400,14 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
         # else:
         #     cross_val_score_text = f'- **[Cross validation score not available]**'
         st.markdown(f'{cross_val_score_text}')
+        st.markdown(f'- Accuracy (with test % of {p.test_train_split_pct*100.}%): **{p.accuracy_score*100.}%**')
         st.markdown(f'Model Feature Names:')
         for feat in p.all_features:
             st.markdown(f'- - {feat}')
 
         if p.is_built:
             st.markdown('')
-            st.markdown(f'- Seconds to build model: {p.seconds_to_build}')
+            st.markdown(f'- Build time: {p.seconds_to_build} seconds')
 
     ###
 
@@ -415,13 +425,12 @@ We recommend that you rebuild the model to avoid future problems. """.strip())
     # # TODO: for below commented-out: add a CONFIRM button to confirm model re-build, then re-instate
 
     st.markdown('------------------------------------------------------------------------------------------------')
-    logger.debug(f'{logging_enhanced.get_current_function()}(): ending. pipeline_path = {pipeline_path}')
+    # logger.debug(f'{logging_enhanced.get_current_function()}(): ending. pipeline_path = {pipeline_path}')
     return show_actions(p, pipeline_path)
 
 
 def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     """ Show basic actions that we can perform on the model """
-    logger.debug(f'Starting show_actions(). pipeline_file_path = {pipeline_file_path}')
     ### SIDEBAR ###
 
     ### MAIN PAGE ###
@@ -549,7 +558,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     ### End of menu for adding data ###
 
     ### Menu button: removing data ###
-    button_remove_data = st.button('Toggle: remove data from model', key_button_menu_remove_data)
+    button_remove_data = st.button('Toggle: Remove data from model', key_button_menu_remove_data)
     if button_remove_data:
         file_session[key_button_menu_remove_data] = not file_session[key_button_menu_remove_data]
     if file_session[key_button_menu_remove_data]:
@@ -557,12 +566,12 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if select_train_or_predict_remove == training_data_option:
             select_train_data_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.training_data_sources)
             if select_train_data_to_remove:
-                st.markdown(f'Are you sure you want to remove the following data from the training data set: {select_train_data_to_remove}')
-                st.markdown(f'NOTE: upon removing the data, the model will need to be rebuilt.')
+                st.info(f'Are you sure you want to remove the following data from the training data set: {select_train_data_to_remove} ?')
+                st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
                 confirm = st.button('Confirm')
                 if confirm:
                     with st.spinner(f'Removing {select_train_data_to_remove} from training data set...'):
-                        p = p.remove_train_data_source(select_train_data_to_remove).save(os.path.dirname(pipeline_file_path))
+                        p = p.remove_train_data_source(select_train_data_to_remove).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_menu_remove_data] = False
                     n = file_session[default_n_seconds_sleep]
                     st.balloons()
@@ -575,7 +584,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if select_train_or_predict_remove == predict_data_option:
             select_predict_option_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.predict_data_sources)
             if select_predict_option_to_remove:
-                st.markdown(f'Are you sure you want to remove the following data from the predicted/analyzed data set: {select_predict_option_to_remove}')
+                st.info(f'Are you sure you want to remove the following data from the predicted/analyzed data set: {select_predict_option_to_remove}')
+                st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
                 confirm = st.button('Confirm')
                 if confirm:
                     with st.spinner(f'Removing {select_predict_option_to_remove} from predict data set'):
@@ -617,7 +627,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         # st.markdown('---')
 
         st.markdown('### Gaussian Mixture Model Parameters')
-        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=10, min_value=2, max_value=40, step=1)
+        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=p.gmm_n_components, min_value=2, max_value=40, step=1)
         st.markdown(f'_You have currently selected __{slider_gmm_n_components}__ clusters_')
 
         # Extra info: GMM components
@@ -658,9 +668,9 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if button_see_advanced_options:
             file_session[key_button_see_advanced_options] = not file_session[key_button_see_advanced_options]
         if file_session[key_button_see_advanced_options]:
-            st.markdown('## Advanced model options. ')
+            # st.markdown('### Advanced model options. ')
             st.markdown('### Do not change things here unless you know what you are doing!')
-            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is open when clicking the "Rebuild" button.*')
+            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is still open when clicking the "Rebuild" button.*')
             ### See advanced options for model ###
             # Choose model type
             select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
@@ -837,7 +847,7 @@ def see_model_diagnostics(p, pipeline_file_path):
     ###
     # View 3d Plot
     st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
-    gmm_button = st.button('Pop out window of cluster/assignment distribution')  # TODO: low: phrase this button better?
+    gmm_button = st.button('Toggle: graph of cluster/assignment distribution')  # TODO: low: phrase this button better?
     if gmm_button:
         file_session[key_button_view_assignments_clusters] = not file_session[key_button_view_assignments_clusters]
     if file_session[key_button_view_assignments_clusters]:
