@@ -696,7 +696,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             # Extra info: number of iterations
             if file_session[checkbox_show_extra_text]:
                 st.info('TODO: number of iterations')
-            input_tsne_n_components = st.slider(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=1, max_value=10, step=1, format='%i')
+            input_tsne_n_components = st.number_input(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
             # Extra info: number of components (dimensions)
             if file_session[checkbox_show_extra_text]:
                 st.info('TODO: number of components (dimensions)')
@@ -1146,3 +1146,5 @@ if __name__ == '__main__':
     # home()
     example_of_value_saving()
 
+# import multiprocessing
+# multiprocessing.Pool
