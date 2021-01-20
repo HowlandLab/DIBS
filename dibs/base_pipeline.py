@@ -116,6 +116,7 @@ class BasePipeline(object):
 
     # Classifier
     classifier_type: str = config.DEFAULT_CLASSIFIER
+    classifier_n_jobs: int = config.CLASSIFIER_N_JOBS
     classifier_verbose: int = config.CLASSIFIER_VERBOSE
     _classifier = None
     # Classifier: SVM
@@ -404,6 +405,9 @@ class BasePipeline(object):
         check_arg.ensure_type(gmm_verbose_interval, int)
         self.gmm_verbose_interval = gmm_verbose_interval
         # Classifiers
+        classifier_n_jobs = kwargs.get('classifier_n_jobs', config.CLASSIFIER_N_JOBS if read_config_on_missing_param else self.classifier_n_jobs)
+        check_arg.ensure_type(classifier_n_jobs, int)
+        self.classifier_n_jobs = classifier_n_jobs
         classifier_verbose = kwargs.get('classifier_verbose', config.CLASSIFIER_VERBOSE if read_config_on_missing_param else self.classifier_verbose)
         check_arg.ensure_type(classifier_verbose, int)
         self.classifier_verbose = classifier_verbose
@@ -829,7 +833,7 @@ class BasePipeline(object):
                 min_impurity_split=None,
                 bootstrap=True,
                 oob_score=False,
-                n_jobs=config.N_JOBS,  # TODO: HIGH: address later for speed
+                n_jobs=self.classifier_n_jobs,
                 random_state=self.random_state,
                 verbose=self.classifier_verbose,
                 warm_start=False,
@@ -1212,9 +1216,13 @@ class BasePipeline(object):
         """
         # TODO: rename function as plot assignments by cluster
         Get plot of clusters colored by GMM assignment
+        NOTE: all kwargs expected by the plotting function are passed from this function down to that plotting function.
         :param show_now: (bool)
         :param save_to_file: (bool)
         :param azim_elev:
+        :param kwargs: See kwargs of plotting function for more usage.
+        Some notable kwargs include:
+            azim_elev : Tuple[int, int]
         :return:
         """
         check_arg.ensure_type(azim_elev, tuple)
@@ -1223,14 +1231,17 @@ class BasePipeline(object):
             e = f'{get_current_function()}(): The model has not been built. There is nothing to graph.'
             logger.warning(e)
             raise ValueError(e)
-
+        fig_file_prefix = kwargs.get('fig_file_prefix', f'{self.name}__train_assignments_and_clustering__')
         fig, ax = visuals.plot_clusters_by_assignment(
             self.df_features_train_scaled[self.dims_cols_names].values,
             self.df_features_train_scaled[self.gmm_assignment_col_name].values,
+            fig_file_prefix=fig_file_prefix,
             save_fig_to_file=save_to_file,
             show_now=show_now,
-            azim_elev=azim_elev,
             draw_now=draw_now,
+
+            azim_elev=azim_elev,
+            title=f'Perplexity={self.tsne_perplexity}/EarlyE={self.tsne_early_exaggeration}/LearnRate={self.tsne_learning_rate}',
             **kwargs
         )
         return fig, ax
