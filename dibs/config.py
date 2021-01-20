@@ -185,6 +185,7 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH), f'CSV
 
 ### GENERAL CLASSIFIER VARIABLES ###
 DEFAULT_CLASSIFIER: str = configuration.get('CLASSIFIER', 'DEFAULT_CLASSIFIER')
+CLASSIFIER_N_JOBS: int = configuration.getint('CLASSIFIER', 'N_JOBS')
 CLASSIFIER_VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
 ### Classifier asserts
@@ -192,6 +193,7 @@ valid_classifiers = {'SVM', 'RANDOMFOREST'}
 
 assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detected: "{DEFAULT_CLASSIFIER}". ' \
                                                 f'Valid classifier values include: {valid_classifiers}'
+# assert CLASSIFIER_N_JOBS
 assert CLASSIFIER_VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER_VERBOSE}'
 
 
