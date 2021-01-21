@@ -1237,6 +1237,8 @@ class BasePipeline(object):
             azim_elev : Tuple[int, int]
         :return:
         """
+        # Hard coded args to be fixed later  # TODO: med
+        title = f'Perplexity={self.tsne_perplexity} / EarlyExaggeration={self.tsne_early_exaggeration} / LearnRate={self.tsne_learning_rate}'
         # Arg checking
         check_arg.ensure_type(azim_elev, tuple)
         # TODO: low: check for other runtime vars
@@ -1256,7 +1258,7 @@ class BasePipeline(object):
             draw_now=draw_now,
 
             azim_elev=azim_elev,
-            title=f'Perplexity={self.tsne_perplexity} / EarlyExaggeration={self.tsne_early_exaggeration} / LearnRate={self.tsne_learning_rate}',
+            title=title,
             **kwargs
         )
         return fig, ax
