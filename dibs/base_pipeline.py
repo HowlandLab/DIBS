@@ -427,7 +427,9 @@ class BasePipeline(object):
         cross_validation_k = kwargs.get('cross_validation_k', config.CROSSVALIDATION_K if read_config_on_missing_param else self.cross_validation_k)
         check_arg.ensure_type(cross_validation_k, int)
         self.cross_validation_k = cross_validation_k
-
+        cross_validation_n_jobs = kwargs.get('cross_validation_n_jobs', config.CROSSVALIDATION_N_JOBS if read_config_on_missing_param else self.cross_validation_n_jobs)
+        check_arg.ensure_type(cross_validation_n_jobs, int)
+        self.cross_validation_n_jobs = cross_validation_n_jobs
         # TODO: low/med: add kwargs for parsing test/train split pct
         if self.test_train_split_pct is None:
             self.test_train_split_pct = config.HOLDOUT_PERCENT
@@ -1242,7 +1244,7 @@ class BasePipeline(object):
             e = f'{get_current_function()}(): The model has not been built. There is nothing to graph.'
             logger.warning(e)
             raise ValueError(e)
-        # Settle kwargs
+        # Resolve kwargs
         fig_file_prefix = kwargs.get('fig_file_prefix', f'{self.name}__train_assignments_and_clustering__')
         # Execute
         fig, ax = visuals.plot_clusters_by_assignment(
