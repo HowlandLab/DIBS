@@ -1235,13 +1235,16 @@ class BasePipeline(object):
             azim_elev : Tuple[int, int]
         :return:
         """
+        # Arg checking
         check_arg.ensure_type(azim_elev, tuple)
         # TODO: low: check for other runtime vars
         if not self.is_built:  # or not self._has_unused_raw_data:
             e = f'{get_current_function()}(): The model has not been built. There is nothing to graph.'
             logger.warning(e)
             raise ValueError(e)
+        # Settle kwargs
         fig_file_prefix = kwargs.get('fig_file_prefix', f'{self.name}__train_assignments_and_clustering__')
+        # Execute
         fig, ax = visuals.plot_clusters_by_assignment(
             self.df_features_train_scaled[self.dims_cols_names].values,
             self.df_features_train_scaled[self.gmm_assignment_col_name].values,
