@@ -271,7 +271,9 @@ def save_graph_to_file(figure: object, file_title: str, file_type_extension=conf
                                          f'repr(figure) = {repr(figure)}.'
         logger.error(cannot_save_input_figure_error)
         raise AttributeError(cannot_save_input_figure_error)
+    out_path = os.path.join(config.GRAPH_OUTPUT_PATH, f'{file_title}.{file_type_extension}')
     # After type checking, save fig to file
-    figure.savefig(os.path.join(config.GRAPH_OUTPUT_PATH, f'{file_title}.{file_type_extension}'))
+    logger.debug(f'Saving graph to following path: {out_path}')
+    figure.savefig(out_path)
     return
 
