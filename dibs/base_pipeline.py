@@ -1245,18 +1245,18 @@ class BasePipeline(object):
             logger.warning(e)
             raise ValueError(e)
         # Resolve kwargs
-        fig_file_prefix = kwargs.get('fig_file_prefix', f'{self.name}__train_assignments_and_clustering__')
+        # fig_file_prefix = kwargs.get('fig_file_prefix', f'{self.name}__train_assignments_and_clustering__')
         # Execute
         fig, ax = visuals.plot_clusters_by_assignment(
             self.df_features_train_scaled[self.dims_cols_names].values,
             self.df_features_train_scaled[self.gmm_assignment_col_name].values,
-            fig_file_prefix=fig_file_prefix,
+            # fig_file_prefix=fig_file_prefix,
             save_fig_to_file=save_to_file,
             show_now=show_now,
             draw_now=draw_now,
 
             azim_elev=azim_elev,
-            title=f'Perplexity={self.tsne_perplexity}/EarlyE={self.tsne_early_exaggeration}/LearnRate={self.tsne_learning_rate}',
+            title=f'Perplexity={self.tsne_perplexity} / EarlyExaggeration={self.tsne_early_exaggeration} / LearnRate={self.tsne_learning_rate}',
             **kwargs
         )
         return fig, ax
