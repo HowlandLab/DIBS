@@ -571,6 +571,7 @@ class BasePipeline(object):
         check_arg.ensure_type(list_dfs_of_raw_data, list)
 
         # Execute
+        # TODO: HIGH: implement multiprocessing
         list_dfs_engineered_features: List[pd.DataFrame] = []
         for i, df in enumerate(list_dfs_of_raw_data):
             df = df.copy().astype({'frame': float})
@@ -809,7 +810,7 @@ class BasePipeline(object):
         variable
         """
         df = self.df_features_train_scaled.loc[~self.df_features_train_scaled[list(self.all_features)].isnull().any(axis=1)]
-
+        # TODO: filter out test data before fit() called
         if self.classifier_type == 'SVM':
             clf = SVC(
                 C=self.svm_c,
@@ -884,13 +885,13 @@ class BasePipeline(object):
         return self
 
     # Pipeline building
-    def _build_model(self, reengineer_train_features: bool = False):
+    def _build_model(self, force_reengineer_train_features: bool = False, skip_cross_val_scoring: bool = False):
         """
         Builds the model for predicting behaviours.
-        :param reengineer_train_features: (bool) If True, forces the training data to be re-engineered.
+        :param force_reengineer_train_features: (bool) If True, forces the training data to be re-engineered.
         """
         # Engineer features
-        if reengineer_train_features or self._is_training_data_set_different_from_model_input:
+        if force_reengineer_train_features or self._is_training_data_set_different_from_model_input:
             logger.debug(f'{inspect.stack()[0][3]}(): Start engineering features...')
             self.engineer_features_train()
 
@@ -931,8 +932,7 @@ class BasePipeline(object):
         )
 
         logger.debug(f'Generating accuracy score with a test split % of: {self.test_train_split_pct*100}%')
-        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[
-            ~self.df_features_train_scaled[self.test_col_name]]
+        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
         self._acc_score = accuracy_score(
             y_pred=self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)]),
             y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
@@ -948,18 +948,28 @@ class BasePipeline(object):
 
         return self
 
-    def build(self, reengineer_train_features=False, reengineer_predict_features=False):
+    def build(self, force_reengineer_train_features=False, reengineer_predict_features=False):
         """
         Build all classifiers and get predictions from predict data
         """
         start = time.perf_counter()
         # Build model
-        self._build_model(reengineer_train_features=reengineer_train_features)
+        self._build_model(force_reengineer_train_features=force_reengineer_train_features)
         # Get predict data
         self.generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
         logger.info(f'Total build time: {self.seconds_to_build} seconds.')
+        return self
+
+    def recolour_cluster_assignments(self, n_clusters=None):
+        """
+
+        :return:
+        """
+        if n_clusters is not None:
+            check_arg.ensure_type(n_clusters)
+
         return self
 
     # More data transformations
