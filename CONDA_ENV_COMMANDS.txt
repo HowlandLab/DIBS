@@ -1,6 +1,6 @@
 conda install -y six setuptools wheel pip
-conda install -y pandas scikit-learn numpy Cython joblib matplotlib
-pip install future seaborn streamlit tqdm watchdog jupyter
+conda install -y pandas scikit-learn numpy Cython joblib matplotlib jupyter ipython
+pip install future seaborn streamlit tqdm watchdog
 pip install networkx joblib protobuf psutil openTSNE scipy opencv-python bhtsne easygui ffmpeg-python
 
 # For windows users, also use the below command:
