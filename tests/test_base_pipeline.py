@@ -40,7 +40,7 @@ class TestPipeline(TestCase):
         p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(default_mimic_train_data_file_path).build(True)
 
         # Act
-        p = p.scale_transform_train_data()
+        p = p._scale_transform_train_data()
 
         unscaled_features_cols: Set[str] = set(p.df_features_train.columns)
         scaled_features_cols: Set[str] = set(p.df_features_train_scaled.columns)

@@ -1,5 +1,7 @@
 """
 
+If a function or property begins with an underscore, it is likely not meant for a user to be manipulating.
+Try finding it's corresponding property/function sans underscore.
 
 Dev notes:
 
@@ -17,7 +19,7 @@ from sklearn.manifold import TSNE as TSNE_sklearn
 from sklearn.metrics import accuracy_score
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import cross_val_score
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils import shuffle as sklearn_shuffle_dataframe
 from typing import Any, Collection, Dict, List, Optional, Tuple  # TODO: med: review all uses of Optional
@@ -27,6 +29,7 @@ import numpy as np
 import os
 import pandas as pd
 import time
+
 
 # from pandas.core.common import SettingWithCopyWarning
 # from tqdm import tqdm
@@ -102,7 +105,7 @@ class BasePipeline(object):
     test_train_split_pct: float = config.HOLDOUT_PERCENT
 
     # Model objects
-    _scaler: StandardScaler = None
+    _scaler = None
     _clf_gmm: GaussianMixture = None
 
     # TSNE
@@ -150,7 +153,7 @@ class BasePipeline(object):
     _last_built: str = None
 
     # SORT ME
-    _acc_score: float = None
+    _acc_score: float = -1.
     _cross_val_scores: np.ndarray = np.array([])
 
     seconds_to_engineer_train_features: float = None
@@ -186,7 +189,9 @@ class BasePipeline(object):
         Useful for checking if training data has been added/removed from pipeline
         relative to already-compiled model
         """
-        return self._is_training_data_set_different_from_model_input
+        return self._is_training_data_set_different_from_model_input \
+            or self._has_unengineered_predict_data \
+            or self._has_modified_model_variables
 
     @property
     def name(self):
@@ -556,7 +561,7 @@ class BasePipeline(object):
         return self
 
     # Engineer features
-    def engineer_features_all_dfs(self, list_dfs_of_raw_data: List[pd.DataFrame]) -> pd.DataFrame:
+    def _engineer_features_all_dfs(self, list_dfs_of_raw_data: List[pd.DataFrame]) -> pd.DataFrame:
         """
         The main function that can build features for BOTH training and prediction data.
         Here we are ensuring that the data processing for both training and prediction
@@ -594,7 +599,7 @@ class BasePipeline(object):
 
         return df_features
 
-    def engineer_features_train(self):
+    def _engineer_features_train(self):
         """
         Utilizes
         All functions that take the raw data (data retrieved from using dibs.read_csv()) and
@@ -611,7 +616,7 @@ class BasePipeline(object):
                              for src in set(self.df_features_train_raw['data_source'].values)]
         # Call engineering function
         logger.debug(f'Start engineering training data features.')
-        df_features = self.engineer_features_all_dfs(list_dfs_raw_data)
+        df_features = self._engineer_features_all_dfs(list_dfs_raw_data)
         logger.debug(f'Done engineering training data features.')
         # Save data
         self.df_features_train = df_features
@@ -621,7 +626,7 @@ class BasePipeline(object):
         self.seconds_to_engineer_train_features = round(end - start, 1)
         return self
 
-    def engineer_features_predict(self):
+    def _engineer_features_predict(self):
         """ Engineer features for the predicted data"""
         # Queue data
         list_dfs_raw_data = [self.df_features_predict_raw.loc[self.df_features_predict_raw['data_source'] == src]
@@ -629,7 +634,7 @@ class BasePipeline(object):
                              for src in set(self.df_features_predict_raw['data_source'].values)]
         # Call engineering function
         logger.debug(f'Start engineering predict data features.')
-        df_features = self.engineer_features_all_dfs(list_dfs_raw_data)
+        df_features = self._engineer_features_all_dfs(list_dfs_raw_data)
         logger.debug(f'Done engineering predict data features.')
         # Save data, return
         self.df_features_predict = df_features
@@ -647,7 +652,9 @@ class BasePipeline(object):
         check_arg.ensure_columns_in_DataFrame(df_data, features)
         # Execute
         if create_new_scaler:
-            self._scaler = StandardScaler()
+            # TODO: HIGH: set scaling to 0-1
+            # self._scaler = StandardScaler()
+            self._scaler = MinMaxScaler()
             self._scaler.fit(df_data[features])
         arr_data_scaled: np.ndarray = self.scaler.transform(df_data[features])
         df_scaled_data = pd.DataFrame(arr_data_scaled, columns=features)
@@ -659,7 +666,7 @@ class BasePipeline(object):
 
         return df_scaled_data
 
-    def scale_transform_train_data(self, features: Collection[str] = None, create_new_scaler=True):
+    def _scale_transform_train_data(self, features: Collection[str] = None, create_new_scaler=True):
         """
         Scales training data. By default, creates new scaler according to train
         data and stores it in pipeline
@@ -685,7 +692,7 @@ class BasePipeline(object):
         self.df_features_train_scaled = df_scaled_data
         return self
 
-    def scale_transform_predict_data(self, features: List[str] = None):
+    def _scale_transform_predict_data(self, features: List[str] = None):
         """
         Scales prediction data. Utilizes existing scaler.
         If no feature set is explicitly specified, then the default features set in the Pipeline are used.
@@ -783,7 +790,7 @@ class BasePipeline(object):
         logger.debug(f'Number of seconds it took to train TSNE: {round(time.perf_counter() - start, 1)}')
         return arr_result
 
-    def tsne_reduce_df_features_train(self):
+    def _tsne_reduce_df_features_train(self):
         arr_tsne_result = self._train_tsne_get_dimension_reduced_data(self.df_features_train)
         self.df_features_train_scaled = pd.concat([
             self.df_features_train_scaled,
@@ -793,8 +800,7 @@ class BasePipeline(object):
         return self
 
     # GMM
-
-    def train_gmm_and_classifier(self, n_clusters: int = None):
+    def _train_gmm_and_classifier(self, n_clusters: int = None):
         """
 
         :return:
@@ -820,11 +826,11 @@ class BasePipeline(object):
         self.df_features_train_scaled[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled[self.dims_cols_names].values)
 
         # Test-train split
-        self.add_test_data_column_to_scaled_train_data()
+        self._add_test_data_column_to_scaled_train_data()
 
         # # Train Classifier
         logger.debug(f'Training classifier now...')
-        self.train_classifier()
+        self._train_classifier()
 
         # Set predictions
         self.df_features_train_scaled[self.clf_assignment_col_name] = self.clf.predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
@@ -832,8 +838,12 @@ class BasePipeline(object):
 
         return self
 
+    def recolor_gmm_and_retrain_classifier(self, n_components: int):
+
+        return self._train_gmm_and_classifier(n_components)
+
     # Classifier
-    def train_classifier(self):
+    def _train_classifier(self):
         """
         Train classifier on non-test-assigned data from the training data set.
         For any kwarg that does not take it's value from the it's own Pipeline config., then that
@@ -885,7 +895,7 @@ class BasePipeline(object):
         # Save classifier
         self._classifier = clf
 
-    def generate_accuracy_scores(self):
+    def _generate_accuracy_scores(self):
         """
 
         :return:
@@ -909,7 +919,7 @@ class BasePipeline(object):
         logger.debug(f'Pipeline train accuracy: {self.accuracy_score}')
         return self
 
-    def generate_predict_data_assignments(self, reengineer_train_data_features: bool = False, reengineer_predict_features=False):  # TODO: low: rename?
+    def _generate_predict_data_assignments(self, reengineer_train_data_features: bool = False, reengineer_predict_features=False):  # TODO: low: rename?
         """
         Runs after build(). Using terminology from old implementation. TODO: purpose
         """
@@ -917,7 +927,7 @@ class BasePipeline(object):
 
         # Check that classifiers are built on the training data
         if reengineer_train_data_features or not self.is_built or self.is_in_inconsistent_state:
-            self._build_model()
+            self._build_pipeline()
 
         # TODO: temp exit early for zero test data found
         if len(self.df_features_predict_raw) == 0:
@@ -926,8 +936,8 @@ class BasePipeline(object):
             return self
         # Check if predict features have been engineered
         if reengineer_predict_features or self._has_unengineered_predict_data:
-            self.engineer_features_predict()
-            self.scale_transform_predict_data()
+            self._engineer_features_predict()
+            self._scale_transform_predict_data()
 
         # Add prediction labels
         if len(self.df_features_predict_scaled) > 0:
@@ -940,7 +950,7 @@ class BasePipeline(object):
         return self
 
     # Pipeline building
-    def _build_model(self, force_reengineer_train_features: bool = False, skip_cross_val_scoring: bool = False):
+    def _build_pipeline(self, force_reengineer_train_features: bool = False, skip_cross_val_scoring: bool = False):
         """
         Builds the model for predicting behaviours.
         :param force_reengineer_train_features: (bool) If True, forces the training data to be re-engineered.
@@ -948,23 +958,23 @@ class BasePipeline(object):
         # Engineer features
         if force_reengineer_train_features or self._is_training_data_set_different_from_model_input:
             logger.debug(f'{inspect.stack()[0][3]}(): Start engineering features...')
-            self.engineer_features_train()
+            self._engineer_features_train()
 
         # Scale data
         logger.debug(f'Scaling data now...')
-        self.scale_transform_train_data(create_new_scaler=True)
+        self._scale_transform_train_data(create_new_scaler=True)
 
         # TSNE -- create new dimensionally reduced data
         logger.debug(f'TSNE reducing features now...')
-        self.tsne_reduce_df_features_train()
+        self._tsne_reduce_df_features_train()
 
         # GMM + Classifier
-        self.train_gmm_and_classifier()
+        self._train_gmm_and_classifier()
 
         if skip_cross_val_scoring:
             logger.debug(f'Skipping cross-validation scoring...')
         else:
-            self.generate_accuracy_scores()
+            self._generate_accuracy_scores()
 
         # Final touches. Save state of pipeline.
         self._is_built = True
@@ -982,9 +992,9 @@ class BasePipeline(object):
         """
         start = time.perf_counter()
         # Build model
-        self._build_model(force_reengineer_train_features=force_reengineer_train_features)
+        self._build_pipeline(force_reengineer_train_features=force_reengineer_train_features)
         # Get predict data
-        self.generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
+        self._generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
         # Wrap up
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
@@ -992,7 +1002,7 @@ class BasePipeline(object):
         return self
 
     # More data transformations
-    def add_test_data_column_to_scaled_train_data(self):
+    def _add_test_data_column_to_scaled_train_data(self):
         """
         Add boolean column to scaled training data DataFrame to assign train/test data
         """
@@ -1081,8 +1091,7 @@ class BasePipeline(object):
 
     # Video creation
 
-    def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str,
-                   output_fps: float = config.OUTPUT_VIDEO_FPS):
+    def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str, output_fps: float = config.OUTPUT_VIDEO_FPS):
         """
 
         :param video_to_be_labeled_path: (str) Path to a video that will be labeled

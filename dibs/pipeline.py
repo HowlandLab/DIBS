@@ -1252,7 +1252,7 @@ class PipelinePrime(BasePipeline):
 
         return df_features
 
-    def engineer_features_all_dfs(self, list_dfs_of_raw_data: List[pd.DataFrame]) -> pd.DataFrame:
+    def _engineer_features_all_dfs(self, list_dfs_of_raw_data: List[pd.DataFrame]) -> pd.DataFrame:
         """
         The main function that can build features for BOTH training and prediction data.
         Here we are ensuring that the data processing for both training and prediction occurs in the same way.
