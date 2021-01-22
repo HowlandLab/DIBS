@@ -155,8 +155,8 @@ DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PAT
 # Mimic data files
 TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE')
 TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE)
-TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE')
-TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE)
+TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE')
+TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE)
 
 
 # DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH = os.path.join()
@@ -179,7 +179,7 @@ max_rows_to_read_in_from_csv: int = configuration.getint('TESTING', 'max_rows_to
 
 assert os.path.isfile(DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH), f'CSV test file was not found: {DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH}'
 assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH), f'CSV test file was not found: {TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH}'
-assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH), f'CSV test file not found: {TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH}'
+assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH), f'CSV test file not found: {TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH}'
 # assert os.path.isfile(DEFAULT_H5_TEST_FILE), f'h5 test file was not found: {DEFAULT_H5_TEST_FILE}'  # TODO: low: when h5 format finally figured-out (From an actual DLC project outcome), re-instate this assert
 
 
@@ -240,9 +240,11 @@ MLP_PARAMS = {
 ### RANDOM FOREST ###
 rf_n_estimators = configuration.getint('RANDOMFOREST', 'n_estimators')
 rf_n_jobs = configuration.getint('RANDOMFOREST', 'n_jobs')
+rf_verbose = configuration.getint('RANDOMFOREST', 'verbose')
 
 assert rf_n_estimators > 0, f''
 assert rf_n_jobs > 0, f''
+assert rf_verbose >= 0, f''
 
 ### SVM ################################################################################################################
 svm_c = configuration.getfloat('SVM', 'C')
