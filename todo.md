@@ -17,3 +17,4 @@
 - [x] Add FPS input into params
 - [x] Add colour to text in example behaviour videos
 - [x] Add sidebar checkbox for extra, explanatory text
+- [x] Change min-max scaling from gaussian to 0-1
