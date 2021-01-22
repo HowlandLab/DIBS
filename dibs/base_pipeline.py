@@ -712,7 +712,6 @@ class BasePipeline(object):
 
         # Get scaled data
         df_scaled_data: pd.DataFrame = self._create_scaled_data(df_features_predict, features, create_new_scaler=False)
-        check_arg.ensure_type(df_scaled_data, pd.DataFrame)  # Debugging effort. Remove later.
 
         # Save data. Return.
         self.df_features_predict_scaled = df_scaled_data
@@ -926,7 +925,7 @@ class BasePipeline(object):
         # TODO: add arg checking for empty predict data?
 
         # Check that classifiers are built on the training data
-        if reengineer_train_data_features or not self.is_built or self.is_in_inconsistent_state:
+        if reengineer_train_data_features or self._is_training_data_set_different_from_model_input:
             self._build_pipeline()
 
         # TODO: temp exit early for zero test data found
@@ -934,15 +933,15 @@ class BasePipeline(object):
             warn = f'Zero test data points found. Exiting early. predict features not built.'
             logger.warning(warn)
             return self
+
         # Check if predict features have been engineered
-        if reengineer_predict_features or self._has_unengineered_predict_data:
-            self._engineer_features_predict()
-            self._scale_transform_predict_data()
+        # if reengineer_predict_features or self._has_unengineered_predict_data:
+        self._engineer_features_predict()
+        self._scale_transform_predict_data()
 
         # Add prediction labels
         if len(self.df_features_predict_scaled) > 0:
-            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf.predict(
-                self.df_features_predict_scaled[list(self.all_features_list)].values)
+            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf.predict(self.df_features_predict_scaled[list(self.all_features)].values)
         else:
             logger.debug(f'{get_current_function()}(): 0 records were detected '
                          f'for PREDICT data. No data was predicted with model.')
@@ -981,7 +980,7 @@ class BasePipeline(object):
         self._is_training_data_set_different_from_model_input = False
         self._has_modified_model_variables = False
         self._last_built = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
-        logger.debug(f'All done with building classifiers/model!')
+        logger.debug(f'{get_current_function()}(): All done with building classifiers/model!')
 
         return self
 
@@ -1021,14 +1020,6 @@ class BasePipeline(object):
         self.df_features_train_scaled = df_shuffled
 
         return self
-
-    def generate_confusion_matrix(self) -> np.ndarray:
-        # TODO: high: implement this function in stats then put it into here
-        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
-        y_pred = self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)])
-        y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
-        cnf_matrix = statistics.confusion_matrix(y_true, y_pred)
-        return cnf_matrix
 
     # Saving and stuff
     def save(self, output_path_dir=config.OUTPUT_PATH):
@@ -1306,6 +1297,14 @@ class BasePipeline(object):
         # TODO: med: confirm that this works as expected
         return visuals.plot_cross_validation_scores(self._cross_val_scores)
 
+    def generate_confusion_matrix(self) -> np.ndarray:
+        # TODO: high: implement this function in stats then put it into here
+        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
+        y_pred = self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)])
+        y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
+        cnf_matrix = statistics.confusion_matrix(y_true, y_pred)
+        return cnf_matrix
+
     def diagnostics(self) -> str:
         """
         Function for displaying current state of pipeline. Useful for diagnosing problems.
@@ -1319,7 +1318,7 @@ self._is_training_data_set_different_from_model_input: {self._is_training_data_s
 """.strip()
         return diag
 
-    #
+    # built-ins
     def __bool__(self):
         return True
 
