@@ -252,7 +252,7 @@ def home(pipeline_file_path):
 
                     # If OK: create default pipeline, save, continue
                     if select_pipe_type in pipeline_options:
-                        p = pipeline_class(text_input_new_project_name).save(input_path_to_pipeline_dir)
+                        p = pipeline_class(text_input_new_project_name).save_to_folder(input_path_to_pipeline_dir)
                         if radio_select_create_method == text_dibs_data_pipeline:
                             with st.spinner('Instantiating pipeline with data now...'):
                                 p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
@@ -449,7 +449,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     if file_session[key_button_update_description]:
         text_input_change_desc = st.text_input(f'(WORK IN PROGRESS) Change project description here', value=p.description)
         if text_input_change_desc != p.description:
-            p.set_description(text_input_change_desc).save(os.path.dirname(pipeline_file_path))
+            p.set_description(text_input_change_desc).save_to_folder(os.path.dirname(pipeline_file_path))
             file_session[key_button_update_description] = False
             wait_seconds = file_session[default_n_seconds_sleep]
             st.success(f'Pipeline description has been changed!')
@@ -512,7 +512,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     st.error(err)
                 # Add to pipeline, save
                 else:
-                    p = p.add_train_data_source(input_new_data_source).save(os.path.dirname(pipeline_file_path))
+                    p = p.add_train_data_source(input_new_data_source).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_add_train_data_source] = False  # Reset menu to collapsed state
                     file_session[key_button_add_new_data] = False
                     n = file_session[default_n_seconds_sleep]
@@ -543,7 +543,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 #     st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. '
                 #                                f'No data was added to pipeline prediction data set.'))
                 else:
-                    p = p.add_predict_data_source(input_new_predict_data_source).save(os.path.dirname(pipeline_file_path))
+                    p = p.add_predict_data_source(input_new_predict_data_source).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
                     file_session[key_button_add_new_data] = False  # Reset add menu to collapsed state
                     n_wait_secs = file_session[default_n_seconds_sleep]
@@ -589,7 +589,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 confirm = st.button('Confirm')
                 if confirm:
                     with st.spinner(f'Removing {select_predict_option_to_remove} from predict data set'):
-                        p = p.remove_predict_data_source(select_predict_option_to_remove).save(os.path.dirname(pipeline_file_path))
+                        p = p.remove_predict_data_source(select_predict_option_to_remove).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_menu_remove_data] = False
                     st.balloons()
                     st.success(f'{select_predict_option_to_remove} data was successfully removed!')
@@ -779,7 +779,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                         if not os.path.isdir(os.path.dirname(pipeline_file_path)):
                             st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
                             st.stop()
-                        p = p.build().save(os.path.dirname(pipeline_file_path))
+                        p = p.build().save_to_folder(os.path.dirname(pipeline_file_path))
                         file_session[key_button_rebuild_model_confirmation] = False
                     st.balloons()
                     file_session[key_button_see_rebuild_options] = False
@@ -1002,7 +1002,7 @@ def review_behaviours(p, pipeline_file_path):
                     if not os.path.isdir(os.path.dirname(pipeline_file_path)):
                         st.error(f'ERROR FOUND: The following path was not detected to be a directory: {os.path.isdir(os.path.dirname(pipeline_file_path))}')
                     # assert os.path.isdir(os.path.dirname(pipeline_file_path))
-                    p = p.set_label(assignment_a, text_input_new_label).save(os.path.dirname(pipeline_file_path))
+                    p = p.set_label(assignment_a, text_input_new_label).save_to_folder(os.path.dirname(pipeline_file_path))
 
     ### End section: review labels for behaviours ###
 
