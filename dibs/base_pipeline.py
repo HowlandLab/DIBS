@@ -1,6 +1,11 @@
 """
 
-Dev note: if you see any variables that are hard-coded, it is likely that it was kept
+
+Dev notes:
+
+Currently only CSVs are being read-in. Fix this later.
+
+If you see any variables that are hard-coded, it is likely that it was kept
 that way in the code here to make explicit which variables are available but not in use.
 If there is a need in future to add it as a variable config variable, it can be
 implemented as such later.
@@ -68,8 +73,6 @@ class BasePipeline(object):
 
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
-    # data_ext: str = 'csv'  # Extension which data is read from  # TODO: deprecate, delete line
-    # dims_cols_names = None  # Union[List[str], Tuple[str]]
     valid_tsne_sources: set = {'bhtsne', 'sklearn', }
     gmm_assignment_col_name, clf_assignment_col_name, = 'gmm_assignment', 'classifier_assignment'
     behaviour_col_name = 'behaviour'
@@ -96,7 +99,7 @@ class BasePipeline(object):
     cross_validation_n_jobs: int = config.CROSSVALIDATION_N_JOBS
     _random_state: int = None
     average_over_n_frames: int = 3
-    test_train_split_pct: float = None
+    test_train_split_pct: float = config.HOLDOUT_PERCENT
 
     # Model objects
     _scaler: StandardScaler = None
@@ -115,18 +118,20 @@ class BasePipeline(object):
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
     gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
-    gmm_verbose: int = None
-    gmm_verbose_interval: int = None
+    gmm_verbose: int = config.gmm_verbose
+    gmm_verbose_interval: int = config.gmm_verbose_interval
 
     # Classifier
     classifier_type: str = config.DEFAULT_CLASSIFIER
     classifier_verbose: int = config.CLASSIFIER_VERBOSE
     _classifier = None
     # Classifier: SVM
-    svm_c, svm_gamma, svm_probability, svm_verbose = None, None, None, None
+    svm_c, svm_gamma = config.svm_c, config.svm_gamma
+    svm_probability, svm_verbose = config.svm_probability, config.svm_verbose
     # Classifier: Random Forest
     rf_n_estimators = config.rf_n_estimators
     rf_n_jobs = config.rf_n_jobs
+    rf_verbose = config.rf_verbose
 
     # Column names
     features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength', 'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
@@ -286,9 +291,6 @@ class BasePipeline(object):
         self._description = description
         return self
 
-    def __bool__(self):
-        return True
-
     # Init
     def __init__(self, name: str, **kwargs):
         # Pipeline name
@@ -335,6 +337,9 @@ class BasePipeline(object):
         """
         check_arg.ensure_type(read_config_on_missing_param, bool)
         ### General Params ###
+        test_train_split_pct = kwargs.get('test_train_split_pct', config.HOLDOUT_PERCENT if read_config_on_missing_param else self.test_train_split_pct)
+        check_arg.ensure_type(test_train_split_pct, float)
+        self.test_train_split_pct = test_train_split_pct
         classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
         check_arg.ensure_type(classifier_type, str)
         if classifier_type not in config.valid_classifiers:
@@ -434,9 +439,6 @@ class BasePipeline(object):
         cross_validation_n_jobs = kwargs.get('cross_validation_n_jobs', config.CROSSVALIDATION_N_JOBS if read_config_on_missing_param else self.cross_validation_n_jobs)
         check_arg.ensure_type(cross_validation_n_jobs, int)
         self.cross_validation_n_jobs = cross_validation_n_jobs
-        # TODO: low/med: add kwargs for parsing test/train split pct
-        if self.test_train_split_pct is None:
-            self.test_train_split_pct = config.HOLDOUT_PERCENT
 
         self._has_modified_model_variables = True
         return self
@@ -649,10 +651,12 @@ class BasePipeline(object):
             self._scaler.fit(df_data[features])
         arr_data_scaled: np.ndarray = self.scaler.transform(df_data[features])
         df_scaled_data = pd.DataFrame(arr_data_scaled, columns=features)
+
         # For new DataFrame, replace columns that were not scaled so that data does not go missing
         for col in df_data.columns:
             if col not in set(df_scaled_data.columns):
                 df_scaled_data[col] = df_data[col].values
+
         return df_scaled_data
 
     def scale_transform_train_data(self, features: Collection[str] = None, create_new_scaler=True):
@@ -667,14 +671,15 @@ class BasePipeline(object):
         :return: self
         """
         # Queue up data to use
-        if features is None:  # TODO: low: remove his if statement as a default feature
+        if features is None:  # TODO: low: remove his if statement as a default feature?
             features = self.all_features
-        df_features_train = self.df_features_train.loc[~self.df_features_train[self.all_features_list].isnull().any(axis=1)].copy()
+        features = list(features)
+        df_features_train = self.df_features_train.loc[~self.df_features_train[features].isnull().any(axis=1)].copy()
         # Check args
-        check_arg.ensure_type(features, list, tuple)
+        check_arg.ensure_type(features, list)
         check_arg.ensure_columns_in_DataFrame(df_features_train, features)
         # Get scaled data
-        df_scaled_data = self._create_scaled_data(df_features_train, list(features), create_new_scaler=create_new_scaler)
+        df_scaled_data = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
         check_arg.ensure_type(df_scaled_data, pd.DataFrame)  # Debugging effort. Remove later.
         # Save data. Return.
         self.df_features_train_scaled = df_scaled_data
@@ -694,7 +699,7 @@ class BasePipeline(object):
         df_features_predict = self.df_features_predict
 
         # Check args before execution
-        check_arg.ensure_type(features, list, tuple)
+        check_arg.ensure_type(features, list)
         check_arg.ensure_type(df_features_predict, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(df_features_predict, features)
 
@@ -788,8 +793,18 @@ class BasePipeline(object):
         return self
 
     # GMM
-    def train_GMM(self, data: pd.DataFrame):
-        """"""
+
+    def train_gmm_and_classifier(self, n_clusters: int = None):
+        """
+
+        :return:
+        """
+        if n_clusters is not None:
+            self.set_params(gmm_n_components=n_clusters)
+
+        # Train GMM, get assignments
+        logger.debug(f'Training GMM now...')
+        data = self.df_features_train_scaled[self.dims_cols_names].values
         self._clf_gmm = GaussianMixture(
             n_components=self.gmm_n_components,
             covariance_type=self.gmm_covariance_type,
@@ -802,6 +817,19 @@ class BasePipeline(object):
             verbose_interval=self.gmm_verbose_interval,
             random_state=self.random_state,
         ).fit(data)
+        self.df_features_train_scaled[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled[self.dims_cols_names].values)
+
+        # Test-train split
+        self.add_test_data_column_to_scaled_train_data()
+
+        # # Train Classifier
+        logger.debug(f'Training classifier now...')
+        self.train_classifier()
+
+        # Set predictions
+        self.df_features_train_scaled[self.clf_assignment_col_name] = self.clf.predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        self.df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
+
         return self
 
     # Classifier
@@ -812,15 +840,16 @@ class BasePipeline(object):
         variable
         """
         df = self.df_features_train_scaled.loc[~self.df_features_train_scaled[list(self.all_features)].isnull().any(axis=1)]
-        # TODO: filter out test data before fit() called
+        df = df.loc[~df[self.test_col_name]]
         if self.classifier_type == 'SVM':
             clf = SVC(
                 C=self.svm_c,
                 gamma=self.svm_gamma,
                 probability=self.svm_probability,
-                verbose=self.svm_verbose,
+                verbose=bool(self.classifier_verbose),
                 random_state=self.random_state,
-                cache_size=200,  # TODO: add variable to CONFIG.INI later? Measured in MB.
+                cache_size=200,  # TODO: LOW: add variable to CONFIG.INI later? Measured in MB.
+                max_iter=-1,
             )
         elif self.classifier_type == 'RANDOMFOREST':
             clf = RandomForestClassifier(
@@ -838,7 +867,7 @@ class BasePipeline(object):
                 oob_score=False,
                 n_jobs=self.rf_n_jobs,
                 random_state=self.random_state,
-                verbose=self.classifier_verbose,
+                verbose=self.rf_verbose,
                 warm_start=False,
                 class_weight=None,
                 ccp_alpha=0.0,
@@ -846,15 +875,39 @@ class BasePipeline(object):
             )
         else:
             err = f'TODO: elaborate: an unexpected classifier type was detected: {self.classifier_type}'
-            logger.error(err)
-            raise KeyError(err)
+            logging_enhanced.log_then_raise(err, logger, KeyError)
+
         # Fit classifier to non-test data
         clf.fit(
-            X=df.loc[~df[self.test_col_name]][list(self.all_features)],
-            y=df.loc[~df[self.test_col_name]][self.gmm_assignment_col_name],
+            X=df[list(self.all_features)],
+            y=df[self.gmm_assignment_col_name],
         )
         # Save classifier
         self._classifier = clf
+
+    def generate_accuracy_scores(self):
+        """
+
+        :return:
+        """
+        logger.debug(f'Generating cross-validation scores...')
+        # # Get cross-val accuracy scores
+        self._cross_val_scores = cross_val_score(
+            self.clf,
+            self.df_features_train_scaled[list(self.all_features)],
+            self.df_features_train_scaled[self.clf_assignment_col_name],
+            cv=self.cross_validation_k,
+            n_jobs=self.cross_validation_n_jobs,
+            pre_dispatch=self.cross_validation_n_jobs,
+        )
+
+        logger.debug(f'Generating accuracy score with a test split % of: {self.test_train_split_pct*100}%')
+        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
+        self._acc_score = accuracy_score(
+            y_pred=self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)]),
+            y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
+        logger.debug(f'Pipeline train accuracy: {self.accuracy_score}')
+        return self
 
     def generate_predict_data_assignments(self, reengineer_train_data_features: bool = False, reengineer_predict_features=False):  # TODO: low: rename?
         """
@@ -905,22 +958,20 @@ class BasePipeline(object):
         logger.debug(f'TSNE reducing features now...')
         self.tsne_reduce_df_features_train()
 
-
+        # GMM + Classifier
         self.train_gmm_and_classifier()
 
-        self.generate_accuracy_scores()
-        # TODO: low: save the confusion matrix after accuracy score too?
+        if skip_cross_val_scoring:
+            logger.debug(f'Skipping cross-validation scoring...')
+        else:
+            self.generate_accuracy_scores()
 
         # Final touches. Save state of pipeline.
         self._is_built = True
-        self._is_training_data_set_different_from_model_input = False  # TODO: med: review these 3 variables
+        self._is_training_data_set_different_from_model_input = False
         self._has_modified_model_variables = False
         self._last_built = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
         logger.debug(f'All done with building classifiers/model!')
-
-        return self
-
-    def generate_accuracy_scores(self):
 
         return self
 
@@ -934,57 +985,10 @@ class BasePipeline(object):
         self._build_model(force_reengineer_train_features=force_reengineer_train_features)
         # Get predict data
         self.generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
+        # Wrap up
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
         logger.info(f'Total build time: {self.seconds_to_build} seconds.')
-        return self
-
-    def train_gmm_and_classifier(self, n_clusters: int = None, skip_cross_val_scoring: bool = False):
-        """
-
-        :return:
-        """
-        n_clusters = self.gmm_n_components if n_clusters is None else n_clusters
-        check_arg.ensure_type(n_clusters, int)
-
-        # Train GMM, get assignments
-        logger.debug(f'Training GMM now...')
-        self.train_GMM(self.df_features_train_scaled[self.dims_cols_names])
-        self.df_features_train_scaled[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled[self.dims_cols_names].values)
-
-        # Test-train split
-        self.add_test_data_column_to_scaled_train_data()
-
-        # # Train Classifier
-        logger.debug(f'Training classifier now...')
-        self.train_classifier()
-
-        # Set predictions
-        self.df_features_train_scaled[self.clf_assignment_col_name] = self.clf.predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
-        self.df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
-
-        if skip_cross_val_scoring:
-            logger.debug(f'Skipping cross-validation scoring...')
-            self._cross_val_scores = np.array([])
-        else:
-            logger.debug(f'Generating cross-validation scores...')
-            # # Get cross-val accuracy scores
-            self._cross_val_scores = cross_val_score(
-                self.clf,
-                self.df_features_train_scaled[list(self.all_features)],
-                self.df_features_train_scaled[self.clf_assignment_col_name],
-                cv=self.cross_validation_k,
-                n_jobs=self.cross_validation_n_jobs,
-                pre_dispatch=self.cross_validation_n_jobs,
-            )
-
-        logger.debug(f'Generating accuracy score with a test split % of: {self.test_train_split_pct*100}%')
-        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
-        self._acc_score = accuracy_score(
-            y_pred=self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)]),
-            y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
-        logger.debug(f'Pipeline train accuracy: {self.accuracy_score}')
-
         return self
 
     # More data transformations
@@ -1000,10 +1004,10 @@ class BasePipeline(object):
 
         # with warnings.catch_warnings():
         #     warnings.filterwarnings('ignore', category=SettingWithCopyWarning)
-        df_shuffled[test_data_col_name] = [False for _ in range(len(df_shuffled))]  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
+        df_shuffled[test_data_col_name] = False  # [False for _ in range(len(df_shuffled))]  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
         df_shuffled.loc[:int(len(df) * self.test_train_split_pct), test_data_col_name] = True
 
-        df_shuffled = df_shuffled.reset_index()
+        df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
         self.df_features_train_scaled = df_shuffled
 
         return self
@@ -1013,7 +1017,7 @@ class BasePipeline(object):
         df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
         y_pred = self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)])
         y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
-        cnf_matrix = statistics.confusion_matrix(y_true, y_pred)  # TODO
+        cnf_matrix = statistics.confusion_matrix(y_true, y_pred)
         return cnf_matrix
 
     # Saving and stuff
@@ -1025,6 +1029,7 @@ class BasePipeline(object):
         warn = f'This function, "{get_current_function()}()", will be deprecated ' \
                f'in the future since naming is too vague. Instead, use save_to_folder()'
         logger.warning(warn)
+        check_arg.ensure_is_dir(output_path_dir)
         return self.save_to_folder(output_path_dir)
 
     def save_to_folder(self, output_path_dir=config.OUTPUT_PATH):
@@ -1067,10 +1072,14 @@ class BasePipeline(object):
         :param out_path:
         :return:
         """
+        # Arg check
         check_arg.ensure_is_valid_path(out_path)
+        # Execute
+        # TODO: MED
+        # Return pipeline that was saved-as
         return io.read_pipeline(out_path)
 
-    # Video stuff
+    # Video creation
 
     def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str,
                    output_fps: float = config.OUTPUT_VIDEO_FPS):
@@ -1302,6 +1311,9 @@ self._is_training_data_set_different_from_model_input: {self._is_training_data_s
         return diag
 
     #
+    def __bool__(self):
+        return True
+
     def __repr__(self) -> str:
         # TODO: low: flesh out how these are usually built. Add a last updated info?
         return f'{self.name}'
