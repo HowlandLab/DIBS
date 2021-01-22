@@ -1,5 +1,9 @@
 """
 
+Dev note: if you see any variables that are hard-coded, it is likely that it was kept
+that way in the code here to make explicit which variables are available but not in use.
+If there is a need in future to add it as a variable config variable, it can be
+implemented as such later.
 """
 from bhtsne import tsne as TSNE_bhtsne
 from openTSNE import TSNE as OpenTsneObj
