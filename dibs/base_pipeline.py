@@ -56,7 +56,7 @@ class BasePipeline(object):
         Note: the SKLEARN implementation seems to be quite slow despite it's widespread use. If
         time is a limiting factor, try using an alternative.
 
-    clf_type : {'SVM', 'RANDOMFOREST' }
+    classifier_type : {'SVM', 'RANDOMFOREST' }
         Specify a classifier to use.
         Default is 'svm'.
         - 'svm' : Support Vector Machine
