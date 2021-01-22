@@ -121,3 +121,19 @@ def boxcar_center(input_array, n) -> np.ndarray:
     return moving_avg
 
 
+def confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+    """
+    Generate confusion matrix
+    :param y_true:
+    :param y_pred:
+    :return:
+    """
+
+    # Arg checking
+    check_arg.ensure_type(y_true, np.ndarray)
+    check_arg.ensure_type(y_pred, np.ndarray)
+    check_arg.ensure_numpy_arrays_are_same_shape(y_true, y_pred)
+
+    # Execute
+    # TODO: HIGH: finish this function
+    return np.array()
