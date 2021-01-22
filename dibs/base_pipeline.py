@@ -437,7 +437,7 @@ class BasePipeline(object):
         self._has_modified_model_variables = True
         return self
 
-    # Functions that should be overwritten by child classes
+    # Important functions that should be overwritten by child classes
     def engineer_features(self, data: pd.DataFrame):
         err = f'{get_current_function()}(): Not Implemented for base ' \
               f'Pipeline object {self.__name__}. You must implement this for all child objects.'
@@ -799,10 +799,6 @@ class BasePipeline(object):
             random_state=self.random_state,
         ).fit(data)
         return self
-
-    def gmm_predict(self, data):  # TODO: low: remove func?
-        assignments = self.clf_gmm.predict(data)
-        return assignments
 
     # Classifier
     def train_classifier(self):
