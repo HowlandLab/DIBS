@@ -185,7 +185,6 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__TEST_DATA_FILE_PATH), f'CSV
 
 ### GENERAL CLASSIFIER VARIABLES ###
 DEFAULT_CLASSIFIER: str = configuration.get('CLASSIFIER', 'DEFAULT_CLASSIFIER')
-CLASSIFIER_N_JOBS: int = configuration.getint('CLASSIFIER', 'N_JOBS')
 CLASSIFIER_VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
 ### Classifier asserts
@@ -240,7 +239,10 @@ MLP_PARAMS = {
 
 ### RANDOM FOREST ###
 rf_n_estimators = configuration.getint('RANDOMFOREST', 'n_estimators')
+rf_n_jobs = configuration.getint('RANDOMFOREST', 'n_jobs')
 
+assert rf_n_estimators > 0, f''
+assert rf_n_jobs > 0, f''
 
 ### SVM ################################################################################################################
 svm_c = configuration.getfloat('SVM', 'C')
