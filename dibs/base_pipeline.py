@@ -922,10 +922,9 @@ class BasePipeline(object):
         """
         Runs after build(). Using terminology from old implementation. TODO: purpose
         """
-        # TODO: add arg checking for empty predict data?
 
         # Check that classifiers are built on the training data
-        if reengineer_train_data_features or self._is_training_data_set_different_from_model_input:
+        if reengineer_train_data_features or self._is_training_data_set_different_from_model_input or self._has_modified_model_variables:
             self._build_pipeline()
 
         # TODO: temp exit early for zero test data found
