@@ -575,13 +575,13 @@ TODO: {get_current_function()}
         test_rows, total_rows = len(data.loc[data[p.test_col_name]]), len(data)
         actual = test_rows / total_rows
         err = f"""
------------------------
+---------------------------------------------
 Expected = {expected}
 Actual   = {actual}
---- DEBUG DATA --------
+--- DEBUG DATA ------------------------------
 Total data rows: {total_rows}
 Total TEST data rows: {test_rows}
------------------------
+---------------------------------------------
 """
         # Assert
         return self.assertAlmostEqual(expected, actual, round_by, err)
