@@ -1008,11 +1008,12 @@ class BasePipeline(object):
         check_arg.ensure_type(test_data_col_name, str)
 
         df = self.df_features_train_scaled
+        df[self.test_col_name] = False
         df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool accordingly
 
         # with warnings.catch_warnings():
         #     warnings.filterwarnings('ignore', category=SettingWithCopyWarning)
-        df_shuffled[test_data_col_name] = False  # [False for _ in range(len(df_shuffled))]  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
+        # df_shuffled[test_data_col_name] = False  # [False for _ in range(len(df_shuffled))]  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
         df_shuffled.loc[:round(len(df) * self.test_train_split_pct), test_data_col_name] = True
 
         df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
