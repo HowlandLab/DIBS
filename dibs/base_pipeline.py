@@ -832,7 +832,7 @@ class BasePipeline(object):
                 min_impurity_split=None,
                 bootstrap=True,
                 oob_score=False,
-                n_jobs=self.classifier_n_jobs,
+                n_jobs=self.rf_n_jobs,
                 random_state=self.random_state,
                 verbose=self.classifier_verbose,
                 warm_start=False,
