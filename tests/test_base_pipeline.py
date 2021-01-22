@@ -390,8 +390,8 @@ TODO: {get_current_function()}
         self.assertEqual(expected_cv, actual_cv, err)
 
     ### Scaling data ###
-    # @skip  # Temporary was skip since it takes forever to run this due to sample size
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
+        # Note: this function takes a while to run
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv_test_file_path).build(True)
 
@@ -471,6 +471,7 @@ actual_amount_of_dataframes = {actual_amount_of_dataframes}
         self.assertTrue(is_equal, err_msg)
 
     ### Removing train data sources ###
+    pass
 
     ### Removing predict data sources ###
     def test__remove_train_data_source__shouldRemoveSource__whenSourceIsPresent(self):
