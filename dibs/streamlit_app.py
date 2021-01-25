@@ -684,11 +684,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             # Extra info: tsne-perplexity
             if file_session[checkbox_show_extra_text]:
                 st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
-            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01, max_value=200.)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
+            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
             # Extra info: learning rate
             if file_session[checkbox_show_extra_text]:
                 st.info('TODO: learning rate')
-            input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', min_value=0., max_value=100., value=p.tsne_early_exaggeration, step=0.1, format='%.2f')
+            input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', value=p.tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
             # Extra info: early exaggeration
             if file_session[checkbox_show_extra_text]:
                 st.info('TODO: early exaggeration')
