@@ -1,6 +1,19 @@
 # DIBS: Data-Informed Behavioural Segmentation
 
+## Summary
+DIBS is a package built on top of DeepLabCut (commonly recognized as "DLC") that aims to 
+automate and standardize animal behaviour recognition for video analysis.
 
+Often times, human analysts are asked to gauge and record animal behaviours for an experiment,
+but their analyses can vary greatly due to differences in subjective analysis. DIBS aims to remove
+the human-error element 
+from the equation and instead uses a data-centric approach to cluster similar 
+behaviours together and standardize the behaviour recognition process. By having just one set 
+of rules that DIBS uses to recognize distinct behaviours, it avoids instances of 
+overlooked behaviours or split decisions between researchers 
+On top of all this, DIBS comes replete with a web app option that allows for
+non-technically savvy people to utilize the package without any prior programming knowledge.
+Just follow the package installation instructions and enjoy!
 
 ## Installation & Setup
 
@@ -15,7 +28,13 @@
 
 ## Usage
 
-### Streamlit
+### Bare package use option
+
+(WIP)
+
+
+
+### Web app option: Streamlit
 
 To run normally, run: `streamlit run main.py streamlit`
 
