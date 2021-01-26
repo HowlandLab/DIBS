@@ -1120,7 +1120,7 @@ class BasePipeline(object):
             logger.error(err)
             raise ValueError(err)
 
-        df_data = df_data.astype({'frame': int}).sort_values('frame')
+        df_data = df_data.astype({'frame': float}).astype({'frame': int}).sort_values('frame')
 
         svm_assignment_values_array = df_data[self.svm_assignment].values
         labels = list(map(self.get_assignment_label, svm_assignment_values_array))
@@ -1177,7 +1177,7 @@ class BasePipeline(object):
 
         ### Execute
         # Get DataFrame of the data
-        df = df.loc[df["data_source"] == data_source].astype({'frame': int}).sort_values('frame').copy()
+        df = df.loc[df["data_source"] == data_source].astype({'frame': float}).astype({'frame': int}).sort_values('frame').copy()
 
         # Get Run-Length Encoding of assignments
         assignments = df[self.clf_assignment_col_name].values
