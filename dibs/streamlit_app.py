@@ -47,7 +47,7 @@ pipeline_options = {
 
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
-    'PipelineHowland: ': pipeline.PipelineHowland,
+    'PipelineHowland: a pipeline aimed at generalized behaviour recognition': pipeline.PipelineHowland,
     'PipelinePrime': pipeline.PipelinePrime,
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
@@ -150,7 +150,7 @@ def start_app(**kwargs):
         else:
             pipeline_file_path = file_session[key_pipeline_path]
 
-    # Show app variables in sidebar
+    ### SIDEBAR ###
     st.sidebar.markdown(f'## App Settings')
     # st.sidebar.markdown(f'----------------')
     # st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
@@ -163,7 +163,8 @@ def start_app(**kwargs):
         file_session[key_selected_layout] = selected_layout.lower()
         st.experimental_rerun()
 
-    # Begin app
+    ### MAIN ###
+
     home(pipeline_file_path)
 
 
@@ -217,9 +218,6 @@ def home(pipeline_file_path):
             st.markdown(f'## Create new project pipeline')
             st.markdown('')
 
-            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
-            st.markdown('*Note: data can be added and removed at any time in the project, so this decision is not final*')
-            st.markdown('')
             select_pipe_type = st.selectbox('Select a pipeline implementation', options=[''] + list(pipeline_options.keys()))
             st.markdown('')
             if select_pipe_type:  # After selecting a Pipeline implementation...
@@ -229,19 +227,19 @@ def home(pipeline_file_path):
                 if file_session[checkbox_show_extra_text]:
                     pipe_info = pipeline_class.__doc__ if str(pipeline_class.__doc__).strip() else f'No documentation detected for {pipeline_class.__name__}'
                     st.info(pipe_info)
+                st.markdown('')
                 # Input parameters for new Pipeline
-                text_input_new_project_name = st.text_input(
-                    'Enter a name for your project pipeline. Please only use letters, numbers, and underscores.')
-                input_path_to_pipeline_dir = st.text_input(
-                    'Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.',
-                    value=config.OUTPUT_PATH)
+                radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
+                st.markdown('*Note: this decision is not final. Data can be added and removed at any time in a project.*')
+                # st.markdown('')
+                text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
+                input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.OUTPUT_PATH)
                 button_project_info_submitted_is_clicked = st.button('Submit', key='SubmitNewProjectInfo')
 
                 if button_project_info_submitted_is_clicked:
                     # Error checking first
                     if check_arg.has_invalid_chars_in_name_for_a_file(text_input_new_project_name):
-                        char_err = ValueError(f'Project name has invalid characters present. '
-                                              f'Re-submit project pipeline name. {text_input_new_project_name}')
+                        char_err = ValueError(f'Project name has invalid characters present. Re-submit project pipeline name. {text_input_new_project_name}')
                         logger.error(char_err)
                         st.error(char_err)
                         st.stop()
@@ -265,9 +263,7 @@ def home(pipeline_file_path):
                                 p = p.add_train_data_source(*half_files)
                                 p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
                         p = p.save_to_folder(input_path_to_pipeline_dir)
-                        pipeline_file_path = os.path.join(input_path_to_pipeline_dir,
-                                                          pipeline.generate_pipeline_filename(
-                                                              text_input_new_project_name))
+                        pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename( text_input_new_project_name))
                         file_session[key_pipeline_path] = pipeline_file_path
                         st.balloons()
                         st.success(f"""
