@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     # Instantiate parser, add arguments as expected on command-line
     parser = argparse.ArgumentParser(description=dibs_runtime_description)
     parser.add_argument(f'command', help=f'HELP: TODO: command. Valid commands: '
-                                         f'{[""+x for x in list(map_command_to_func.keys())]}')
+                                         f'{[""+x for x in list(map_command_to_func.keys())]}')  # TODO: easy: does it need to coerce into a list at all?
     parser.add_argument('-p', help=f'HELP: TODO: PIPELINE LOC')
     # TODO: add commands, sub-commands as necessary
 
