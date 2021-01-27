@@ -16,24 +16,23 @@ import matplotlib
 import numpy as np
 import os
 import pandas as pd
-# import plotly
 import random
 import streamlit as st
 import sys
 import time
 import traceback
-
-
-from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
-
-matplotlib_axes_logger.setLevel('ERROR')
-
-logger = config.initialize_logger(__name__)
-
 # import easygui
+# import plotly
 # import tkinter as tk
 # from tkinter import filedialog
 # from mttkinter import mtTkinter as tk
+
+from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
+
+
+# File settings
+logger = config.initialize_logger(__name__)
+matplotlib_axes_logger.setLevel('ERROR')
 
 
 ##### Instantiate names for buttons, options that can be changed on the fly but logic below stays the same #####
@@ -43,10 +42,12 @@ valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
-text_half_dibs_data_pipeline = 'Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'
+text_half_dibs_data_pipeline = 'DEBUG OPT: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
 pipeline_options = {
+
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
+    'PipelineHowland: ': pipeline.PipelineHowland,
     'PipelinePrime': pipeline.PipelinePrime,
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
