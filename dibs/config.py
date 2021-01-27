@@ -83,7 +83,7 @@ assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
 
 ### APP #######################################################
 FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')  # E.g. png, jpg, svg, etc.
-N_JOBS = configuration.getint('APP', 'N_JOBS')
+# N_JOBS = configuration.getint('APP', 'N_JOBS')
 MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
 PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
 VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
@@ -101,7 +101,7 @@ if 'NUMEXPR_MAX_THREADS' not in os.environ and configuration.get('APP', 'NUMEXPR
 assert COMPILE_CSVS_FOR_TRAINING in {0, 1}, f'Invalid COMP value detected: {COMPILE_CSVS_FOR_TRAINING}.'
 assert isinstance(PERCENT_FRAMES_TO_LABEL, float) and 0. < PERCENT_FRAMES_TO_LABEL < 1., \
     f'PERCENT_FRAMES_TO_LABEL is invalid. Value = {PERCENT_FRAMES_TO_LABEL}, type = {type(PERCENT_FRAMES_TO_LABEL)}.'
-assert isinstance(N_JOBS, int) and N_JOBS > 0, f'N_JOBS is invalid. Value = `{N_JOBS}`'
+# assert isinstance(N_JOBS, int) and N_JOBS > 0, f'N_JOBS is invalid. Value = `{N_JOBS}`'
 
 ### STREAMLIT ############################################################
 default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location', fallback='')
