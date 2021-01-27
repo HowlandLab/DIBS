@@ -1734,6 +1734,123 @@ class PipelineMimic(BasePipeline):
         return df
 
 
+class PipelineHowland(BasePipeline):
+    """
+    New features set created by the Howland Lab.
+    """
+    # Feature names
+    intermediate_bodypart_avgForepaw = 'AvgForepaw'
+    intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
+    feat_name_dist_forepawleft_nosetip = 'DistanceForepawLeftToNosetip'
+    feat_name_dist_forepawright_nosetip = 'DistanceForepawRightToNosetip'
+    feat_name_dist_forepawLeft_hindpawLeft = 'DistanceForepawLeftToHindpawLeft'
+    feat_name_dist_forepawRight_hindpawRight = 'DistanceForepawRightToHindpawRight'
+    feat_name_dist_AvgHindpaw_Nosetip = 'DistanceAvgHindpawToNosetip'
+    feat_name_dist_AvgForepaw_NoseTip = 'DistanceAvgForepawToNosetip'
+    feat_name_velocity_AvgForepaw = 'VelocityAvgForepaw'
+    _all_features = (
+        feat_name_dist_forepawleft_nosetip,
+        feat_name_dist_forepawright_nosetip,
+        feat_name_dist_forepawLeft_hindpawLeft,
+        feat_name_dist_forepawRight_hindpawRight,
+        feat_name_dist_AvgHindpaw_Nosetip,
+        feat_name_dist_AvgForepaw_NoseTip,
+        feat_name_velocity_AvgForepaw,
+    )
+
+    def engineer_features(self, in_df: pd.DataFrame):
+        # TODO: WIP
+        """
+        # Head dips
+        1. d(forepaw left to nose)
+        2. d(forepaw right to nose)
+        # Rears
+        3. d(forepaw left to hindpaw left)
+        4. d(forepaw right to hindpaw right)
+        5. d(nose to avg hindpaw)
+        # Stretch attends
+        6. d(avg hindpaw to nose) - same as #5
+        7. d(avg forepaw to nose)
+        8. v(avgForepaw)
+
+        """
+        # Arg Checking
+        check_arg.ensure_type(in_df, pd.DataFrame)
+        # Execute
+        logger.debug(f'Engineering features for one data set...')
+        df = in_df.sort_values('frame').copy()
+        # Filter
+        df, _ = feature_engineering.adaptively_filter_dlc_output(df)
+        # Engineer features
+        # 1
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, 'FOREPAW_LEFT', 'NOSETIP',
+                                                                             self.feat_name_dist_forepawleft_nosetip,
+                                                                             resolve_bodyparts_with_config_ini=True)
+        # 2
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, 'FOREPAW_RIGHT', 'NOSETIP',
+                                                                             self.feat_name_dist_forepawright_nosetip,
+                                                                             resolve_bodyparts_with_config_ini=True)
+        # 3
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, 'FOREPAW_LEFT', 'HINDPAW_LEFT',
+                                                                             self.feat_name_dist_forepawLeft_hindpawLeft,
+                                                                             resolve_bodyparts_with_config_ini=True)
+        # 4
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, 'FOREPAW_RIGHT', 'HINDPAW_RIGHT',
+                                                                             self.feat_name_dist_forepawRight_hindpawRight,
+                                                                             resolve_bodyparts_with_config_ini=True)
+        # 5, 6
+        # df = feature_engineering.attach_average_forepaw_xy(df)  # BELOW SOLVES TODO: TODO: low: replace these two functions with the generalized xy averaging functions+output name?
+        df = feature_engineering.attach_average_bodypart_xy(df, 'FOREPAW_LEFT', 'FOREPAW_RIGHT',
+                                                            output_bodypart=self.intermediate_bodypart_avgForepaw,
+                                                            resolve_bodyparts_with_config_ini=True)
+
+        # df = feature_engineering.attach_average_hindpaw_xy(df)  # BELO SOLVES TODO: low: replace these two functions with the generalized xy averaging functions+output name?
+        df = feature_engineering.attach_average_bodypart_xy(df, 'HINDPAW_LEFT', 'HINDPAW_RIGHT',
+                                                            output_bodypart=self.intermediate_bodypart_avgHindpaw,
+                                                            resolve_bodyparts_with_config_ini=True)
+
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgHindpaw,
+                                                                             config.get_part('NOSETIP'),
+                                                                             self.feat_name_dist_AvgHindpaw_Nosetip)
+
+        # 7
+        # df = feature_engineering.attach_distance_between_2_feats(df, 'AvgForepaw', config.get_part('NOSETIP'), self.feat_name_dist_AvgForepaw_NoseTip)
+        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgForepaw,
+                                                                             config.get_part('NOSETIP'),
+                                                                             self.feat_name_dist_AvgForepaw_NoseTip)
+
+        # 8
+        # df = feature_engineering.attach_velocity_of_feature(df, 'AvgForepaw', 1/config.VIDEO_FPS, self.feat_name_velocity_AvgForepaw)
+        df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw,
+                                                                     1 / config.VIDEO_FPS,
+                                                                     self.feat_name_velocity_AvgForepaw)
+
+        # Binning
+        map_feature_to_integrate_method = {
+            self.feat_name_dist_forepawleft_nosetip: 'avg',
+            self.feat_name_dist_forepawright_nosetip: 'avg',
+            self.feat_name_dist_forepawLeft_hindpawLeft: 'avg',
+            self.feat_name_dist_forepawRight_hindpawRight: 'avg',
+            self.feat_name_dist_AvgHindpaw_Nosetip: 'avg',
+            self.feat_name_dist_AvgForepaw_NoseTip: 'avg',
+            self.feat_name_velocity_AvgForepaw: 'sum',
+        }
+        logger.debug(f'{get_current_function()}(): # of rows in DataFrame before binning = {len(df)}')
+        df = feature_engineering.integrate_df_feature_into_bins(df, map_feature_to_integrate_method, self.average_over_n_frames)
+        logger.debug(f'{get_current_function()}(): # of rows in DataFrame after binning = {len(df)}')
+
+        # # Debug effort/check: ensure columns don't get dropped by accident
+        # for col in in_df.columns:
+        #     if col not in list(df.columns):
+        #         err_missing_col = f'Missing col should not have been lost in feature engineering but was. ' \
+        #                           f'Column = {col}. (df={df.head().to_string()})'  # TODO: low: improve err message
+        #         logger.error(err_missing_col)
+        #         raise KeyError(err_missing_col)
+
+        logger.debug(f'Done engineering features.')
+        return df
+
+
 ### Accessory functions ###
 
 def generate_pipeline_filename(name: str):
