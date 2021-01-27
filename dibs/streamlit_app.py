@@ -796,6 +796,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
     ### End of rebuild model section
 
+    ### Menu button: re-colour clusters ###
+
+
+    ### End of menu for re-colour clusters ###
+
     st.markdown('--------------------------------------------------------------------------------------------------')
 
     return see_model_diagnostics(p, pipeline_file_path)
@@ -1145,6 +1150,3 @@ if __name__ == '__main__':
         sys.path.insert(0, BSOID_project_path)
     # home()
     example_of_value_saving()
-
-# import multiprocessing
-# multiprocessing.Pool
