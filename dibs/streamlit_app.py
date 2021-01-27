@@ -131,7 +131,7 @@ def start_app(**kwargs):
     ### Set up session variables
     global file_session
     file_session = streamlit_session_state.get(**streamlit_persistence_variables)
-    # matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows
+    # matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows. Dev note: Streamlit does not play nice with multithreaded instances like the Tkinter window pop-up. Sometimes crashes Streamlit.
     matplotlib.use('Agg')  # For allowing graphs to pop out as separate windows
     file_session[key_iteration_page_refresh_count] = file_session[key_iteration_page_refresh_count] + 1
 
@@ -318,7 +318,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
             if input_text_path_to_pipeline_file:
                 # Error checking first
                 if not os.path.isfile(input_text_path_to_pipeline_file) or not input_text_path_to_pipeline_file.endswith('.pipeline'):
-                    err = f'Path to valid BSOID pipeline file was not found. User submitted path: {input_text_path_to_pipeline_file}'
+                    err = f'DIBS Pipeline file was not found. User submitted path: {input_text_path_to_pipeline_file}'
                     logger.error(err)
                     st.error(FileNotFoundError(err))
                     st.stop()
@@ -482,7 +482,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
             # root = tk.Tk()
             # root.withdraw()
-            # file_paths: Tuple[str] = tk.filedialog.askopenfilenames(initialdir=config.BSOID_BASE_PROJECT_PATH)
+            # file_paths: Tuple[str] = tk.filedialog.askopenfilenames(initialdir=config.DIBS_BASE_PROJECT_PATH)
             # root.destroy()
 
             # uf = st.file_uploader('upload file')
@@ -1144,8 +1144,8 @@ def example_of_value_saving():
 if __name__ == '__main__':
     # Note: this import only necessary when running streamlit onto this file specifically rather than
     #   calling `streamlit run main.py streamlit`
-    BSOID_project_path = os.path.dirname(os.path.dirname(__file__))
-    if BSOID_project_path not in sys.path:
-        sys.path.insert(0, BSOID_project_path)
+    DIBS_project_path = os.path.dirname(os.path.dirname(__file__))
+    if DIBS_project_path not in sys.path:
+        sys.path.insert(0, DIBS_project_path)
     # home()
     example_of_value_saving()
