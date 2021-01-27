@@ -354,7 +354,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
         show_pipeline_info(p, pipeline_file_path)
 
 
-def show_pipeline_info(p, pipeline_path, **kwargs):
+def show_pipeline_info(p, pipeline_path):
 
     """  """
     # logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
@@ -369,11 +369,10 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
     # st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
     # st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
     st.markdown(f'- Is the model built: **{p.is_built}**')
-    st.markdown(f'- Build time: {p.seconds_to_build} seconds')  # TODO: low: remove this line after debugging
+    st.markdown(f'- Build time: ' + (f'{p.seconds_to_build} seconds' if p.is_built else f'N/A'))  # TODO: low: remove this line after debugging
 
     ### Menu button: show more info
-    button_show_advanced_pipeline_information = st.button(
-        f'Toggle advanced info', key=key_button_show_adv_pipeline_information)
+    button_show_advanced_pipeline_information = st.button(f'Toggle advanced info', key=key_button_show_adv_pipeline_information)
     if button_show_advanced_pipeline_information:
         file_session[key_button_show_adv_pipeline_information] = not file_session[key_button_show_adv_pipeline_information]
     if file_session[key_button_show_adv_pipeline_information]:
@@ -395,8 +394,8 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
         st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
 
         cross_val_decimals_round = 2
-        cross_val_score_text = f'- Median cross validation score: ' \
-                               f'**{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
+        cross_val_score_text = f'- Median cross validation score: **{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + \
+                               f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
         # else:
         #     cross_val_score_text = f'- **[Cross validation score not available]**'
         st.markdown(f'{cross_val_score_text}')
@@ -1018,7 +1017,7 @@ def review_behaviours(p, pipeline_file_path):
     return results_section(p, pipeline_file_path)
 
 
-def results_section(p, pipeline_file_path, **kwargs):
+def results_section(p, pipeline_file_path):
     if not os.path.isfile(pipeline_file_path):
         st.error(f'An unexpected error occurred. Your pipeline file path was lost along the way. '
                  f'Currently, your pipeline file path reads as: "{pipeline_file_path}"')
