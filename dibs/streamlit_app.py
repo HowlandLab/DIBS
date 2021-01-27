@@ -122,7 +122,7 @@ def start_app(**kwargs):
         pipeline_path : str
         A path to an existing pipeline file which will be loaded by default
         on page load. If this kwarg is not specified, the config.ini
-        value will be checked (via bsoid.config), and that file path, if
+        value will be checked (via dibs.config), and that file path, if
         present, will be used. If that config.ini key/value pair is not in
         use, then no default path will be specified and it will be entirely
         up to the user to fill out.

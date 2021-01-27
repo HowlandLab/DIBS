@@ -17,12 +17,12 @@ logger = dibs.config.initialize_logger(__file__)
 
 ########################################################################################################################
 
-bsoid_runtime_description = 'BSOID command line utility. Do BSOID stuff. Expand on this later.'
+dibs_runtime_description = 'DIBS command line utility. Do DIBS stuff. Expand on this later.'
 
 map_command_to_func = {
 
-    # 'clean': bsoid.app.clear_output_folders,  # TODO: review clear output folders function for
-    # 'cleanoutput': bsoid.app.clear_output_folders,
+    # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
+    # 'cleanoutput': dibs.app.clear_output_folders,
     # 'buildandrunlegacy': dibs.main_LEGACY.test_function_to_build_then_run_py,
     # 'newbuild': dibs.app.build_classifier_new_pipeline,
     'streamlit': dibs.streamlit_app.start_app,
@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     Regarding HOW these commands will be carried out, implement that elsewhere.
     """
     # Instantiate parser, add arguments as expected on command-line
-    parser = argparse.ArgumentParser(description=bsoid_runtime_description)
+    parser = argparse.ArgumentParser(description=dibs_runtime_description)
     parser.add_argument(f'command', help=f'HELP: TODO: command. Valid commands: '
                                          f'{[""+x for x in list(map_command_to_func.keys())]}')
     parser.add_argument('-p', help=f'HELP: TODO: PIPELINE LOC')
