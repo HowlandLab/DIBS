@@ -45,7 +45,7 @@ from dibs.base_pipeline import BasePipeline
 from dibs.logging_enhanced import get_current_function
 from dibs import check_arg, config, feature_engineering
 
-logger = config.initialize_logger(__file__)
+logger = config.initialize_logger(__name__)
 
 
 # Base pipeline objects that outline the API

@@ -39,7 +39,7 @@ import sys
 from dibs.logging_enhanced import get_current_function
 from dibs import check_arg, config, io, logging_enhanced, statistics, videoprocessing, visuals
 
-logger = config.initialize_logger(__file__)
+logger = config.initialize_logger(__name__)
 
 
 # Base pipeline objects that outline the API

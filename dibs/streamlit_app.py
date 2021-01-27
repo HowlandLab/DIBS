@@ -28,7 +28,7 @@ from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_se
 
 matplotlib_axes_logger.setLevel('ERROR')
 
-logger = config.initialize_logger(__file__)
+logger = config.initialize_logger(__name__)
 
 # import easygui
 # import tkinter as tk

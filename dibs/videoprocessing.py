@@ -12,7 +12,7 @@ import os
 from dibs import check_arg, config, statistics
 from dibs.logging_enhanced import get_current_function
 
-logger = config.initialize_logger(__file__)
+logger = config.initialize_logger(__name__)
 
 # HOW TO GET FPS: fps = video.get(cv2.cv.CV_CAP_PROP_FPS)
 

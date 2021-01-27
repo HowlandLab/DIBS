@@ -9,7 +9,7 @@ import re
 
 from dibs import check_arg, config
 
-logger = config.initialize_logger(__file__)
+logger = config.initialize_logger(__name__)
 
 
 def sign(x) -> int:
