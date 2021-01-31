@@ -76,13 +76,13 @@ class BasePipeline(object):
 
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
-    valid_tsne_sources: set = {'bhtsne', 'sklearn', }
+    # valid_tsne_sources: set = {'bhtsne', 'sklearn', }  # TODO: low: remove this since not used anymore
+    # Column names
     gmm_assignment_col_name, clf_assignment_col_name, = 'gmm_assignment', 'classifier_assignment'
     behaviour_col_name = 'behaviour'
 
-    # Tracking vars
+    # Pipeline state-tracking variables
     _is_built = False  # Is False until the classifiers are built then changes to True
-
     _is_training_data_set_different_from_model_input: bool = False  # Changes to True if new training data is added and classifiers not rebuilt.
     _has_unengineered_predict_data: bool = False  # Changes to True if new predict data is added. Changes to False if features are engineered.
     _has_modified_model_variables: bool = False
@@ -838,8 +838,8 @@ class BasePipeline(object):
         return self
 
     def recolor_gmm_and_retrain_classifier(self, n_components: int):
-
-        return self._train_gmm_and_classifier(n_components)
+        self._train_gmm_and_classifier(n_components)
+        return self
 
     # Classifier
     def _train_classifier(self):
@@ -903,8 +903,8 @@ class BasePipeline(object):
         # # Get cross-val accuracy scores
         self._cross_val_scores = cross_val_score(
             self.clf,
-            self.df_features_train_scaled[list(self.all_features)],
-            self.df_features_train_scaled[self.clf_assignment_col_name],
+            self.df_features_train_scaled[list(self.all_features)].values,
+            self.df_features_train_scaled[self.clf_assignment_col_name].values,
             cv=self.cross_validation_k,
             n_jobs=self.cross_validation_n_jobs,
             pre_dispatch=self.cross_validation_n_jobs,
@@ -996,7 +996,7 @@ class BasePipeline(object):
         # Wrap up
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
-        logger.info(f'Total build time: {self.seconds_to_build} seconds.')
+        logger.info(f'Total build time: {self.seconds_to_build} seconds. Rows of data: {len(self.df_features_train_scaled)} / tsne_n_jobs={self.tsne_n_jobs} / cross_validation_n_jobs = {self.cross_validation_n_jobs}')
         return self
 
     # More data transformations
@@ -1075,6 +1075,7 @@ class BasePipeline(object):
         """
         # Arg check
         check_arg.ensure_is_valid_path(out_path)
+        check_arg.ensure_is_dir(os.path.split(out_path))
         # Execute
         # TODO: MED
         # Return pipeline that was saved-as
