@@ -50,6 +50,7 @@ To run the Streamlit app with an existing Pipeline file, run:
 
 ### Configuring runtime and default variables
 
+A user may configure these variables at [config.ini](./config.ini).
 
 
 _
@@ -59,5 +60,12 @@ To see the FAQ, read here: [FAQ.md](./FAQ.md)
 ## Tests
 
 To run tests, run: `python -m unittest discover DIBS/tests`
+
+Note: you may see much more debug information during each test's pipeline build than you 
+were expecting if your config.ini variable for **[TESTING] [STREAM_LOG_LEVEL]** is too 
+general. This can be quite cluttered to the uninitiated. Changing the level of output from 
+DEBUG to WARNING will greatly reduce the amount of output.
+
+
 
 ### 
