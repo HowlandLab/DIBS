@@ -36,11 +36,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenBhtsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that it can still work with 10 rows of data
-        p = pipeline_class_of_interest(get_unique_pipe_name(),
-                                        cross_validation_k=cv,
-                                        gmm_n_components=gmm_n_components,
-                                        # tsne_n_jobs=1,
-                                        )
+        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
@@ -61,10 +57,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenOpentsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = pipeline_class_of_interest(get_unique_pipe_name(),
-                                        cross_validation_k=cv,
-                                        gmm_n_components=gmm_n_components,
-                                        )
+        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
@@ -79,10 +72,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenSklearnIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = pipeline_class_of_interest(get_unique_pipe_name(),
-                                        cross_validation_k=cv,
-                                        gmm_n_components=gmm_n_components,
-                                        )
+        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
@@ -97,18 +87,13 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = pipeline_class_of_interest(f'TestPipeline_{random.randint(0, 100_000_000)}',
-                                        cross_validation_k=cv,
-                                        gmm_n_components=gmm_n_components,
-                                        )
+        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
 
         select_classifier = 'SVM'
-
-    
 
         select_rf_n_estimators = 100
         video_fps = 30.1
