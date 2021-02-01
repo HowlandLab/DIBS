@@ -1845,7 +1845,7 @@ class PipelineKitchenSink(BasePipeline):
         feat_name_dist_AvgForepaw_NoseTip,
         feat_name_velocity_AvgForepaw,
         feat_body_length,
-        intermediate_dist_avgForepaw_to_tailbase,
+        intermediate_dist_avgForepaw_to_tailbase,  # 1
         feat_dist_front_paws_to_tailbase_relative_to_body_length,  # 2
         intermediate_dist_avgHindpaw_to_tailbase,
         feat_dist_hind_paws_to_tailbase_relative_to_body_length,  # 3
