@@ -269,7 +269,7 @@ class BasePipeline(object):
         return []
 
     @property
-    def all_features(self) -> Collection[str]:
+    def all_features(self) -> Tuple[str]:
         return self._all_features
 
     @property
@@ -646,6 +646,8 @@ class BasePipeline(object):
         """
         A universal data scaling function that is usable for training data as well as new prediction data.
         Scales down features in place and does not keep original data.
+
+        More notes on scaling, choosing b/w Standardization and Normalization: https://kharshit.github.io/blog/2018/03/23/scaling-vs-normalization
         """
         # Check args
         check_arg.ensure_type(features, list, tuple)
@@ -828,7 +830,6 @@ class BasePipeline(object):
         self._add_test_data_column_to_scaled_train_data()
 
         # # Train Classifier
-        logger.debug(f'Training classifier now...')
         self._train_classifier()
 
         # Set predictions
@@ -887,6 +888,7 @@ class BasePipeline(object):
             logging_enhanced.log_then_raise(err, logger, KeyError)
 
         # Fit classifier to non-test data
+        logger.debug(f'Training {self.classifier_type} classifier now...')
         clf.fit(
             X=df[list(self.all_features)],
             y=df[self.gmm_assignment_col_name],
@@ -899,19 +901,20 @@ class BasePipeline(object):
 
         :return:
         """
+        df = self.df_features_train_scaled
         logger.debug(f'Generating cross-validation scores...')
         # # Get cross-val accuracy scores
         self._cross_val_scores = cross_val_score(
             self.clf,
-            self.df_features_train_scaled[list(self.all_features)].values,
-            self.df_features_train_scaled[self.clf_assignment_col_name].values,
+            df[self.all_features_list].values,
+            df[self.clf_assignment_col_name].values,
             cv=self.cross_validation_k,
             n_jobs=self.cross_validation_n_jobs,
             pre_dispatch=self.cross_validation_n_jobs,
         )
 
-        logger.debug(f'Generating accuracy score with a test split % of: {self.test_train_split_pct*100}%')
-        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
+        # logger.debug(f'Generating accuracy score with a test split % of: {self.test_train_split_pct*100}%')
+        df_features_train_scaled_test_data = df.loc[df[self.test_col_name]]
         self._acc_score = accuracy_score(
             y_pred=self.clf.predict(df_features_train_scaled_test_data[list(self.all_features)]),
             y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
@@ -996,7 +999,7 @@ class BasePipeline(object):
         # Wrap up
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
-        logger.info(f'Total build time: {self.seconds_to_build} seconds. Rows of data: {len(self.df_features_train_scaled)} / tsne_n_jobs={self.tsne_n_jobs} / cross_validation_n_jobs = {self.cross_validation_n_jobs}')
+        logger.info(f'Total build time: {self.seconds_to_build} seconds. Rows of data: {len(self.df_features_train_scaled)} / tsne_n_jobs={self.tsne_n_jobs} / cross_validation_n_jobs = {self.cross_validation_n_jobs}')  # TODO: med: amend this line. Has extra info for debuggin purposes.
         return self
 
     # More data transformations
@@ -1009,30 +1012,19 @@ class BasePipeline(object):
 
         df = self.df_features_train_scaled
         df[self.test_col_name] = False
-        df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool accordingly
-
-        # with warnings.catch_warnings():
-        #     warnings.filterwarnings('ignore', category=SettingWithCopyWarning)
-        # df_shuffled[test_data_col_name] = False  # [False for _ in range(len(df_shuffled))]  # TODO: med: Setting with copy warning occurs on this exact line. is this not how to instantiate it? https://realpython.com/pandas-settingwithcopywarning/
-        df_shuffled.loc[:round(len(df_shuffled) * self.test_train_split_pct), test_data_col_name] = True
+        df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
+        # TODO: med: fix setting with copy warning
+        df_shuffled.iloc[:round(len(df_shuffled) * self.test_train_split_pct), :][test_data_col_name] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
 
         df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
-        self.df_features_train_scaled = df_shuffled
 
+        actual_split = round(len(df_shuffled.loc[df_shuffled[self.test_col_name]]) / len(df_shuffled), 3)
+        logger.debug(f"Final test/train split is calculated to be: {actual_split}")
+
+        self.df_features_train_scaled = df_shuffled
         return self
 
     # Saving and stuff
-    def save(self, output_path_dir=config.OUTPUT_PATH):
-        """
-        Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
-        :param output_path_dir: (str) an absolute path to a DIRECTORY where the pipeline will be saved.
-        """
-        warn = f'This function, "{get_current_function()}()", will be deprecated ' \
-               f'in the future since naming is too vague. Instead, use save_to_folder()'
-        logger.warning(warn)
-        check_arg.ensure_is_dir(output_path_dir)
-        return self.save_to_folder(output_path_dir)
-
     def save_to_folder(self, output_path_dir=config.OUTPUT_PATH):
         """
         Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
@@ -1082,7 +1074,6 @@ class BasePipeline(object):
         return io.read_pipeline(out_path)
 
     # Video creation
-
     def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str, output_fps: float = config.OUTPUT_VIDEO_FPS):
         """
 
