@@ -12,8 +12,8 @@ from dibs.logging_enhanced import get_current_function, get_caller_function
 import dibs
 
 
-default_mimic_train_data_file_path = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
-default_mimic_predict_data_file_path = dibs.config.TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH
+csv__train_data__file_path__TRAINING_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
+csv__train_data__file_path__PREDICT_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH
 default_pipeline_class = dibs.pipeline.PipelineMimic
 
 
@@ -26,9 +26,9 @@ def get_unique_pipe_name() -> str:
 
 def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
     p = default_pipeline_class(get_unique_pipe_name())
-    data_source_file_path = default_mimic_train_data_file_path
+    data_source_file_path = csv__train_data__file_path__TRAINING_DATA
     p = p.add_train_data_source(data_source_file_path)
-    p = p.add_predict_data_source(default_mimic_predict_data_file_path)
+    p = p.add_predict_data_source(csv__train_data__file_path__PREDICT_DATA)
 
     return p
 
@@ -41,7 +41,7 @@ class TestPipeline(TestCase):
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
         # Note: this function takes a while to run
         # Arrange
-        p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(default_mimic_train_data_file_path).build(True)
+        p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv__train_data__file_path__TRAINING_DATA).build(True)
 
         # Act
         p = p._scale_transform_train_data()
@@ -65,7 +65,7 @@ class TestPipeline(TestCase):
     def test__pipeline_adding_train_data_file_source__should____(self):
         """"""
         # Arrange
-        data_source_file_path = default_mimic_train_data_file_path
+        data_source_file_path = csv__train_data__file_path__TRAINING_DATA
         pipe = default_pipeline_class(get_unique_pipe_name())
         num_of_sources_before_addition: int = len(pipe.training_data_sources)
         num_of_sources_should_be_this_after_addition = num_of_sources_before_addition + 1
@@ -108,7 +108,7 @@ class TestPipeline(TestCase):
         num_sources_before_adding_any = len(p.training_data_sources)
 
         # Act
-        p = p.add_train_data_source(default_mimic_train_data_file_path)
+        p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
         num_sources_after_adding_sources = len(p.training_data_sources)
 
         is_equal = num_sources_before_adding_any + 1 == num_sources_after_adding_sources
@@ -124,7 +124,7 @@ class TestPipeline(TestCase):
     ### Removing predict data sources ###
     def test__remove_train_data_source__shouldRemoveSource__whenSourceIsPresent(self):
         # Arrange
-        csv_file_path__this_test = default_mimic_train_data_file_path
+        csv_file_path__this_test = csv__train_data__file_path__TRAINING_DATA
         p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
         p = p.add_train_data_source(csv_file_path__this_test)
         num_sources_before_remove = len(p.training_data_sources)
@@ -140,7 +140,7 @@ class TestPipeline(TestCase):
         # Arrange
         not_a_real_data_source = 'NotARealDataSource'
         p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
-        p = p.add_train_data_source(default_mimic_train_data_file_path)
+        p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
         expected_num_sources = len(p.training_data_sources)
         # Act
         p = p.remove_train_data_source(not_a_real_data_source)
@@ -630,8 +630,8 @@ Total TEST data rows: {test_rows}
         """
         # Arrange
         p = default_pipeline_class('asdfasdfdfs44444')
-        p = p.add_train_data_source(default_mimic_train_data_file_path)
-        original_number_of_data_rows = len(dibs.io.read_csv(default_mimic_train_data_file_path))
+        p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
+        original_number_of_data_rows = len(dibs.io.read_csv(csv__train_data__file_path__TRAINING_DATA))
 
         # Act
         p = p.build()
@@ -646,7 +646,7 @@ Total TEST data rows: {test_rows}
         """"""
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name())
-        data_source_file_path = default_mimic_train_data_file_path
+        data_source_file_path = csv__train_data__file_path__TRAINING_DATA
 
         # Act
         p = p.add_train_data_source(data_source_file_path)
@@ -674,7 +674,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
     def test__stub__pipeline_instantiate(self):
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name())
-        data_source_file_path = default_mimic_train_data_file_path
+        data_source_file_path = csv__train_data__file_path__TRAINING_DATA
         p = p.add_train_data_source(data_source_file_path)
 
         # Act
