@@ -11,22 +11,33 @@ csv__train_data__file_path__TRAINING_DATA = dibs.config.TEST_FILE__PipelineMimic
 csv__train_data__file_path__PREDICT_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 assert os.path.isfile(csv__train_data__file_path__TRAINING_DATA)
 
-pipeline_class_of_interest = dibs.pipeline.PipelineHowland
+default_pipeline_class = dibs.pipeline.PipelineHowland
 
 
 ########################################################################################################################
 
 def get_unique_pipe_name() -> str:
-    name = f'Pipeline__{dibs.logging_enhanced.get_caller_function()}__' \
-           f'{random.randint(0, 100_000_000)}__{dibs.config.runtime_timestr}'
+    name = f'Pipeline__{dibs.logging_enhanced.get_caller_function()}__{random.randint(0, 100_000_000)}__{dibs.config.runtime_timestr}'
     return name
+
+
+def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
+    p = default_pipeline_class(get_unique_pipe_name())
+    data_source_file_path = csv__train_data__file_path__TRAINING_DATA
+    p = p.add_train_data_source(data_source_file_path)
+    p = p.add_predict_data_source(csv__train_data__file_path__PREDICT_DATA)
+
+    return p
+
+
+########################################################################################################################
 
 
 class TestPipelineMimic(TestCase):
 
     def test__build__shouldRunFine__whenUsingDefaults(self):
         # Arrange
-        p = pipeline_class_of_interest(get_unique_pipe_name())
+        p = default_pipeline_class(get_unique_pipe_name())
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
         # Act
@@ -37,8 +48,8 @@ class TestPipelineMimic(TestCase):
 
     def test__build__shouldBuildFine__whenBhtsneIsSpecified(self):
         # Arrange
-        gmm_n_components, cv = 2, 3  # Set gmm clusters low so that it can still work with 10 rows of data
-        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
+        gmm_n_components, cv = 2, 2  # Set gmm clusters low so that it can still work with 10 rows of data
+        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
@@ -57,8 +68,8 @@ class TestPipelineMimic(TestCase):
 
     def test__build__shouldBuildFine__whenOpentsneIsSpecified(self):
         # Arrange
-        gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
+        gmm_n_components, cv = 2, 2  # Set gmm clusters low so that runtime isn't long
+        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
@@ -70,9 +81,10 @@ class TestPipelineMimic(TestCase):
         self.assertTrue(True)
 
     def test__build__shouldBuildFine__whenSklearnIsSpecified(self):
+        # TODO: high: research this test and resolve following error: ValueError: The number of classes has to be greater than one; got 1 class (CV)
         # Arrange
-        gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
+        gmm_n_components, cv = 2, 2  # Set gmm clusters low so that runtime isn't long
+        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
@@ -85,8 +97,8 @@ class TestPipelineMimic(TestCase):
 
     def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
         # Arrange
-        gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = pipeline_class_of_interest(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
+        gmm_n_components, cv = 2, 2  # Set gmm clusters low so that runtime isn't long
+        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
