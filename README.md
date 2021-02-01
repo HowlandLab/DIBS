@@ -9,7 +9,7 @@ but scoring between researchers can vary greatly due to differences in unavoidab
 *DIBS* aims to reduce the human-error element 
 from the equation and instead uses a data-centric approach to cluster similar 
 behaviours together and then standardize the behaviour recognition process. By having just one set 
-of "rules" (more on this later) that DIBS uses to recognize distinct behaviours, it redcues instances of 
+of "rules" (more on this later) that DIBS uses to recognize distinct behaviours, it reduces instances of 
 researcher error due to things like overlooked behaviours or split decisions on short-duration behaviours. 
 On top of all this, *DIBS* comes replete with a web app option that allows for
 non-technically savvy people to utilize the package without any prior programming knowledge.
