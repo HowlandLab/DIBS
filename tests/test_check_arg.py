@@ -31,7 +31,7 @@ class TestCheckArg(TestCase):
         except TypeError as te:
             raise te
 
-    def test__ensure_numpy_arrays_are_same_shape__ShouldErrorOut__whenArraysDifferentShapes(self):
+    def test__ensure_numpy_arrays_are_same_shape__ShouldProduceError__whenArraysDifferentShapes(self):
         # Arrange
         data1 = [[1, 2, 3], [1, 2, 3]]
         data2 = [[1, 2, 3, 4], [1, 2, 3, 4]]
@@ -44,7 +44,7 @@ class TestCheckArg(TestCase):
         # Act/Assert
         self.assertRaises(expected_error, func, arr1, arr2)
 
-    def test__ensure_numpy_arrays_are_same_shape__shouldErrorOut__whenOneInputIsNotAnArray(self):
+    def test__ensure_numpy_arrays_are_same_shape__shouldProduceError__whenOneInputIsNotAnArray(self):
         data1 = [[1, 2, 3], [1, 2, 3]]
         data2 = [[1, 2, 3, 4], [1, 2, 3, 4]]
         arr1 = np.array(data1)
