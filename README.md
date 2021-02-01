@@ -11,8 +11,8 @@ from the equation and instead uses a data-centric approach to cluster similar
 behaviours together and then standardize the behaviour recognition process. By having just one set 
 of "rules" (more on this later) that DIBS uses to recognize distinct behaviours, it reduces instances of 
 researcher error due to things like overlooked behaviours or split decisions on short-duration behaviours. 
-On top of all this, *DIBS* comes replete with a web app option that allows for
-non-technically savvy people to utilize the package without any prior programming knowledge.
+On top of all this, *DIBS* comes replete with a web app platform that allows for
+non-programmers to utilize the package without any prior programming knowledge.
 Just follow the package installation instructions, the usage guide, and enjoy!
 
 ## Installation & Setup
@@ -22,7 +22,7 @@ Just follow the package installation instructions, the usage guide, and enjoy!
 - Run the following command to automate creation of the environment: `conda env create -n dibs -f env_windows.yml`
 
 - Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
-- Copy and paste all of the commands from [CONDA_ENV_COMMANDS.txt](./CONDA_ENV_COMMANDS.txt) into your 
+- Copy and paste all commands from [CONDA_ENV_COMMANDS.txt](./CONDA_ENV_COMMANDS.txt) into your 
   command line one at a time to download all necessary packages
 
 
