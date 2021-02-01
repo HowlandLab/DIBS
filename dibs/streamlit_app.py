@@ -51,6 +51,7 @@ pipeline_options = {
     'PipelinePrime': pipeline.PipelinePrime,
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
+    'PipelineKitchenSink: a debug pipeline for too many features': pipeline.PipelineKitchenSink,
 }
 valid_layouts = {'centered', 'wide'}
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
