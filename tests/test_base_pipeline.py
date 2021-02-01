@@ -1,5 +1,5 @@
 """
-Testing the BasePipeline object
+Testing the BasePipeline class
 
 https://docs.python.org/3/library/unittest.html
 """
@@ -17,6 +17,8 @@ default_mimic_predict_data_file_path = dibs.config.TEST_FILE__PipelineMimic__CSV
 default_pipeline_class = dibs.pipeline.PipelineMimic
 
 
+########################################################################################################################
+
 def get_unique_pipe_name() -> str:
     name = f'Pipeline__{get_caller_function()}__{random.randint(0, 100_000_000)}__{dibs.config.runtime_timestr}'
     return name
@@ -30,6 +32,8 @@ def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
 
     return p
 
+
+########################################################################################################################
 
 class TestPipeline(TestCase):
 
@@ -170,15 +174,17 @@ class TestPipeline(TestCase):
         # Assert
         self.assertEqual(input_label, actual_label)
 
+    @skip  # TODO: fix test for specificity
     def test__updatingAssignment__shouldSaveLabel__whenSavedAndRereadIn(self):
         # Arrange
+        # out_path =
         name = get_unique_pipe_name()
         p_write = default_pipeline_class(name)
         assignment, input_label = 12, 'Behaviour12'
 
         # Act
         p_write = p_write.set_label(assignment, input_label)
-        p_write.save()
+        p_write.save_to_folder()
 
         p_read = dibs.read_pipeline(
             os.path.join(
