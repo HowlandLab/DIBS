@@ -848,8 +848,8 @@ class BasePipeline(object):
         For any kwarg that does not take it's value from the it's own Pipeline config., then that
         variable
         """
-        df = self.df_features_train_scaled.loc[~self.df_features_train_scaled[list(self.all_features)].isnull().any(axis=1)]
-        df = df.loc[~df[self.test_col_name]]
+        df = self.df_features_train_scaled
+        df = df.loc[(~df[self.test_col_name]) & (~df[list(self.all_features)].isnull().any(axis=1))]
         if self.classifier_type == 'SVM':
             clf = SVC(
                 C=self.svm_c,
