@@ -1,5 +1,5 @@
 """
-Create tests specifically for the PipelineMimic object
+Create tests specifically for the PipelineMimic class
 """
 from unittest import TestCase, skip
 import os
@@ -10,6 +10,8 @@ import dibs
 csv__train_data__file_path__TRAINING_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 csv__train_data__file_path__PREDICT_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 assert os.path.isfile(csv__train_data__file_path__TRAINING_DATA)
+
+pipeline_class_of_interest = dibs.pipeline.PipelineMimic
 
 
 def get_unique_pipe_name() -> str:
@@ -22,7 +24,7 @@ class TestPipelineMimic(TestCase):
 
     def test__build__shouldRunFine__whenUsingDefaults(self):
         # Arrange
-        p = dibs.pipeline.PipelineMimic(get_unique_pipe_name())
+        p = pipeline_class_of_interest(get_unique_pipe_name())
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
         # Act
@@ -34,7 +36,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenBhtsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that it can still work with 10 rows of data
-        p = dibs.pipeline.PipelineMimic(get_unique_pipe_name(),
+        p = pipeline_class_of_interest(get_unique_pipe_name(),
                                         cross_validation_k=cv,
                                         gmm_n_components=gmm_n_components,
                                         # tsne_n_jobs=1,
@@ -59,7 +61,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenOpentsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = dibs.pipeline.PipelineMimic(get_unique_pipe_name(),
+        p = pipeline_class_of_interest(get_unique_pipe_name(),
                                         cross_validation_k=cv,
                                         gmm_n_components=gmm_n_components,
                                         )
@@ -77,7 +79,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenSklearnIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = dibs.pipeline.PipelineMimic(get_unique_pipe_name(),
+        p = pipeline_class_of_interest(get_unique_pipe_name(),
                                         cross_validation_k=cv,
                                         gmm_n_components=gmm_n_components,
                                         )
@@ -95,7 +97,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = dibs.pipeline.PipelineMimic(f'TestPipeline_{random.randint(0, 100_000_000)}',
+        p = pipeline_class_of_interest(f'TestPipeline_{random.randint(0, 100_000_000)}',
                                         cross_validation_k=cv,
                                         gmm_n_components=gmm_n_components,
                                         )
