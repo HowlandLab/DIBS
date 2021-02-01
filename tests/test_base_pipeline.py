@@ -382,6 +382,18 @@ class TestPipeline(TestCase):
     Actual   {property_of_note} value: {actual_value}"""
         self.assertEqual(expected_value, actual_value, err)
 
+    def test__gmm_recolour__should(self):
+        # Arrange
+        p = get_unique_pipeline_loaded_with_data()
+        old_gmm_n_components = 11
+        p = p.set_params(gmm_n_components=old_gmm_n_components).build()
+        expected_gmm_n_components = new_gmm_n_components = 7
+        # Act
+        p = p.recolor_gmm_and_retrain_classifier(new_gmm_n_components).build()
+        actual_gmm_n_components = p.gmm_n_components
+        # Assert
+        self.assertEqual(expected_gmm_n_components, actual_gmm_n_components)
+
     # TSNE
     def test__set_params__tsne_perplexity(self):
         property_of_note = 'tsne_perplexity'
