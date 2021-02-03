@@ -83,7 +83,7 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenSklearnIsSpecified(self):
         # TODO: high: research this test and resolve following error: ValueError: The number of classes has to be greater than one; got 1 class (CV)
         # Arrange
-        gmm_n_components, cv = 2, 2  # Set gmm clusters low so that runtime isn't long
+        gmm_n_components, cv = 3, 2  # Set gmm clusters low so that runtime isn't long
         p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
