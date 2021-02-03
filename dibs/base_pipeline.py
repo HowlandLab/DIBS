@@ -42,11 +42,12 @@ from dibs import check_arg, config, io, logging_enhanced, statistics, videoproce
 logger = config.initialize_logger(__name__)
 
 
-# Base pipeline objects that outline the API
-class BasePipeline(object):
-    """BasePipeline
+# Base pipeline objects that outline the Pipeline API
 
-    It enumerates the basic functions by which each pipeline should adhere.
+class BasePipeline(object):
+    """
+    BasePipeline:
+    This class enumerates the basic functions by which each pipeline should adhere.
 
 
     Parameters
@@ -57,9 +58,10 @@ class BasePipeline(object):
 
     kwargs
         Kwargs default to pulling in data from config.ini file unless overtly specified to override. See below.
+        Nearly every single parameter property is settable by the user with set_params().
     ----------
 
-    tsne_source : {'SKLEARN', 'BHTSNE', 'OPENTSNE}
+    tsne_source : { 'SKLEARN', 'BHTSNE', 'OPENTSNE' }
         Specify a TSNE implementation to use for dimensionality reduction.
         Note: the SKLEARN implementation seems to be quite slow despite it's widespread use. If
         time is a limiting factor, try using an alternative.
