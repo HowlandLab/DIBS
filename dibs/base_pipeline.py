@@ -575,9 +575,6 @@ class BasePipeline(object):
                 reason, feature cols kept being returned as Object type and sklearn TSNE handled
                 it just fine but bhtsne did not).
         """
-        # TODO: MED: these cols really should be saved in
-        #  engineer_7_features_dataframe_NOMISSINGDATA(),
-        #  but that func can be amended later due to time constraints
 
         # Reconcile args
         if isinstance(list_dfs_of_raw_data, pd.DataFrame):
@@ -738,7 +735,7 @@ class BasePipeline(object):
         if self.tsne_implementation == 'SKLEARN':
             arr_result = TSNE_sklearn(
                 perplexity=self.tsne_perplexity,
-                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: encapsulate this later                     !!!
+                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: low: encapsulate this later                     !!!
                 n_components=self.tsne_n_components,
                 random_state=self.random_state,
                 n_iter=self.tsne_n_iter,
