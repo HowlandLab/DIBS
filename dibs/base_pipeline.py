@@ -759,7 +759,7 @@ class BasePipeline(object):
             tsne = OpenTsneObj(
                 n_components=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,
-                learning_rate='auto',  # TODO: med: review
+                learning_rate=self.tsne_learning_rate,
                 early_exaggeration=self.tsne_early_exaggeration,
                 early_exaggeration_iter=250,  # TODO: med: review
                 n_iter=self.tsne_n_iter,
