@@ -44,7 +44,6 @@ start_new_project_option_text, load_existing_project_option_text = 'Create new',
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
 text_half_dibs_data_pipeline = 'DEBUG OPT: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
 pipeline_options = {
-
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
     'PipelineHowland: a pipeline aimed at generalized behaviour recognition': pipeline.PipelineHowland,
@@ -661,7 +660,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('### Advanced Parameters')
         # TODO: HIGH IMPORTANCE! The advanced parameters should reflect the classifier type being used (SVM vs RF vs something new in the future)
         st.markdown('*Toggle advanced parameters at your own risk. Many variables require special knowledge of ML parameters*')
-        button_see_advanced_options = st.button('Toggle: advanced parameters')
+        button_see_advanced_options = st.button('Toggle: show advanced parameters')
         if button_see_advanced_options:
             file_session[key_button_see_advanced_options] = not file_session[key_button_see_advanced_options]
         if file_session[key_button_see_advanced_options]:
@@ -669,8 +668,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             st.markdown('### Do not change things here unless you know what you are doing!')
             st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is still open when clicking the "Rebuild" button.*')
             ### See advanced options for model ###
-            # Choose model type
-            select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
+
             # TSNE
             st.markdown('### Advanced TSNE Parameters')
             if file_session[checkbox_show_extra_text]:
@@ -684,46 +682,51 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
             # Extra info: learning rate
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: learning rate')
+                st.info('TODO: learning rate')  # TODO: low
             input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', value=p.tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
             # Extra info: early exaggeration
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: early exaggeration')
+                st.info('TODO: early exaggeration')  # TODO: low
             input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
             # Extra info: number of iterations
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: number of iterations')
+                st.info('TODO: number of iterations')  # TODO: low
             input_tsne_n_components = st.number_input(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
             # Extra info: number of components (dimensions)
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: number of components (dimensions)')
-            # TODO: n_jobs: n_jobs=-1: all cores being used, set to -2 for all cores but one.
+                st.info('TODO: number of components (dimensions)')  # TODO: low
 
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
             # Extra info: reg covar
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: reg covar')
+                st.info('TODO: reg covar')  # TODO: low
             input_gmm_tol = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
             # Extra info: GMM tolerance
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: GMM tolerance')
+                st.info('TODO: GMM tolerance')  # TODO: low
             input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
             # Extra info: GMM max iterations
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: GMM max iterations')
+                st.info('TODO: GMM max iterations')  # TODO: low
             input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, min_value=1, step=1, format="%i")
             # Extra info: GMM number of initializations
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: GMM number of initializations')
+                st.info('TODO: GMM number of initializations')  # TODO: low
 
+            st.markdown(f'### Advanced Classifier Parameters')
+            select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
             if select_classifier == 'SVM':
-                st.markdown('### Advanced SVM Parameters')
                 ### SVM ###
                 input_svm_c = st.number_input(f'SVM C', value=p.svm_c, min_value=1e-10, format='%.2f')
+                if file_session[checkbox_show_extra_text]:
+                    st.info('TODO: explain SVM "C" parameter')  # TODO: low
                 input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, min_value=1e-10, format='%.2f')
+                if file_session[checkbox_show_extra_text]:
+                    st.info('TODO: explain SVM "gamma" parameter')  # TODO: low
             elif select_classifier == 'RANDOMFOREST':
                 select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p.rf_n_estimators, min_value=1, max_value=1_000, format='%i')
+                st.info('TODO: explain RF # of trees and roughly optimal #')
         ### End of Show Advanced Params Section
 
         st.markdown('')
@@ -732,7 +735,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown(f'*Note: changing the above parameters without rebuilding the model will have no effect.*')
 
         # Save above info & rebuild model
-        st.markdown('## Rebuild model with new parameters above?')
+        # st.markdown('## Rebuild model with new parameters above?')
         button_rebuild_model = st.button('I want to rebuild model with new parameters', key_button_rebuild_model)
         if button_rebuild_model: file_session[key_button_rebuild_model] = not file_session[key_button_rebuild_model]
         if file_session[key_button_rebuild_model]:  # Rebuild model button was clicked
@@ -794,7 +797,6 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     ### End of rebuild model section
 
     ### Menu button: re-colour clusters ###
-
 
     ### End of menu for re-colour clusters ###
 
