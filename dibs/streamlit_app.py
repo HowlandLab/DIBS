@@ -21,18 +21,18 @@ import streamlit as st
 import sys
 import time
 import traceback
-
-
-from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
-
-matplotlib_axes_logger.setLevel('ERROR')
-
-logger = config.initialize_logger(__file__)
-
 # import easygui
+# import plotly
 # import tkinter as tk
 # from tkinter import filedialog
 # from mttkinter import mtTkinter as tk
+
+from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
+
+
+# File settings
+logger = config.initialize_logger(__name__)
+matplotlib_axes_logger.setLevel('ERROR')
 
 
 ##### Instantiate names for buttons, options that can be changed on the fly but logic below stays the same #####
@@ -42,12 +42,15 @@ valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
+text_half_dibs_data_pipeline = 'DEBUG OPT: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
 pipeline_options = {
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
+    'PipelineHowland: a pipeline aimed at generalized behaviour recognition': pipeline.PipelineHowland,
     'PipelinePrime': pipeline.PipelinePrime,
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
     'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
+    'PipelineKitchenSink: a debug pipeline for too many features': pipeline.PipelineKitchenSink,
 }
 valid_layouts = {'centered', 'wide'}
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
@@ -70,6 +73,7 @@ key_button_add_train_data_source = 'key_button_add_train_data_source'
 key_button_add_predict_data_source = 'key_button_add_predict_data_source'
 key_button_review_assignments = 'key_button_update_assignments'
 key_button_view_assignments_distribution = 'key_button_view_assignments_distribution'
+key_button_view_assignments_clusters = 'key_button_view_assignments_clusters'
 key_button_save_assignment = 'key_button_save_assignment'
 key_button_show_example_videos_options = 'key_button_show_example_videos_options'
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
@@ -98,15 +102,17 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_button_update_description: False,
     key_button_review_assignments: False,
     key_button_view_assignments_distribution: False,
+    key_button_view_assignments_clusters: False,
     key_button_save_assignment: False,
     key_button_show_example_videos_options: False,
     key_button_create_new_example_videos: False,
     key_button_menu_label_entire_video: False,
 }
 # TODO: propagate file path thru session var?
-
+file_session = {}
 
 ##### Page layout #####
+
 
 def start_app(**kwargs):
     """
@@ -117,7 +123,7 @@ def start_app(**kwargs):
         pipeline_path : str
         A path to an existing pipeline file which will be loaded by default
         on page load. If this kwarg is not specified, the config.ini
-        value will be checked (via bsoid.config), and that file path, if
+        value will be checked (via dibs.config), and that file path, if
         present, will be used. If that config.ini key/value pair is not in
         use, then no default path will be specified and it will be entirely
         up to the user to fill out.
@@ -126,12 +132,13 @@ def start_app(**kwargs):
     ### Set up session variables
     global file_session
     file_session = streamlit_session_state.get(**streamlit_persistence_variables)
-    matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows
+    # matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows. Dev note: Streamlit does not play nice with multithreaded instances like the Tkinter window pop-up. Sometimes crashes Streamlit.
+    matplotlib.use('Agg')  # For allowing graphs to pop out as separate windows
     file_session[key_iteration_page_refresh_count] = file_session[key_iteration_page_refresh_count] + 1
 
     # Set page config
     st.set_page_config(page_title=webpage_head_title,
-                       page_icon=':shark:',
+                       page_icon=':shark:',  # TODO: settle on an emoji later
                        layout=file_session[key_selected_layout],
                        initial_sidebar_state='expanded')
 
@@ -143,12 +150,12 @@ def start_app(**kwargs):
         else:
             pipeline_file_path = file_session[key_pipeline_path]
 
-    # Show app variables in sidebar
+    ### SIDEBAR ###
     st.sidebar.markdown(f'## App Settings')
     # st.sidebar.markdown(f'----------------')
     # st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
     # st.sidebar.markdown('------')
-    is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=True)  # TODO: low: remove value=True after debugging is done.
+    is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=False)  # TODO: low: remove value=True after debugging is done.
     file_session[checkbox_show_extra_text] = is_checked
 
     selected_layout = st.sidebar.selectbox('Select a page layout', options=[file_session[key_selected_layout].title()]+[x.title() for x in ["Wide", "Centered"] if x != file_session[key_selected_layout].title()])
@@ -156,7 +163,8 @@ def start_app(**kwargs):
         file_session[key_selected_layout] = selected_layout.lower()
         st.experimental_rerun()
 
-    # Begin app
+    ### MAIN ###
+
     home(pipeline_file_path)
 
 
@@ -210,9 +218,6 @@ def home(pipeline_file_path):
             st.markdown(f'## Create new project pipeline')
             st.markdown('')
 
-            radio_select_create_method = st.radio('Choose if you would like a pipeline with preloaded data.', [text_bare_pipeline, text_dibs_data_pipeline])
-            st.markdown('*Note: data can be added and removed at any time in the project, so this decision is not final*')
-            st.markdown('')
             select_pipe_type = st.selectbox('Select a pipeline implementation', options=[''] + list(pipeline_options.keys()))
             st.markdown('')
             if select_pipe_type:  # After selecting a Pipeline implementation...
@@ -222,19 +227,19 @@ def home(pipeline_file_path):
                 if file_session[checkbox_show_extra_text]:
                     pipe_info = pipeline_class.__doc__ if str(pipeline_class.__doc__).strip() else f'No documentation detected for {pipeline_class.__name__}'
                     st.info(pipe_info)
+                st.markdown('')
                 # Input parameters for new Pipeline
-                text_input_new_project_name = st.text_input(
-                    'Enter a name for your project pipeline. Please only use letters, numbers, and underscores.')
-                input_path_to_pipeline_dir = st.text_input(
-                    'Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.',
-                    value=config.OUTPUT_PATH)
+                radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
+                st.markdown('*Note: this decision is not final. Data can be added and removed at any time in a project.*')
+                # st.markdown('')
+                text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
+                input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.OUTPUT_PATH)
                 button_project_info_submitted_is_clicked = st.button('Submit', key='SubmitNewProjectInfo')
 
                 if button_project_info_submitted_is_clicked:
                     # Error checking first
                     if check_arg.has_invalid_chars_in_name_for_a_file(text_input_new_project_name):
-                        char_err = ValueError(f'Project name has invalid characters present. '
-                                              f'Re-submit project pipeline name. {text_input_new_project_name}')
+                        char_err = ValueError(f'Project name has invalid characters present. Re-submit project pipeline name. {text_input_new_project_name}')
                         logger.error(char_err)
                         st.error(char_err)
                         st.stop()
@@ -246,15 +251,19 @@ def home(pipeline_file_path):
 
                     # If OK: create default pipeline, save, continue
                     if select_pipe_type in pipeline_options:
-                        p = pipeline_class(text_input_new_project_name).save(input_path_to_pipeline_dir)
+                        p = pipeline_class(text_input_new_project_name).save_to_folder(input_path_to_pipeline_dir)
                         if radio_select_create_method == text_dibs_data_pipeline:
                             with st.spinner('Instantiating pipeline with data now...'):
                                 p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
                                 p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
+                        elif radio_select_create_method == text_half_dibs_data_pipeline:
+                            with st.spinner('Instantiating pipeline with data now...'):
+                                all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
+                                half_files = all_files[:len(all_files)//2]
+                                p = p.add_train_data_source(*half_files)
+                                p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
                         p = p.save_to_folder(input_path_to_pipeline_dir)
-                        pipeline_file_path = os.path.join(input_path_to_pipeline_dir,
-                                                          pipeline.generate_pipeline_filename(
-                                                              text_input_new_project_name))
+                        pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename( text_input_new_project_name))
                         file_session[key_pipeline_path] = pipeline_file_path
                         st.balloons()
                         st.success(f"""
@@ -306,7 +315,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
             if input_text_path_to_pipeline_file:
                 # Error checking first
                 if not os.path.isfile(input_text_path_to_pipeline_file) or not input_text_path_to_pipeline_file.endswith('.pipeline'):
-                    err = f'Path to valid BSOID pipeline file was not found. User submitted path: {input_text_path_to_pipeline_file}'
+                    err = f'DIBS Pipeline file was not found. User submitted path: {input_text_path_to_pipeline_file}'
                     logger.error(err)
                     st.error(FileNotFoundError(err))
                     st.stop()
@@ -342,10 +351,10 @@ Success! Your new project pipeline has been saved to disk to the following path:
         show_pipeline_info(p, pipeline_file_path)
 
 
-def show_pipeline_info(p, pipeline_path, **kwargs):
+def show_pipeline_info(p, pipeline_path):
 
     """  """
-    logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
+    # logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
 
     ### SIDEBAR ###
 
@@ -354,13 +363,13 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
     st.markdown(f'- Name: **{p.name}**')
     st.markdown(f'- Description: **{p.description}**')
     st.markdown(f'- File location: **{pipeline_path}**')
-    st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
-    st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
+    # st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
+    # st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
     st.markdown(f'- Is the model built: **{p.is_built}**')
+    st.markdown(f'- Build time: ' + (f'{p.seconds_to_build} seconds' if p.is_built else f'N/A'))  # TODO: low: remove this line after debugging
 
     ### Menu button: show more info
-    button_show_advanced_pipeline_information = st.button(
-        f'Toggle advanced info', key=key_button_show_adv_pipeline_information)
+    button_show_advanced_pipeline_information = st.button(f'Toggle advanced info', key=key_button_show_adv_pipeline_information)
     if button_show_advanced_pipeline_information:
         file_session[key_button_show_adv_pipeline_information] = not file_session[key_button_show_adv_pipeline_information]
     if file_session[key_button_show_adv_pipeline_information]:
@@ -382,18 +391,19 @@ def show_pipeline_info(p, pipeline_path, **kwargs):
         st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
 
         cross_val_decimals_round = 2
-        cross_val_score_text = f'- Median cross validation score: ' \
-                               f'**{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
+        cross_val_score_text = f'- Median cross validation score: **{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + \
+                               f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
         # else:
         #     cross_val_score_text = f'- **[Cross validation score not available]**'
         st.markdown(f'{cross_val_score_text}')
+        st.markdown(f'- Accuracy (with test % of {p.test_train_split_pct*100.}%): **{p.accuracy_score*100.}%**')
         st.markdown(f'Model Feature Names:')
         for feat in p.all_features:
             st.markdown(f'- - {feat}')
 
         if p.is_built:
             st.markdown('')
-            st.markdown(f'- Seconds to build model: {p.seconds_to_build}')
+            st.markdown(f'- Build time: {p.seconds_to_build} seconds')
 
     ###
 
@@ -411,13 +421,12 @@ We recommend that you rebuild the model to avoid future problems. """.strip())
     # # TODO: for below commented-out: add a CONFIRM button to confirm model re-build, then re-instate
 
     st.markdown('------------------------------------------------------------------------------------------------')
-    logger.debug(f'{logging_enhanced.get_current_function()}(): ending. pipeline_path = {pipeline_path}')
+    # logger.debug(f'{logging_enhanced.get_current_function()}(): ending. pipeline_path = {pipeline_path}')
     return show_actions(p, pipeline_path)
 
 
 def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     """ Show basic actions that we can perform on the model """
-    logger.debug(f'Starting show_actions(). pipeline_file_path = {pipeline_file_path}')
     ### SIDEBAR ###
 
     ### MAIN PAGE ###
@@ -436,7 +445,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     if file_session[key_button_update_description]:
         text_input_change_desc = st.text_input(f'(WORK IN PROGRESS) Change project description here', value=p.description)
         if text_input_change_desc != p.description:
-            p.set_description(text_input_change_desc).save(os.path.dirname(pipeline_file_path))
+            p.set_description(text_input_change_desc).save_to_folder(os.path.dirname(pipeline_file_path))
             file_session[key_button_update_description] = False
             wait_seconds = file_session[default_n_seconds_sleep]
             st.success(f'Pipeline description has been changed!')
@@ -470,7 +479,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
             # root = tk.Tk()
             # root.withdraw()
-            # file_paths: Tuple[str] = tk.filedialog.askopenfilenames(initialdir=config.BSOID_BASE_PROJECT_PATH)
+            # file_paths: Tuple[str] = tk.filedialog.askopenfilenames(initialdir=config.DIBS_BASE_PROJECT_PATH)
             # root.destroy()
 
             # uf = st.file_uploader('upload file')
@@ -499,7 +508,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     st.error(err)
                 # Add to pipeline, save
                 else:
-                    p = p.add_train_data_source(input_new_data_source).save(os.path.dirname(pipeline_file_path))
+                    p = p.add_train_data_source(input_new_data_source).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_add_train_data_source] = False  # Reset menu to collapsed state
                     file_session[key_button_add_new_data] = False
                     n = file_session[default_n_seconds_sleep]
@@ -530,7 +539,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 #     st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. '
                 #                                f'No data was added to pipeline prediction data set.'))
                 else:
-                    p = p.add_predict_data_source(input_new_predict_data_source).save(os.path.dirname(pipeline_file_path))
+                    p = p.add_predict_data_source(input_new_predict_data_source).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
                     file_session[key_button_add_new_data] = False  # Reset add menu to collapsed state
                     n_wait_secs = file_session[default_n_seconds_sleep]
@@ -545,7 +554,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     ### End of menu for adding data ###
 
     ### Menu button: removing data ###
-    button_remove_data = st.button('Toggle: remove data from model', key_button_menu_remove_data)
+    button_remove_data = st.button('Toggle: Remove data from model', key_button_menu_remove_data)
     if button_remove_data:
         file_session[key_button_menu_remove_data] = not file_session[key_button_menu_remove_data]
     if file_session[key_button_menu_remove_data]:
@@ -553,12 +562,12 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if select_train_or_predict_remove == training_data_option:
             select_train_data_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.training_data_sources)
             if select_train_data_to_remove:
-                st.markdown(f'Are you sure you want to remove the following data from the training data set: {select_train_data_to_remove}')
-                st.markdown(f'NOTE: upon removing the data, the model will need to be rebuilt.')
+                st.info(f'Are you sure you want to remove the following data from the training data set: {select_train_data_to_remove} ?')
+                st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
                 confirm = st.button('Confirm')
                 if confirm:
                     with st.spinner(f'Removing {select_train_data_to_remove} from training data set...'):
-                        p = p.remove_train_data_source(select_train_data_to_remove).save(os.path.dirname(pipeline_file_path))
+                        p = p.remove_train_data_source(select_train_data_to_remove).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_menu_remove_data] = False
                     n = file_session[default_n_seconds_sleep]
                     st.balloons()
@@ -571,11 +580,12 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         if select_train_or_predict_remove == predict_data_option:
             select_predict_option_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.predict_data_sources)
             if select_predict_option_to_remove:
-                st.markdown(f'Are you sure you want to remove the following data from the predicted/analyzed data set: {select_predict_option_to_remove}')
+                st.info(f'Are you sure you want to remove the following data from the predicted/analyzed data set: {select_predict_option_to_remove}')
+                st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
                 confirm = st.button('Confirm')
                 if confirm:
                     with st.spinner(f'Removing {select_predict_option_to_remove} from predict data set'):
-                        p = p.remove_predict_data_source(select_predict_option_to_remove).save(os.path.dirname(pipeline_file_path))
+                        p = p.remove_predict_data_source(select_predict_option_to_remove).save_to_folder(os.path.dirname(pipeline_file_path))
                     file_session[key_button_menu_remove_data] = False
                     st.balloons()
                     st.success(f'{select_predict_option_to_remove} data was successfully removed!')
@@ -613,7 +623,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         # st.markdown('---')
 
         st.markdown('### Gaussian Mixture Model Parameters')
-        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=10, min_value=2, max_value=40, step=1)
+        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=p.gmm_n_components, min_value=2, max_value=40, step=1)
         st.markdown(f'_You have currently selected __{slider_gmm_n_components}__ clusters_')
 
         # Extra info: GMM components
@@ -650,16 +660,15 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('### Advanced Parameters')
         # TODO: HIGH IMPORTANCE! The advanced parameters should reflect the classifier type being used (SVM vs RF vs something new in the future)
         st.markdown('*Toggle advanced parameters at your own risk. Many variables require special knowledge of ML parameters*')
-        button_see_advanced_options = st.button('Toggle: advanced parameters')
+        button_see_advanced_options = st.button('Toggle: show advanced parameters')
         if button_see_advanced_options:
             file_session[key_button_see_advanced_options] = not file_session[key_button_see_advanced_options]
         if file_session[key_button_see_advanced_options]:
-            st.markdown('## Advanced model options. ')
+            # st.markdown('### Advanced model options. ')
             st.markdown('### Do not change things here unless you know what you are doing!')
-            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is open when clicking the "Rebuild" button.*')
+            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is still open when clicking the "Rebuild" button.*')
             ### See advanced options for model ###
-            # Choose model type
-            select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
+
             # TSNE
             st.markdown('### Advanced TSNE Parameters')
             if file_session[checkbox_show_extra_text]:
@@ -670,49 +679,54 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             # Extra info: tsne-perplexity
             if file_session[checkbox_show_extra_text]:
                 st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
-            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01, max_value=200.)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
+            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
             # Extra info: learning rate
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: learning rate')
-            input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', min_value=0., max_value=100., value=p.tsne_early_exaggeration, step=0.1, format='%.2f')
+                st.info('TODO: learning rate')  # TODO: low
+            input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', value=p.tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
             # Extra info: early exaggeration
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: early exaggeration')
+                st.info('TODO: early exaggeration')  # TODO: low
             input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
             # Extra info: number of iterations
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: number of iterations')
-            input_tsne_n_components = st.slider(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=1, max_value=10, step=1, format='%i')
+                st.info('TODO: number of iterations')  # TODO: low
+            input_tsne_n_components = st.number_input(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
             # Extra info: number of components (dimensions)
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: number of components (dimensions)')
-            # TODO: n_jobs: n_jobs=-1: all cores being used, set to -2 for all cores but one.
+                st.info('TODO: number of components (dimensions)')  # TODO: low
 
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
             # Extra info: reg covar
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: reg covar')
+                st.info('TODO: reg covar')  # TODO: low
             input_gmm_tol = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
             # Extra info: GMM tolerance
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: GMM tolerance')
+                st.info('TODO: GMM tolerance')  # TODO: low
             input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
             # Extra info: GMM max iterations
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: GMM max iterations')
+                st.info('TODO: GMM max iterations')  # TODO: low
             input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, min_value=1, step=1, format="%i")
             # Extra info: GMM number of initializations
             if file_session[checkbox_show_extra_text]:
-                st.info('TODO: GMM number of initializations')
+                st.info('TODO: GMM number of initializations')  # TODO: low
 
+            st.markdown(f'### Advanced Classifier Parameters')
+            select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
             if select_classifier == 'SVM':
-                st.markdown('### Advanced SVM Parameters')
                 ### SVM ###
                 input_svm_c = st.number_input(f'SVM C', value=p.svm_c, min_value=1e-10, format='%.2f')
+                if file_session[checkbox_show_extra_text]:
+                    st.info('TODO: explain SVM "C" parameter')  # TODO: low
                 input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, min_value=1e-10, format='%.2f')
+                if file_session[checkbox_show_extra_text]:
+                    st.info('TODO: explain SVM "gamma" parameter')  # TODO: low
             elif select_classifier == 'RANDOMFOREST':
                 select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p.rf_n_estimators, min_value=1, max_value=1_000, format='%i')
+                st.info('TODO: explain RF # of trees and roughly optimal #')
         ### End of Show Advanced Params Section
 
         st.markdown('')
@@ -721,7 +735,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown(f'*Note: changing the above parameters without rebuilding the model will have no effect.*')
 
         # Save above info & rebuild model
-        st.markdown('## Rebuild model with new parameters above?')
+        # st.markdown('## Rebuild model with new parameters above?')
         button_rebuild_model = st.button('I want to rebuild model with new parameters', key_button_rebuild_model)
         if button_rebuild_model: file_session[key_button_rebuild_model] = not file_session[key_button_rebuild_model]
         if file_session[key_button_rebuild_model]:  # Rebuild model button was clicked
@@ -765,7 +779,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                         if not os.path.isdir(os.path.dirname(pipeline_file_path)):
                             st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
                             st.stop()
-                        p = p.build().save(os.path.dirname(pipeline_file_path))
+                        p = p.build().save_to_folder(os.path.dirname(pipeline_file_path))
                         file_session[key_button_rebuild_model_confirmation] = False
                     st.balloons()
                     file_session[key_button_see_rebuild_options] = False
@@ -781,6 +795,10 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                     st.stop()
 
     ### End of rebuild model section
+
+    ### Menu button: re-colour clusters ###
+
+    ### End of menu for re-colour clusters ###
 
     st.markdown('--------------------------------------------------------------------------------------------------')
 
@@ -833,13 +851,26 @@ def see_model_diagnostics(p, pipeline_file_path):
     ###
     # View 3d Plot
     st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
-    gmm_button = st.button('Pop out window of cluster/assignment distribution')  # TODO: low: phrase this button better?
+    gmm_button = st.button('Toggle: graph of cluster/assignment distribution')  # TODO: low: phrase this button better?
     if gmm_button:
+        file_session[key_button_view_assignments_clusters] = not file_session[key_button_view_assignments_clusters]
+    if file_session[key_button_view_assignments_clusters]:
         if p.is_built:
-            try:
-                p.plot_assignments_in_3d(show_now=True)
-            except ValueError:
-                st.error('Cannot plot cluster distribution since the model is not currently built.')
+            # if p.tsne_n_components == 2:
+            azim, elevation = 15, 110
+            if p.tsne_n_components == 3:
+                azim = st.slider('azimuth slider', value=azim, min_value=-90, max_value=90)
+                elevation = st.slider('elevation slider', value=elevation, min_value=1, max_value=180)
+            try:  # Debugging try/catch. Remove when both 3-d and 2-d graphs show and don't crash the app.
+                # p.plot_assignments_in_3d(show_now=True)
+                fig, ax = p.plot_clusters_by_assignments(show_now=False, azim_elev=(azim, elevation))
+                # st.graphviz_chart(fig)
+                # x = plotly.tools.mpl_to_plotly(fig)
+                # st.plotly_chart(x)
+                st.write(fig)
+                pass
+            except ValueError as ve:
+                st.error(f'Cannot plot cluster distribution since the model is not currently built. ({repr(ve)}')
         else:
             st.info('A 3d plot of the cluster distributions could not be created because '
                     'the model is not built. ')
@@ -975,7 +1006,7 @@ def review_behaviours(p, pipeline_file_path):
                     if not os.path.isdir(os.path.dirname(pipeline_file_path)):
                         st.error(f'ERROR FOUND: The following path was not detected to be a directory: {os.path.isdir(os.path.dirname(pipeline_file_path))}')
                     # assert os.path.isdir(os.path.dirname(pipeline_file_path))
-                    p = p.set_label(assignment_a, text_input_new_label).save(os.path.dirname(pipeline_file_path))
+                    p = p.set_label(assignment_a, text_input_new_label).save_to_folder(os.path.dirname(pipeline_file_path))
 
     ### End section: review labels for behaviours ###
 
@@ -986,7 +1017,7 @@ def review_behaviours(p, pipeline_file_path):
     return results_section(p, pipeline_file_path)
 
 
-def results_section(p, pipeline_file_path, **kwargs):
+def results_section(p, pipeline_file_path):
     if not os.path.isfile(pipeline_file_path):
         st.error(f'An unexpected error occurred. Your pipeline file path was lost along the way. '
                  f'Currently, your pipeline file path reads as: "{pipeline_file_path}"')
@@ -1113,9 +1144,8 @@ def example_of_value_saving():
 if __name__ == '__main__':
     # Note: this import only necessary when running streamlit onto this file specifically rather than
     #   calling `streamlit run main.py streamlit`
-    BSOID_project_path = os.path.dirname(os.path.dirname(__file__))
-    if BSOID_project_path not in sys.path:
-        sys.path.insert(0, BSOID_project_path)
+    DIBS_project_path = os.path.dirname(os.path.dirname(__file__))
+    if DIBS_project_path not in sys.path:
+        sys.path.insert(0, DIBS_project_path)
     # home()
     example_of_value_saving()
-

@@ -31,7 +31,7 @@ class TestCheckArg(TestCase):
         except TypeError as te:
             raise te
 
-    def test__ensure_numpy_arrays_are_same_shape__ShouldErrorOut__whenArraysDifferentShapes(self):
+    def test__ensure_numpy_arrays_are_same_shape__ShouldProduceError__whenArraysDifferentShapes(self):
         # Arrange
         data1 = [[1, 2, 3], [1, 2, 3]]
         data2 = [[1, 2, 3, 4], [1, 2, 3, 4]]
@@ -44,13 +44,13 @@ class TestCheckArg(TestCase):
         # Act/Assert
         self.assertRaises(expected_error, func, arr1, arr2)
 
-    def test__ensure_numpy_arrays_are_same_shape__shouldErrorOut__whenOneInputIsNotAnArray(self):
+    def test__ensure_numpy_arrays_are_same_shape__shouldProduceError__whenOneInputIsNotAnArray(self):
         data1 = [[1, 2, 3], [1, 2, 3]]
         data2 = [[1, 2, 3, 4], [1, 2, 3, 4]]
         arr1 = np.array(data1)
         list2 = data2
-        expected_err = TypeError
         func = dibs.check_arg.ensure_numpy_arrays_are_same_shape
+        expected_err = TypeError
 
         self.assertRaises(expected_err, func, arr1, list2)
 
@@ -92,23 +92,24 @@ class TestCheckArg(TestCase):
         # Arrange
         integer_var = 1
         expected_type = float
+        expected_error = TypeError
 
-        self.assertRaises(TypeError, dibs.check_arg.ensure_type, integer_var, expected_type)
+        self.assertRaises(expected_error, dibs.check_arg.ensure_type, integer_var, expected_type)
 
     def test__ensure_type__shouldProduceError__whenGivenMultipleIncorrectExpectedTypes(self):
         # Arrange
         integer_var = 1
         expected_type = (float, str)
+        expected_error = TypeError
 
-        self.assertRaises(TypeError, dibs.check_arg.ensure_type, integer_var, expected_type)
+        self.assertRaises(expected_error, dibs.check_arg.ensure_type, integer_var, expected_type)
 
     def test__ensure_type__shouldProduceError__whenGivenSingularIncorrectExpectedTypeAsStarArgs(self):
         # Arrange
         integer_var = 1
         expected_type = (float, str)
-
-        self.assertRaises(TypeError, dibs.check_arg.ensure_type, integer_var, *expected_type)
-
+        expected_error = TypeError
+        self.assertRaises(expected_error, dibs.check_arg.ensure_type, integer_var, *expected_type)
 
     def test__(self):
         # Arrange

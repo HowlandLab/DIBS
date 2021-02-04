@@ -15,7 +15,7 @@ import sys
 from dibs import check_arg, config, logging_enhanced, pipeline
 
 
-logger = config.initialize_logger(__file__)
+logger = config.initialize_logger(__name__)
 
 
 ########################################################################################################################

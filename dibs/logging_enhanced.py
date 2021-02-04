@@ -26,7 +26,7 @@ def preload_logger_with_config_vars(logger_name: str, log_format: str,
         name_regex_result = re.search(r'%\(name\)-?\w*s', log_format)
         if name_regex_result:
             log_format = log_format[:name_regex_result.start()] + \
-                         current_python_file_name.ljust(58) + \
+                         current_python_file_name.ljust(25) + \
                          log_format[name_regex_result.end():]
 
         final_result = create_generic_logger(

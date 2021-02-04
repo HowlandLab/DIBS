@@ -1,5 +1,5 @@
 """
-Testing the BasePipeline object
+Testing the BasePipeline class
 
 https://docs.python.org/3/library/unittest.html
 """
@@ -12,17 +12,196 @@ from dibs.logging_enhanced import get_current_function, get_caller_function
 import dibs
 
 
-csv_test_file_path = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
-
+csv__train_data__file_path__TRAINING_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
+csv__train_data__file_path__PREDICT_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH
 default_pipeline_class = dibs.pipeline.PipelineMimic
 
+
+########################################################################################################################
 
 def get_unique_pipe_name() -> str:
     name = f'Pipeline__{get_caller_function()}__{random.randint(0, 100_000_000)}__{dibs.config.runtime_timestr}'
     return name
 
 
+def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
+    p = default_pipeline_class(get_unique_pipe_name())
+    data_source_file_path = csv__train_data__file_path__TRAINING_DATA
+    p = p.add_train_data_source(data_source_file_path)
+    p = p.add_predict_data_source(csv__train_data__file_path__PREDICT_DATA)
+
+    return p
+
+
+########################################################################################################################
+
 class TestPipeline(TestCase):
+
+    ### Scaling data ###
+    def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
+        # Note: this function takes a while to run
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv__train_data__file_path__TRAINING_DATA).build(True)
+
+        # Act
+        p = p._scale_transform_train_data()
+
+        unscaled_features_cols: Set[str] = set(p.df_features_train.columns)
+        scaled_features_cols: Set[str] = set(p.df_features_train_scaled.columns)
+
+        # Assert
+        err_message = f"""
+    Cols were found in one but not the other.
+
+    unscaled_features_cols = {unscaled_features_cols}
+    scaled_features_cols = {scaled_features_cols}
+
+    Symmetric diff = {unscaled_features_cols.symmetric_difference(scaled_features_cols)}
+
+    """.strip()
+        self.assertEqual(unscaled_features_cols, scaled_features_cols, err_message)
+
+    ### Adding new training data sources ###
+    def test__pipeline_adding_train_data_file_source__should____(self):
+        """"""
+        # Arrange
+        data_source_file_path = csv__train_data__file_path__TRAINING_DATA
+        pipe = default_pipeline_class(get_unique_pipe_name())
+        num_of_sources_before_addition: int = len(pipe.training_data_sources)
+        num_of_sources_should_be_this_after_addition = num_of_sources_before_addition + 1
+
+        # Act
+        p = pipe.add_train_data_source(data_source_file_path)
+        num_of_sources_actually_this_after_addition: int = len(p.training_data_sources)
+
+        # Assert
+
+        err_msg = f"""
+    list_of_sources_before_addition = {num_of_sources_before_addition}
+    num_of_sources_should_be_this_after_addition = {num_of_sources_should_be_this_after_addition}
+
+    list_of_sources_after_addition = {num_of_sources_actually_this_after_addition}
+    """
+        self.assertEqual(num_of_sources_should_be_this_after_addition, num_of_sources_actually_this_after_addition,
+                         err_msg)
+
+    def test__pipeline_adding_train_data_file_source__shouldBeZeroToStart(self):
+        """"""
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        expected_amount_of_sources = 0
+
+        # Act
+        actual_amount_of_dataframes = len(p.training_data_sources)
+
+        # Assert
+        err_msg = f"""
+    expected_amount_of_dataframes = {expected_amount_of_sources}
+
+    actual_amount_of_dataframes = {actual_amount_of_dataframes}
+    """
+        self.assertEqual(expected_amount_of_sources, actual_amount_of_dataframes, err_msg)
+
+    def test__pipeline_add_train_data__(self):  # TODO: add should/when
+        # Arrange
+        p = default_pipeline_class('Test_65465465465asddsfasdfde34asdf')
+        num_sources_before_adding_any = len(p.training_data_sources)
+
+        # Act
+        p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
+        num_sources_after_adding_sources = len(p.training_data_sources)
+
+        is_equal = num_sources_before_adding_any + 1 == num_sources_after_adding_sources
+        # Assert
+        err_msg = f"""
+
+    """
+        self.assertTrue(is_equal, err_msg)
+
+    ### Removing train data sources ###
+    pass
+
+    ### Removing predict data sources ###
+    def test__remove_train_data_source__shouldRemoveSource__whenSourceIsPresent(self):
+        # Arrange
+        csv_file_path__this_test = csv__train_data__file_path__TRAINING_DATA
+        p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
+        p = p.add_train_data_source(csv_file_path__this_test)
+        num_sources_before_remove = len(p.training_data_sources)
+        expected_num_sources_after = num_sources_before_remove - 1
+        # Act
+        p = p.remove_train_data_source(dibs.config.get_data_source_from_file_path(csv_file_path__this_test))
+        actual_num_sources_after_remove = len(p.training_data_sources)
+
+        # Assert
+        self.assertEqual(expected_num_sources_after, actual_num_sources_after_remove)
+
+    def test__remove_train_data_source__shouldChangeNothing__whenSourceNotPresent(self):
+        # Arrange
+        not_a_real_data_source = 'NotARealDataSource'
+        p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
+        p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
+        expected_num_sources = len(p.training_data_sources)
+        # Act
+        p = p.remove_train_data_source(not_a_real_data_source)
+        num_sources_after = len(p.training_data_sources)
+        # Assert
+        self.assertEqual(expected_num_sources, num_sources_after)
+
+    ### Label assignments ###
+
+    def test__get_assignment_label__shouldReturnEmptyString__whenLabelNotSet(self):
+        """
+        Test to see if output is None if no assignment label found
+        """
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        expected_label = ''
+        # Act
+        actual_label = p.get_assignment_label(0)
+        # Assert
+        self.assertEqual(expected_label, actual_label)
+
+    def test__set_label__shouldUpdateAssignment__whenUsed(self):
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        assignment, input_label = 1, 'Behaviour1'
+
+        # Act
+        p = p.set_label(assignment, input_label)
+
+        actual_label = p.get_assignment_label(assignment)
+        # Assert
+        self.assertEqual(input_label, actual_label)
+
+    @skip  # TODO: fix test for specificity
+    def test__updatingAssignment__shouldSaveLabel__whenSavedAndRereadIn(self):
+        # Arrange
+        # out_path =
+        name = get_unique_pipe_name()
+        p_write = default_pipeline_class(name)
+        assignment, input_label = 12, 'Behaviour12'
+
+        # Act
+        p_write = p_write.set_label(assignment, input_label)
+        p_write.save_to_folder()
+
+        p_read = dibs.read_pipeline(
+            os.path.join(
+                dibs.config.OUTPUT_PATH,
+                dibs.pipeline.generate_pipeline_filename(name),
+            ))
+
+        actual_label = p_read.get_assignment_label(assignment)
+        # Assert
+        err = f"""
+    Expected label: {input_label}
+
+    Actual label: {actual_label}
+
+
+    """  # All labels map: {p_read._map_assignment_to_behaviour}
+        self.assertEqual(input_label, actual_label, err)
 
     ### Param adds, changes, checks ###
     def test__set_params__average_over_n_frames(self):
@@ -209,6 +388,18 @@ class TestPipeline(TestCase):
     Actual   {property_of_note} value: {actual_value}"""
         self.assertEqual(expected_value, actual_value, err)
 
+    def test__gmm_recolour__should(self):
+        # Arrange
+        p = get_unique_pipeline_loaded_with_data()
+        old_gmm_n_components = 11
+        p = p.set_params(gmm_n_components=old_gmm_n_components).build()
+        expected_gmm_n_components = new_gmm_n_components = 7
+        # Act
+        p = p.recolor_gmm_and_retrain_classifier(new_gmm_n_components).build()
+        actual_gmm_n_components = p.gmm_n_components
+        # Assert
+        self.assertEqual(expected_gmm_n_components, actual_gmm_n_components)
+
     # TSNE
     def test__set_params__tsne_perplexity(self):
         property_of_note = 'tsne_perplexity'
@@ -343,7 +534,7 @@ class TestPipeline(TestCase):
     Actual   {property_of_note} value: {actual_value}"""
         self.assertEqual(expected_value, actual_value, err)
 
-    # RANDOMFOREST
+    # RANDOM FOREST
     def test__set_params__rf_n_estimators(self):
         property_of_note = 'rf_n_estimators'
         old_value = 100
@@ -364,7 +555,7 @@ class TestPipeline(TestCase):
 
     def test__set_params__shouldKeepDefaultsWhileChangingSpecifiedVars__whenOptionalArgForReadingInConfigVarsNotTrue(self):
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
+        p = default_pipeline_class(get_unique_pipe_name())
         default_gmm_n_components = p.gmm_n_components
 
         # Act
@@ -382,149 +573,80 @@ TODO: {get_current_function()}
         cv = expected_cv = 5
 
         # Act
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name(), cross_validation_k=cv)
+        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv)
         actual_cv = p.cross_validation_k
 
         # Assert
         err = f"""Error: cv cross val did not get read-in correctly. TODO: elaborate. """.strip()
         self.assertEqual(expected_cv, actual_cv, err)
 
-    @skip  # TODO: review this test. It looks like individual tests supersede it now.
-    def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
+    # Accuracy scoring
+    def test__test_train_splitting__shouldHaveProportionOfRecords__asSpecifiedInConfig(self):
         # Arrange
-        gmm_n_components, cv = 2, 3  # Set gmm clusters low so that runtime isn't long
-        p = dibs.pipeline.PipelineMimic(f'TestPipeline_{random.randint(0, 100_000_000)}',
-                                        cross_validation_k=cv,
-                                        gmm_n_components=gmm_n_components,
-                                        )
-        p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
-        err = f"""Sanity Check: Something bad happened and cross val is not right"""
-        self.assertEqual(cv, p.cross_validation_k, err)
-        p = p.add_train_data_source(csv_test_file_path)
+        round_by = 5
+        expected = dibs.config.HOLDOUT_PERCENT
+        p = get_unique_pipeline_loaded_with_data()
+        p = p.build()
 
-        select_classifier = 'SVM'
+        # Act
+        data = p.df_features_train_scaled
+        test_rows, total_rows = len(data.loc[data[p.test_col_name]]), len(data)
+        actual = test_rows / total_rows
+        err = f"""
+---------------------------------------------
+Expected = {expected}
+Actual   = {actual}
+--- DEBUG DATA ------------------------------
+Total data rows: {total_rows}
+Total TEST data rows: {test_rows}
+---------------------------------------------
+"""
+        # Assert
+        return self.assertAlmostEqual(expected, actual, round_by, err)
 
-        select_rf_n_estimators = 100
-        video_fps = 30.1
-        average_over_n_frames = 4
-        slider_gmm_n_components = 10
-        input_k_fold_cross_val = 2
-        input_tsne_perplexity = 12
-        input_tsne_learning_rate = 13
-        input_tsne_early_exaggeration = 16.
-        input_tsne_n_iter = 250
-        input_tsne_n_components = 3
-        input_gmm_reg_covar = 1.
-        input_gmm_tolerance = 0.001
-        input_gmm_max_iter = 300
-        input_gmm_n_init = 20
-        input_svm_c = 1.
-        input_svm_gamma = 2.
+    ### End-to-end tests ###
+    def test___DefaultPipelineListedAbove___buliding_pipeline_start_to_finish(self):
+        # Arrange
+        p = get_unique_pipeline_loaded_with_data()
 
-        model_vars = {
-            # General opts
-            'classifier_type': select_classifier,
-            'rf_n_estimators': select_rf_n_estimators,
-            'input_videos_fps': video_fps,
-            'average_over_n_frames': average_over_n_frames,
+        # Act
+        built_ok = True
+        err = f'Build failed. Error: '
+        try:
+            p = p.build(True, True)
+        except BaseException as e:
+            err += repr(e)
+            built_ok = False
+        # Assert
+        self.assertTrue(built_ok, err)
 
-            'gmm_n_components': slider_gmm_n_components,
-            'cross_validation_k': input_k_fold_cross_val,
+    ### Tests that need to be finished, confirmed, then moved to appropriate section ###
+    @skip  # TODO: finish test
+    def test__add_train_data_AND_build__shouldHaveSameNumRowsInRawDataAsBuiltData__whenRawDataBuilt(self):
+        """
+        After adding just 1 train data source,
 
-            # Advanced opts
-            'tsne_perplexity': float(input_tsne_perplexity),
-            'tsne_learning_rate': float(input_tsne_learning_rate),
-            'tsne_early_exaggeration': input_tsne_early_exaggeration,
-            'tsne_n_iter': input_tsne_n_iter,
-            'tsne_n_components': input_tsne_n_components,
-
-            'gmm_reg_covar': input_gmm_reg_covar,
-            'gmm_tol': input_gmm_tolerance,
-            'gmm_max_iter': input_gmm_max_iter,
-            'gmm_n_init': input_gmm_n_init,
-
-            'svm_c': input_svm_c,
-            'svm_gamma': input_svm_gamma,
-
-        }
-
-        # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
-        p = p.set_params(**model_vars)
+        *** NOTE: This test usually takes a while since it builds the entire model as part of the test ***
+        """
+        # Arrange
+        p = default_pipeline_class('asdfasdfdfs44444')
+        p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
+        original_number_of_data_rows = len(dibs.io.read_csv(csv__train_data__file_path__TRAINING_DATA))
 
         # Act
         p = p.build()
-
-    ### Scaling data ###
-    @skip  # Temporary skip since it takes forever to run this due to sample size
-    def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
-        # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name()).add_train_data_source(csv_test_file_path).build(True)
-
-        # Act
-        p = p.scale_transform_train_data()
-
-        unscaled_features_cols: Set[str] = set(p.df_features_train.columns)
-        scaled_features_cols: Set[str] = set(p.df_features_train_scaled.columns)
+        actual_total_rows_after_feature_engineering = len(p.df_features_train)
 
         # Assert
-        err_message = f"""
-Cols were found in one but not the other.
-
-unscaled_features_cols = {unscaled_features_cols}
-scaled_features_cols = {scaled_features_cols}
-
-Symmetric diff = {unscaled_features_cols.symmetric_difference(scaled_features_cols)}
-
-""".strip()
-        self.assertEqual(unscaled_features_cols, scaled_features_cols, err_message)
-
-    ### Adding new training data sources ###
-    def test__pipeline_adding_train_data_file_source__should____(self):
-        """"""
-        # Arrange
-        data_source_file_path = csv_test_file_path
-        pipe = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
-        num_of_sources_before_addition: int = len(pipe.training_data_sources)
-        num_of_sources_should_be_this_after_addition = num_of_sources_before_addition + 1
-
-        # Act
-        p = pipe.add_train_data_source(data_source_file_path)
-        num_of_sources_actually_this_after_addition: int = len(p.training_data_sources)
-
-        # Assert
-
-        err_msg = f"""
-list_of_sources_before_addition = {num_of_sources_before_addition}
-num_of_sources_should_be_this_after_addition = {num_of_sources_should_be_this_after_addition}
-
-list_of_sources_after_addition = {num_of_sources_actually_this_after_addition}
-"""
-        self.assertEqual(num_of_sources_should_be_this_after_addition, num_of_sources_actually_this_after_addition,
-                         err_msg)
-
-    def test__pipeline_adding_train_data_file_source__shouldBeZeroToStart(self):
-        """"""
-        # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
-        expected_amount_of_sources = 0
-
-        # Act
-        actual_amount_of_dataframes = len(p.training_data_sources)
-
-        # Assert
-        err_msg = f"""
-expected_amount_of_dataframes = {expected_amount_of_sources}
-
-actual_amount_of_dataframes = {actual_amount_of_dataframes}
-"""
-        self.assertEqual(expected_amount_of_sources, actual_amount_of_dataframes, err_msg)
+        err_msg = f'TODO: err msg'
+        self.assertEqual(original_number_of_data_rows, actual_total_rows_after_feature_engineering, err_msg)
 
     @skip  # TODO: review if test completely built
     def test__pipeline_adding_train_data_file_source__shouldAddParticularFileTo____when____(self):
         """"""
         # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
-        data_source_file_path = csv_test_file_path
+        p = default_pipeline_class(get_unique_pipe_name())
+        data_source_file_path = csv__train_data__file_path__TRAINING_DATA
 
         # Act
         p = p.add_train_data_source(data_source_file_path)
@@ -536,124 +658,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
 """.strip()
         self.assertTrue(is_path_now_in_list_of_paths, err_msg)
 
-    def test__pipeline_add_train_data__(self):  # TODO: add should/when
-        # Arrange
-        p = dibs.pipeline.PipelinePrime('Test_65465465465asddsfasdfde34asdf')
-        num_sources_before_adding_any = len(p.training_data_sources)
-
-        # Act
-        p = p.add_train_data_source(csv_test_file_path)
-        num_sources_after_adding_sources = len(p.training_data_sources)
-
-        is_equal = num_sources_before_adding_any + 1 == num_sources_after_adding_sources
-        # Assert
-        err_msg = f"""
-
-"""
-        self.assertTrue(is_equal, err_msg)
-
-    @skip  # TODO: finish test
-    def test__add_train_data_AND_build__shouldHaveSameNumRowsInRawDataAsBuiltData__whenRawDataBuilt(self):
-        """
-        After adding just 1 train data source,
-
-        *** NOTE: This test usually takes a while since it builds the entire model as part of the test ***
-        """
-        # Arrange
-        p = dibs.pipeline.PipelinePrime('asdfasdfdfs44444')
-        p = p.add_train_data_source(csv_test_file_path)
-        original_number_of_data_rows = len(dibs.io.read_csv(csv_test_file_path))
-
-        # Act
-        p = p.build()
-        actual_total_rows_after_feature_engineering = len(p.df_features_train)
-
-        # Assert
-        err_msg = f'TODO: err msg'
-        self.assertEqual(original_number_of_data_rows, actual_total_rows_after_feature_engineering, err_msg)
-
-    ### Removing train data sources ###
-
-    ### Removing predict data sources ###
-    def test__remove_train_data_source__shouldRemoveSource__whenSourceIsPresent(self):
-        # Arrange
-        csv_file_path__this_test = csv_test_file_path
-        p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
-        p = p.add_train_data_source(csv_file_path__this_test)
-        num_sources_before_remove = len(p.training_data_sources)
-        expected_num_sources_after = num_sources_before_remove - 1
-        # Act
-        p = p.remove_train_data_source(dibs.config.get_data_source_from_file_path(csv_file_path__this_test))
-        actual_num_sources_after_remove = len(p.training_data_sources)
-
-        # Assert
-        self.assertEqual(expected_num_sources_after, actual_num_sources_after_remove)
-
-    def test__remove_train_data_source__shouldChangeNothing__whenSourceNotPresent(self):
-        # Arrange
-        not_a_real_data_source = 'NotARealDataSource'
-        p = dibs.base_pipeline.BasePipeline(get_unique_pipe_name())
-        p = p.add_train_data_source(csv_test_file_path)
-        expected_num_sources = len(p.training_data_sources)
-        # Act
-        p = p.remove_train_data_source(not_a_real_data_source)
-        num_sources_after = len(p.training_data_sources)
-        # Assert
-        self.assertEqual(expected_num_sources, num_sources_after)
-
-    ### Label assignments ###
-
-    def test__get_assignment_label__shouldReturnEmptyString__whenLabelNotSet(self):
-        """
-        Test to see if output is None if no assignment label found
-        """
-        # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
-        expected_label = ''
-        # Act
-        actual_label = p.get_assignment_label(0)
-        # Assert
-        self.assertEqual(expected_label, actual_label)
-
-    def test__set_label__shouldUpdateAssignment__whenUsed(self):
-        # Arrange
-        p = dibs.pipeline.PipelinePrime(get_unique_pipe_name())
-        assignment, input_label = 1, 'Behaviour1'
-
-        # Act
-        p = p.set_label(assignment, input_label)
-
-        actual_label = p.get_assignment_label(assignment)
-        # Assert
-        self.assertEqual(input_label, actual_label)
-
-    def test__updatingAssignment__shouldSaveLabel__whenSavedAndRereadIn(self):
-        # Arrange
-        name = get_unique_pipe_name()
-        p_write = dibs.pipeline.PipelinePrime(name)
-        assignment, input_label = 12, 'Behaviour12'
-
-        # Act
-        p_write = p_write.set_label(assignment, input_label)
-        p_write.save()
-
-        p_read = dibs.read_pipeline(
-            os.path.join(
-                dibs.config.OUTPUT_PATH,
-                dibs.pipeline.generate_pipeline_filename(name),
-            ))
-
-        actual_label = p_read.get_assignment_label(assignment)
-        # Assert
-        err = f"""
-Expected label: {input_label}
-
-Actual label: {actual_label}
-
-
-"""  # All labels map: {p_read._map_assignment_to_behaviour}
-        self.assertEqual(input_label, actual_label, err)
-
+    ### Templates ###
     @skip
     def test__stub7(self):
         """
@@ -665,17 +670,22 @@ Actual label: {actual_label}
         is_equal = 1 + 1 == 2
         # Assert
         self.assertTrue(is_equal)
-
     @skip
-    def test__stub8(self):
-        """
-
-        """
+    def test__stub__pipeline_instantiate(self):
         # Arrange
+        p = default_pipeline_class(get_unique_pipe_name())
+        data_source_file_path = csv__train_data__file_path__TRAINING_DATA
+        p = p.add_train_data_source(data_source_file_path)
 
         # Act
-        is_equal = 1 + 1 == 2
-        # Assert
-        self.assertTrue(is_equal)
+        built_ok = True
+        err = f"""
 
-    # def test__END_TO_END
+"""
+        try:
+            p = p.build(True, True)
+        except BaseException as e:
+
+            pass
+        # Assert
+        self.assertTrue(built_ok, err)

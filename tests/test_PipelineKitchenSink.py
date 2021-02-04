@@ -1,5 +1,5 @@
 """
-Create tests specifically for the PipelineMimic class
+Create tests specifically for the PipelineKitchenSink class
 """
 from unittest import TestCase, skip
 import os
@@ -7,12 +7,11 @@ import random
 
 import dibs
 
-
 csv__train_data__file_path__TRAINING_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 csv__train_data__file_path__PREDICT_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 assert os.path.isfile(csv__train_data__file_path__TRAINING_DATA)
 
-pipeline_class_of_interest = dibs.pipeline.PipelineMimic
+pipeline_class_of_interest = dibs.pipeline.PipelineKitchenSink
 
 
 ########################################################################################################################
@@ -111,7 +110,7 @@ class TestPipelineMimic(TestCase):
         input_gmm_n_init = 20
         input_svm_c = 1.
         input_svm_gamma = 2.
-        
+
         model_vars = {
             # General opts
             'classifier_type': select_classifier,

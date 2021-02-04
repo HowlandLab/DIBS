@@ -36,23 +36,6 @@ from dibs import check_arg, config, logging_enhanced, statistics
 
 logger = config.initialize_logger(__name__)
 
-def unit_vector(vector):
-    """ Returns the unit vector of the vector.  """
-    return vector / np.linalg.norm(vector)
-
-def angle_between(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2'::
-
-            >>> angle_between((1, 0, 0), (0, 1, 0))
-            1.5707963267948966
-            >>> angle_between((1, 0, 0), (1, 0, 0))
-            0.0
-            >>> angle_between((1, 0, 0), (-1, 0, 0))
-            3.141592653589793
-    """
-    v1_u = unit_vector(v1)
-    v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 ### Attach features as columns to a DataFrame of DLC data
 
@@ -312,6 +295,26 @@ def delta_two_body_parts_angle_killian_try(body_part_arr_1, body_part_arr_2) -> 
     return output_array
 
 
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+
 ### Single value math
 def is_angle_change_positive(x0, y0, x1, y1) -> bool:
     """
@@ -404,11 +407,11 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     # Case: if the numerator of the arctan() portion of the equation equals zero, then
     #   DivideByZero error occurs.
     if pos_x_1 * pos_x_0 + pos_y_0 * pos_y_1 == 0:
+        # Div by zero error
         arctan_elem = np.pi / 2
     else:
         arctan_elem = np.arctan((pos_x_1*pos_y_0 - pos_x_0*pos_y_1) /
                                 (pos_x_1*pos_x_0 + pos_y_0*pos_y_1))
-    # arctan_elem =
     change_in_angle = \
         statistics.sign(pos_x_1*pos_y_0 - pos_x_0*pos_y_1) * \
         (180/np.pi) * \

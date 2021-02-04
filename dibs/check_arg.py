@@ -14,7 +14,7 @@ import sys
 from dibs.logging_enhanced import get_caller_function
 from dibs import config
 
-logger = config.initialize_logger(__file__)
+logger = config.initialize_logger(__name__)
 
 
 ###
