@@ -674,7 +674,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             if file_session[checkbox_show_extra_text]:
                 st.info('See the original paper describing this algorithm for more details.'
                         ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
-                        'Section 2 includes perplexity.')
+                        ' Section 2 includes perplexity.')
             input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity, min_value=0.1)
             # Extra info: tsne-perplexity
             if file_session[checkbox_show_extra_text]:
