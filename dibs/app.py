@@ -16,7 +16,7 @@ logger = config.initialize_logger(__name__)
 def clear_output_folders(*args, **kwargs) -> None:
     """
     For each folder specified below (magic variables be damned),
-        delete everything in that folder except for the .placeholder file and any sub-folders there-in.
+    delete everything in that folder except for the .placeholder file and any sub-folders there-in.
     """
     raise NotImplementedError(f'TODO: review this function since folder layouts have changed')  # TODO: review this function since folder layouts have changed
     # Choose folders to clear (currently set as magic variables in function below)
@@ -48,8 +48,9 @@ def clear_output_folders(*args, **kwargs) -> None:
 
 
 def streamlit(**kwargs) -> None:
-    """ Streamlit code here. Currently this is the first and only iteration of streamlit apps, but
-    who knows how many will be created in the future. """
+    """
+    Entry point for the Streamlit companion app.
+    """
     # streamlit_app.header(**kwargs)
     streamlit_app.start_app(**kwargs)
 
@@ -57,7 +58,7 @@ def streamlit(**kwargs) -> None:
 # Sample function
 
 def sample_runtime_function(sleep_secs=3, *args, **kwargs):
-    """ Sample function that takes n seconds to run """
+    """ Sample function that takes n seconds to run. Used for debugging. """
     logger.debug(f'{logging_enhanced.get_current_function()}(): '
                  f'Doing sample runtime execution for {sleep_secs} seconds.')
     time.sleep(sleep_secs)
