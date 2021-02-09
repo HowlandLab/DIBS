@@ -30,20 +30,19 @@ import traceback
 from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
 
 
-# File settings
+# Module settings
 logger = config.initialize_logger(__name__)
 matplotlib_axes_logger.setLevel('ERROR')
 
 
 ##### Instantiate names for buttons, options that can be changed on the fly but logic below stays the same #####
-
 webpage_head_title = 'DIBS'
 valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
 text_half_dibs_data_pipeline = 'DEBUG OPT: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
-pipeline_options = {
+pipeline_options = {  # Key=Pipeline name + optional description. Value=Pipeline class
     'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
     'PipelineHowland: a pipeline aimed at generalized behaviour recognition': pipeline.PipelineHowland,
@@ -60,6 +59,7 @@ checkbox_show_extra_text = 'Show additional descriptive text'  # TODO: low: upda
 key_selected_layout, initial_sidebar_state = 'key_selected_layout', 'initial_sidebar_state'
 key_pipeline_path = 'key_pipeline_path'  # <- for saving pipe path when loaded??? ????
 key_open_pipeline_path = 'key_open_pipeline_path'  # For selecting a pipeline using hack dialog box
+default_n_seconds_sleep = 'default_n_seconds_wait_until_auto_refresh'
 key_button_show_adv_pipeline_information = 'key_button_show_more_pipeline_information'
 key_button_see_rebuild_options = 'key_button_see_model_options'
 key_button_see_advanced_options = 'key_button_see_advanced_options'
@@ -78,8 +78,7 @@ key_button_save_assignment = 'key_button_save_assignment'
 key_button_show_example_videos_options = 'key_button_show_example_videos_options'
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
 key_button_menu_label_entire_video = 'key_button_menu_label_entire_video'
-default_n_seconds_sleep = 'default_n_seconds_wait_until_auto_refresh'
-
+key_button_export_data = 'key_button_export_data'
 ### Page variables data & default values ###
 streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_selected_layout: 'centered',  # Valid values include: "centered" and "wide"
@@ -107,9 +106,10 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_button_show_example_videos_options: False,
     key_button_create_new_example_videos: False,
     key_button_menu_label_entire_video: False,
+    key_button_export_data: False,
 }
 # TODO: propagate file path thru session var?
-file_session = {}
+session = {}
 
 ##### Page layout #####
 
@@ -130,45 +130,46 @@ def start_app(**kwargs):
 
     """
     ### Set up session variables
-    global file_session
-    file_session = streamlit_session_state.get(**streamlit_persistence_variables)
+    global session
+    session = streamlit_session_state.get(**streamlit_persistence_variables)
     # matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows. Dev note: Streamlit does not play nice with multithreaded instances like the Tkinter window pop-up. Sometimes crashes Streamlit.
     matplotlib.use('Agg')  # For allowing graphs to pop out as separate windows
-    file_session[key_iteration_page_refresh_count] = file_session[key_iteration_page_refresh_count] + 1
+    session[key_iteration_page_refresh_count] = session[key_iteration_page_refresh_count] + 1
 
     # Set page config
     st.set_page_config(page_title=webpage_head_title,
                        page_icon=':shark:',  # TODO: settle on an emoji later
-                       layout=file_session[key_selected_layout],
-                       initial_sidebar_state='expanded')
+                       layout=session[key_selected_layout],
+                       initial_sidebar_state='collapsed')
 
     # Load up pipeline if specified on command line or specified in config.ini
     pipeline_file_path: str = kwargs.get('pipeline_path', '')
-    if not pipeline_file_path:  # If not specified on command line, use config.ini path as default if possible.
+    if not pipeline_file_path:
+        # If not specified on command line, check config.ini path and use as default if possible
         if config.default_pipeline_file_path and os.path.isfile(config.default_pipeline_file_path):
             pipeline_file_path = config.default_pipeline_file_path
         else:
-            pipeline_file_path = file_session[key_pipeline_path]
+            pipeline_file_path = session[key_pipeline_path]
 
     ### SIDEBAR ###
     st.sidebar.markdown(f'## App Settings')
     # st.sidebar.markdown(f'----------------')
-    # st.sidebar.markdown(f'### Iteration: {file_session[key_iteration_page_refresh_count]}')  # Debugging effort
+    # st.sidebar.markdown(f'### Iteration: {session[key_iteration_page_refresh_count]}')  # Debugging effort
     # st.sidebar.markdown('------')
     is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=False)  # TODO: low: remove value=True after debugging is done.
-    file_session[checkbox_show_extra_text] = is_checked
+    session[checkbox_show_extra_text] = is_checked
 
-    selected_layout = st.sidebar.selectbox('Select a page layout', options=[file_session[key_selected_layout].title()]+[x.title() for x in ["Wide", "Centered"] if x != file_session[key_selected_layout].title()])
-    if selected_layout.lower() != file_session[key_selected_layout]:
-        file_session[key_selected_layout] = selected_layout.lower()
+    selected_layout = st.sidebar.selectbox('Select a page layout', options=[session[key_selected_layout].title()] + [x.title() for x in ["Wide", "Centered"] if x != session[key_selected_layout].title()])
+    if selected_layout.lower() != session[key_selected_layout]:
+        session[key_selected_layout] = selected_layout.lower()
         st.experimental_rerun()
 
     ### MAIN ###
 
-    home(pipeline_file_path)
+    header(pipeline_file_path)
 
 
-def home(pipeline_file_path):
+def header(pipeline_file_path):
     """
     Start of the streamlit app page for drawing
     """
@@ -224,7 +225,7 @@ def home(pipeline_file_path):
                 pipeline_class = pipeline_options[select_pipe_type]
 
                 # Show extra pipeline text if necessary
-                if file_session[checkbox_show_extra_text]:
+                if session[checkbox_show_extra_text]:
                     pipe_info = pipeline_class.__doc__ if str(pipeline_class.__doc__).strip() else f'No documentation detected for {pipeline_class.__name__}'
                     st.info(pipe_info)
                 st.markdown('')
@@ -264,7 +265,7 @@ def home(pipeline_file_path):
                                 p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
                         p = p.save_to_folder(input_path_to_pipeline_dir)
                         pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename( text_input_new_project_name))
-                        file_session[key_pipeline_path] = pipeline_file_path
+                        session[key_pipeline_path] = pipeline_file_path
                         st.balloons()
                         st.success(f"""
 Success! Your new project pipeline has been saved to disk to the following path: 
@@ -272,7 +273,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
 {os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
 
 """.strip())
-                        n_secs_til_refresh = file_session[default_n_seconds_sleep]
+                        n_secs_til_refresh = session[default_n_seconds_sleep]
                         st.info(
                             f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
                         st.markdown('')
@@ -295,14 +296,14 @@ Success! Your new project pipeline has been saved to disk to the following path:
             # input_text_path_to_pipeline_file = st_file_selector(pl)
             # pl = st.empty()
             #
-            # file_session[key_open_pipeline_path] = st_file_selector(
+            # session[key_open_pipeline_path] = st_file_selector(
             #     st_placeholder=pl,
-            #     path=file_session[key_open_pipeline_path],
+            #     path=session[key_open_pipeline_path],
             #     label=f'Input path')
             #
-            # st.text(f'> Selected \'{file_session[key_open_pipeline_path]}\'')
-            # logger.debug(f'LOAD: file_session[key_open_pipeline_path] = {file_session[key_open_pipeline_path]}')
-            # input_text_path_to_pipeline_file = file_session[key_open_pipeline_path]
+            # st.text(f'> Selected \'{session[key_open_pipeline_path]}\'')
+            # logger.debug(f'LOAD: session[key_open_pipeline_path] = {session[key_open_pipeline_path]}')
+            # input_text_path_to_pipeline_file = session[key_open_pipeline_path]
 
             ############ Original, working implementation below
             input_text_path_to_pipeline_file = st.text_input(
@@ -321,8 +322,8 @@ Success! Your new project pipeline has been saved to disk to the following path:
                     st.stop()
                 # If OK: load project, continue
                 pipeline_file_path = input_text_path_to_pipeline_file
-                if file_session[key_pipeline_path] != pipeline_file_path:
-                    file_session[key_pipeline_path] = pipeline_file_path
+                if session[key_pipeline_path] != pipeline_file_path:
+                    session[key_pipeline_path] = pipeline_file_path
                 logger.debug(f'Attempting to open: {pipeline_file_path}')
                 p = io.read_pipeline(pipeline_file_path)
                 logger.info(f'Streamlit: successfully opened: {pipeline_file_path}')
@@ -371,8 +372,8 @@ def show_pipeline_info(p, pipeline_path):
     ### Menu button: show more info
     button_show_advanced_pipeline_information = st.button(f'Toggle advanced info', key=key_button_show_adv_pipeline_information)
     if button_show_advanced_pipeline_information:
-        file_session[key_button_show_adv_pipeline_information] = not file_session[key_button_show_adv_pipeline_information]
-    if file_session[key_button_show_adv_pipeline_information]:
+        session[key_button_show_adv_pipeline_information] = not session[key_button_show_adv_pipeline_information]
+    if session[key_button_show_adv_pipeline_information]:
         st.markdown(f'- Training data sources ({len(p.training_data_sources)} total sources):')
         if len(p.training_data_sources) > 0:
             for s in p.training_data_sources: st.markdown(f'- - **{s}**')
@@ -396,7 +397,8 @@ def show_pipeline_info(p, pipeline_path):
         # else:
         #     cross_val_score_text = f'- **[Cross validation score not available]**'
         st.markdown(f'{cross_val_score_text}')
-        st.markdown(f'- Accuracy (with test % of {p.test_train_split_pct*100.}%): **{p.accuracy_score*100.}%**')
+        acc_pct = f'{p.accuracy_score*100.}%' if p.accuracy_score >= 0. else 'N/A'
+        st.markdown(f'- Accuracy (with test % of {p.test_train_split_pct*100.}%): **{acc_pct}**')
         st.markdown(f'Model Feature Names:')
         for feat in p.all_features:
             st.markdown(f'- - {feat}')
@@ -441,13 +443,13 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     ### Change pipeline description
     button_update_description = st.button(f'Toggle: Change project description', key_button_update_description)
     if button_update_description:
-        file_session[key_button_update_description] = not file_session[key_button_update_description]
-    if file_session[key_button_update_description]:
+        session[key_button_update_description] = not session[key_button_update_description]
+    if session[key_button_update_description]:
         text_input_change_desc = st.text_input(f'(WORK IN PROGRESS) Change project description here', value=p.description)
         if text_input_change_desc != p.description:
             p.set_description(text_input_change_desc).save_to_folder(os.path.dirname(pipeline_file_path))
-            file_session[key_button_update_description] = False
-            wait_seconds = file_session[default_n_seconds_sleep]
+            session[key_button_update_description] = False
+            wait_seconds = session[default_n_seconds_sleep]
             st.success(f'Pipeline description has been changed!')
             st.info(f'This page will refresh automatically to reflect your changes in {wait_seconds} seconds, or you can manually refresh the page (by clicking the page and pressing "R") to see changes.')
             time.sleep(wait_seconds)
@@ -464,16 +466,16 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     ### Menu button: adding new data ###
     button_add_new_data = st.button('Toggle: Add new data to model', key_button_add_new_data)
     if button_add_new_data:  # Click button, flip state
-        file_session[key_button_add_new_data] = not file_session[key_button_add_new_data]
-    if file_session[key_button_add_new_data]:  # Now check on value and display accordingly
+        session[key_button_add_new_data] = not session[key_button_add_new_data]
+    if session[key_button_add_new_data]:  # Now check on value and display accordingly
         st.markdown(f'### Do you want to add data that will be used to train the model, or '
                     f'data that the model will evaluate?')
         # 1/2: Button for adding data to training data set
         button_add_train_data_source = st.button('-> Add new data for training the model', key=key_button_add_train_data_source)
         if button_add_train_data_source:
-            file_session[key_button_add_train_data_source] = not file_session[key_button_add_train_data_source]
-            file_session[key_button_add_predict_data_source] = False  # Close the menu for adding prediction data
-        if file_session[key_button_add_train_data_source]:
+            session[key_button_add_train_data_source] = not session[key_button_add_train_data_source]
+            session[key_button_add_predict_data_source] = False  # Close the menu for adding prediction data
+        if session[key_button_add_train_data_source]:
             # # New implementation via tkinter (NOT WORKING YET - THREAD SAFE PROBS)
             # st.markdown('')
 
@@ -488,11 +490,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
             # p = p.add_train_data_source(*file_paths).save(os.path.dirname(pipeline_file_path))
             # st.success(f'Success! Refresh page to see changes')
-            # file_session[key_button_add_train_data_source] = False
+            # session[key_button_add_train_data_source] = False
             # st.stop()
             # st.success(f'Success! The following files have been added to the pipeline as training data: '
             #            f'{", ".join([os.path.split(x)[-1] for x in file_paths])}. Refresh the page to see the changes')
-            # file_session[key_button_add_new_data] = False
+            # session[key_button_add_new_data] = False
             # st.stop()
             ############
 
@@ -509,9 +511,9 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 # Add to pipeline, save
                 else:
                     p = p.add_train_data_source(input_new_data_source).save_to_folder(os.path.dirname(pipeline_file_path))
-                    file_session[key_button_add_train_data_source] = False  # Reset menu to collapsed state
-                    file_session[key_button_add_new_data] = False
-                    n = file_session[default_n_seconds_sleep]
+                    session[key_button_add_train_data_source] = False  # Reset menu to collapsed state
+                    session[key_button_add_new_data] = False
+                    n = session[default_n_seconds_sleep]
                     st.balloons()
                     st.success(f'New training data added to pipeline successfully! Pipeline has been saved to: "{pipeline_file_path}".')  # TODO: finish statement. Add in suggestion to refresh page.
                     st.info(f'This page will refresh automatically in {n} seconds')
@@ -523,9 +525,9 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         # 2/2: Button for adding data to prediction set
         button_add_predict_data_source = st.button('-> Add data to be evaluated by the model', key=key_button_add_predict_data_source)
         if button_add_predict_data_source:
-            file_session[key_button_add_predict_data_source] = not file_session[key_button_add_predict_data_source]
-            file_session[key_button_add_train_data_source] = False  # Close the menu for adding training data
-        if file_session[key_button_add_predict_data_source]:
+            session[key_button_add_predict_data_source] = not session[key_button_add_predict_data_source]
+            session[key_button_add_train_data_source] = False  # Close the menu for adding training data
+        if session[key_button_add_predict_data_source]:
             st.markdown(f'TODO: add in new predict data')
             input_new_predict_data_source = st.text_input(f'Input a file path below to a new data source which will be analyzed by the model.')
             if input_new_predict_data_source:
@@ -540,9 +542,9 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 #                                f'No data was added to pipeline prediction data set.'))
                 else:
                     p = p.add_predict_data_source(input_new_predict_data_source).save_to_folder(os.path.dirname(pipeline_file_path))
-                    file_session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
-                    file_session[key_button_add_new_data] = False  # Reset add menu to collapsed state
-                    n_wait_secs = file_session[default_n_seconds_sleep]
+                    session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
+                    session[key_button_add_new_data] = False  # Reset add menu to collapsed state
+                    n_wait_secs = session[default_n_seconds_sleep]
                     st.success(f'New prediction data added to pipeline successfully! Pipeline has been saved.')
                     st.info(f'This page will refresh with your new changes in {n_wait_secs} seconds.')
                     time.sleep(n_wait_secs)
@@ -556,8 +558,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     ### Menu button: removing data ###
     button_remove_data = st.button('Toggle: Remove data from model', key_button_menu_remove_data)
     if button_remove_data:
-        file_session[key_button_menu_remove_data] = not file_session[key_button_menu_remove_data]
-    if file_session[key_button_menu_remove_data]:
+        session[key_button_menu_remove_data] = not session[key_button_menu_remove_data]
+    if session[key_button_menu_remove_data]:
         select_train_or_predict_remove = st.selectbox('Select which data you want to remove', options=['', training_data_option, predict_data_option])
         if select_train_or_predict_remove == training_data_option:
             select_train_data_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.training_data_sources)
@@ -568,8 +570,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 if confirm:
                     with st.spinner(f'Removing {select_train_data_to_remove} from training data set...'):
                         p = p.remove_train_data_source(select_train_data_to_remove).save_to_folder(os.path.dirname(pipeline_file_path))
-                    file_session[key_button_menu_remove_data] = False
-                    n = file_session[default_n_seconds_sleep]
+                    session[key_button_menu_remove_data] = False
+                    n = session[default_n_seconds_sleep]
                     st.balloons()
                     st.success(f'{select_train_data_to_remove} data successfully removed!')
                     st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
@@ -586,11 +588,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 if confirm:
                     with st.spinner(f'Removing {select_predict_option_to_remove} from predict data set'):
                         p = p.remove_predict_data_source(select_predict_option_to_remove).save_to_folder(os.path.dirname(pipeline_file_path))
-                    file_session[key_button_menu_remove_data] = False
+                    session[key_button_menu_remove_data] = False
                     st.balloons()
                     st.success(f'{select_predict_option_to_remove} data was successfully removed!')
                     st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
-                    time.sleep(file_session[default_n_seconds_sleep])
+                    time.sleep(session[default_n_seconds_sleep])
                     st.experimental_rerun()
                 st.markdown('------------------------------------------')
                 st.markdown('')
@@ -603,8 +605,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
     ### Menu button: rebuilding model ###
     button_see_rebuild_options = st.button('Toggle: Review Model Parameters & Rebuild Model', key_button_see_rebuild_options)
     if button_see_rebuild_options:  # Click button, flip state
-        file_session[key_button_see_rebuild_options] = not file_session[key_button_see_rebuild_options]
-    if file_session[key_button_see_rebuild_options]:  # Now check on value and display accordingly
+        session[key_button_see_rebuild_options] = not session[key_button_see_rebuild_options]
+    if session[key_button_see_rebuild_options]:  # Now check on value and display accordingly
         st.markdown('')
         st.markdown('## Model Parameters')
         st.markdown(f'### General parameters')
@@ -613,7 +615,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown(f'By averaging features over **{input_average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(input_average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
         st.markdown(f'*By averaging over larger windows, the model can provide better generalizability, but using smaller windows is more likely to find more minute actions*')
 
-        if file_session[checkbox_show_extra_text]:
+        if session[checkbox_show_extra_text]:
             st.info('Increasing the averaging frame will help reduce jitter when labeling,'
                     ' but it will also smooth out any nuanced behaviours that may be short in duration')
 
@@ -627,7 +629,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown(f'_You have currently selected __{slider_gmm_n_components}__ clusters_')
 
         # Extra info: GMM components
-        if file_session[checkbox_show_extra_text]:
+        if session[checkbox_show_extra_text]:
             st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
                     ' are labeled in the final output.')
 
@@ -642,7 +644,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         # Hack solution: specify params here so that the variable exists even though advanced params section not opened.
 
         # Extra info: k-folds
-        if file_session[checkbox_show_extra_text]:
+        if session[checkbox_show_extra_text]:
             st.info('TODO: explain k in k-folds')
 
         st.markdown('')
@@ -662,8 +664,8 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         st.markdown('*Toggle advanced parameters at your own risk. Many variables require special knowledge of ML parameters*')
         button_see_advanced_options = st.button('Toggle: show advanced parameters')
         if button_see_advanced_options:
-            file_session[key_button_see_advanced_options] = not file_session[key_button_see_advanced_options]
-        if file_session[key_button_see_advanced_options]:
+            session[key_button_see_advanced_options] = not session[key_button_see_advanced_options]
+        if session[key_button_see_advanced_options]:
             # st.markdown('### Advanced model options. ')
             st.markdown('### Do not change things here unless you know what you are doing!')
             st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is still open when clicking the "Rebuild" button.*')
@@ -671,47 +673,47 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
 
             # TSNE
             st.markdown('### Advanced TSNE Parameters')
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('See the original paper describing this algorithm for more details.'
                         ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
                         ' Section 2 includes perplexity.')
             input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity, min_value=0.1)
             # Extra info: tsne-perplexity
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
             input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
             # Extra info: learning rate
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: learning rate')  # TODO: low
             input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', value=p.tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
             # Extra info: early exaggeration
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: early exaggeration')  # TODO: low
             input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
             # Extra info: number of iterations
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: number of iterations')  # TODO: low
             input_tsne_n_components = st.number_input(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
             # Extra info: number of components (dimensions)
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: number of components (dimensions)')  # TODO: low
 
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
             # Extra info: reg covar
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: reg covar')  # TODO: low
             input_gmm_tol = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
             # Extra info: GMM tolerance
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: GMM tolerance')  # TODO: low
             input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
             # Extra info: GMM max iterations
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: GMM max iterations')  # TODO: low
             input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, min_value=1, step=1, format="%i")
             # Extra info: GMM number of initializations
-            if file_session[checkbox_show_extra_text]:
+            if session[checkbox_show_extra_text]:
                 st.info('TODO: GMM number of initializations')  # TODO: low
 
             st.markdown(f'### Advanced Classifier Parameters')
@@ -719,10 +721,10 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             if select_classifier == 'SVM':
                 ### SVM ###
                 input_svm_c = st.number_input(f'SVM C', value=p.svm_c, min_value=1e-10, format='%.2f')
-                if file_session[checkbox_show_extra_text]:
+                if session[checkbox_show_extra_text]:
                     st.info('TODO: explain SVM "C" parameter')  # TODO: low
                 input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, min_value=1e-10, format='%.2f')
-                if file_session[checkbox_show_extra_text]:
+                if session[checkbox_show_extra_text]:
                     st.info('TODO: explain SVM "gamma" parameter')  # TODO: low
             elif select_classifier == 'RANDOMFOREST':
                 select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p.rf_n_estimators, min_value=1, max_value=1_000, format='%i')
@@ -737,13 +739,13 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
         # Save above info & rebuild model
         # st.markdown('## Rebuild model with new parameters above?')
         button_rebuild_model = st.button('I want to rebuild model with new parameters', key_button_rebuild_model)
-        if button_rebuild_model: file_session[key_button_rebuild_model] = not file_session[key_button_rebuild_model]
-        if file_session[key_button_rebuild_model]:  # Rebuild model button was clicked
+        if button_rebuild_model: session[key_button_rebuild_model] = not session[key_button_rebuild_model]
+        if session[key_button_rebuild_model]:  # Rebuild model button was clicked
             st.markdown('Are you sure?')
             button_confirmation_of_rebuild = st.button('Confirm', key_button_rebuild_model_confirmation)
             if button_confirmation_of_rebuild:
-                file_session[key_button_rebuild_model_confirmation] = not file_session[key_button_rebuild_model_confirmation]
-            if file_session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
+                session[key_button_rebuild_model_confirmation] = not session[key_button_rebuild_model_confirmation]
+            if session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
                 try:
                     with st.spinner('Building model...'):
                         model_vars = {
@@ -780,11 +782,11 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                             st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
                             st.stop()
                         p = p.build().save_to_folder(os.path.dirname(pipeline_file_path))
-                        file_session[key_button_rebuild_model_confirmation] = False
+                        session[key_button_rebuild_model_confirmation] = False
                     st.balloons()
-                    file_session[key_button_see_rebuild_options] = False
-                    file_session[key_button_rebuild_model_confirmation] = False
-                    n = file_session[default_n_seconds_sleep]
+                    session[key_button_see_rebuild_options] = False
+                    session[key_button_rebuild_model_confirmation] = False
+                    n = session[default_n_seconds_sleep]
                     st.success(f'Model was successfully re-built! This page will auto-refresh in {n} seconds.')
                     time.sleep(n)
                     st.experimental_rerun()
@@ -828,8 +830,8 @@ def see_model_diagnostics(p, pipeline_file_path):
     st.markdown(f'### View distribution of assignments')
     button_view_assignments_distribution = st.button(f'Toggle: View assignment distribution')
     if button_view_assignments_distribution:
-        file_session[key_button_view_assignments_distribution] = not file_session[key_button_view_assignments_distribution]
-    if file_session[key_button_view_assignments_distribution]:
+        session[key_button_view_assignments_distribution] = not session[key_button_view_assignments_distribution]
+    if session[key_button_view_assignments_distribution]:
         if p.is_built:
             # matplotlib.use('Agg')  # <- Hopefully this fixes crashes; no guarantees. TODO: med: review this line later.
             # fig, ax = p.get_plot_svm_assignments_distribution()
@@ -853,8 +855,8 @@ def see_model_diagnostics(p, pipeline_file_path):
     st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
     gmm_button = st.button('Toggle: graph of cluster/assignment distribution')  # TODO: low: phrase this button better?
     if gmm_button:
-        file_session[key_button_view_assignments_clusters] = not file_session[key_button_view_assignments_clusters]
-    if file_session[key_button_view_assignments_clusters]:
+        session[key_button_view_assignments_clusters] = not session[key_button_view_assignments_clusters]
+    if session[key_button_view_assignments_clusters]:
         if p.is_built:
             # if p.tsne_n_components == 2:
             azim, elevation = 15, 110
@@ -925,8 +927,8 @@ def review_behaviours(p, pipeline_file_path):
     ### Create new example videos ###
     button_create_new_ex_videos = st.button(f'Toggle: Create new example videos for each behaviour', key=key_button_show_example_videos_options)
     if button_create_new_ex_videos:
-        file_session[key_button_show_example_videos_options] = not file_session[key_button_show_example_videos_options]
-    if file_session[key_button_show_example_videos_options]:
+        session[key_button_show_example_videos_options] = not session[key_button_show_example_videos_options]
+    if session[key_button_show_example_videos_options]:
         st.markdown(f'Fill in variables for making new example videos of behaviours. Does this line of text need to be altered or even removed?')
         select_data_source = st.selectbox('Select a data source', options=['']+p.training_data_sources)
         input_video = st.text_input(f'Input path to corresponding video relative to selected data source', value=config.DIBS_BASE_PROJECT_PATH)
@@ -972,8 +974,8 @@ def review_behaviours(p, pipeline_file_path):
                         num_frames_buffer=number_input_frames_leadup,
                     )
                 st.success(f'Example videos created!')  # TODO: low: improve message
-                file_session[key_button_show_example_videos_options] = False
-                n = file_session[default_n_seconds_sleep]
+                session[key_button_show_example_videos_options] = False
+                n = session[default_n_seconds_sleep]
                 st.info(f'This page will automatically refresh in {n} seconds.')
                 time.sleep(n)
                 st.experimental_rerun()
@@ -984,8 +986,8 @@ def review_behaviours(p, pipeline_file_path):
     ### Review labels for behaviours ###
     button_review_assignments_is_clicked = st.button('Toggle: review behaviour/assignments labels', key=key_button_review_assignments)
     if button_review_assignments_is_clicked:  # Click button, flip state
-        file_session[key_button_review_assignments] = not file_session[key_button_review_assignments]
-    if file_session[key_button_review_assignments]:  # Depending on state, set behaviours to assignments
+        session[key_button_review_assignments] = not session[key_button_review_assignments]
+    if session[key_button_review_assignments]:  # Depending on state, set behaviours to assignments
         if not p.is_built:
             st.info('The model has not been built yet, so there are no labeling options available.')
         else:
@@ -993,7 +995,7 @@ def review_behaviours(p, pipeline_file_path):
             st.markdown(f'#### All changes entered save automatically. After all changes, refresh page to see changes.')
             for assignment_a in p.unique_assignments:
                 # st.markdown(f'Debug info. Current assignment = {assignment_a}')
-                file_session[str(assignment_a)] = p.get_assignment_label(assignment_a)
+                session[str(assignment_a)] = p.get_assignment_label(assignment_a)
                 existing_behaviour_label = p.get_assignment_label(assignment_a)
                 # st.markdown(f'Debug info: Current label = {existing_behaviour_label}')
                 existing_behaviour_label = existing_behaviour_label if existing_behaviour_label else ''
@@ -1026,8 +1028,8 @@ def results_section(p, pipeline_file_path):
     ### Label an entire video ###
     button_menu_label_entire_video = st.button('Toggle: Use pipeline model to label to entire video', key=key_button_menu_label_entire_video)
     if button_menu_label_entire_video:
-        file_session[key_button_menu_label_entire_video] = not file_session[key_button_menu_label_entire_video]
-    if file_session[key_button_menu_label_entire_video]:
+        session[key_button_menu_label_entire_video] = not session[key_button_menu_label_entire_video]
+    if session[key_button_menu_label_entire_video]:
         st.markdown('')
         selected_data_source = st.selectbox('Select a data source to use as the labels set for specified video:',
                                             options=['']+p.training_data_sources+p.predict_data_sources)
@@ -1060,6 +1062,21 @@ def results_section(p, pipeline_file_path):
                 st.balloons()
                 st.success('Success! Video was created at: TODO: get video out path')  # todo: MED
         st.markdown('---------------------------------------------------------------------------------------')
+
+    return export_data(p, pipeline_file_path)
+
+
+def export_data(p, pipeline_file_path):
+    ### Sidebar
+
+    ### Main
+    st.markdown(f'## Export data')
+    button_export_data = st.button('Toggle: export data', key=key_button_export_data)
+    if button_export_data:
+        session[key_button_export_data] = not session[key_button_export_data]
+    if session[key_button_export_data]:
+        # TODO: add a button
+        pass
 
     return display_footer(p, pipeline_file_path)
 
