@@ -8,10 +8,10 @@
 - [ ] Test: ensure new/variable features selected
 - [ ] Confusion matrix for Streamlit diagnostics section (Aaron)
 - [ ] Add PCA plotting for training data for BasePipeline to Streamlit diagnostics section
-- [ ] Aaron: add math for snout/tail body angle in feature_engi
 - [ ] Lower priority: Multiple features select on the Streamlit app model building section
 
 # Done
+- [x] Add math for vector(part1,part2) delta angle
 - [x] Add colour to video assignment
 - [x] Add binning feature slider
 - [x] Add FPS input into params
