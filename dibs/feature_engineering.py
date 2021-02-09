@@ -640,25 +640,25 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
     # # Scorer
     set_in_df_columns = set(in_df.columns)
     if 'scorer' not in set_in_df_columns:
-        col_not_found_err = f'TODO: "scorer" col not found but should exist (as a result from dibs.read_csv()) // ' \
+        col_not_found_err = f'Column named "scorer" not found but should exist (as a result from dibs.read_csv()) // ' \
                             f'All columns: {in_df.columns}'
         logger.error(col_not_found_err)
         raise ValueError(col_not_found_err)  # TODO: should this raise an error?
-    scorer_values = np.unique(in_df['scorer'])
+    scorer_values = np.unique(in_df['scorer'].values)
     if len(scorer_values) != 1:
-        err = f'TODO: there should be 1 unique scorer value. If there are more than 1, too many values. TODO '
+        err = f'There should be 1 unique scorer value. If there are more than 1, too many values. Value are: {scorer_values}.'
         logger.error(err)
-        raise ValueError(err)  # TODO: should this raise an error?
+        raise ValueError(err)  # TODO: low: should this raise an error?
     scorer_value: str = scorer_values[0]
 
     # # Source
     if 'source' in set_in_df_columns:
-        source_filenames_values = np.unique(in_df['source'])
+        source_filenames_values = np.unique(in_df['source'].values)
         if len(scorer_values) != 1:
-            err = f'TODO: there should be 1 unique source value. If there are more than 1, too many values, ' \
+            err = f'There should be 1 unique "source" value. If there is more than 1, too many values, ' \
                   f'makes no sense to adaptively filter over different datasets.'
             logger.error(err)
-            raise ValueError(err)  # # TODO: should this raise an error?
+            raise ValueError(err)  # TODO: low: should this raise an error?
         source = in_df['source'].values[0]
     else:
         source = None
@@ -669,7 +669,6 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
 
     # Resolve kwargs
     df = in_df.copy() if copy else in_df
-
 
     # Loop over columns, aggregate which indices in the data fall under which category.
     #   x, y, and likelihood are the three main types of columns output from DLC.
@@ -687,7 +686,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
             x_index.append(idx_col)
         elif column_suffix == "y":
             y_index.append(idx_col)
-        elif column_suffix == 'coords':  # todo: delte this elif. Coords should be dropped with the io.read_csv implementation?
+        elif column_suffix == 'coords':  # todo: low: delete this elif. Coords should be dropped with the io.read_csv implementation?
             # Record and check later...likely shouldn't exist anymore since its just a numbered col with no data.
             coords_cols_names.append(col)
         elif col == 'scorer': pass  # Ignore 'scorer' column. It tracks the DLC data source.
@@ -697,7 +696,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
         elif col == 'data_source': pass
         else:
             err = f'{inspect.stack()[0][3]}(): An inappropriate column header was found: ' \
-                  f'{column_suffix}. Column = "{col}". ' \
+                  f'{column_suffix}. Column name = "{col}". ' \
                   f'Check on CSV to see if has an unexpected output format from DLC.'
             logger.error(err)
             # raise ValueError(err)
@@ -719,7 +718,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
 
     # The below variable is instantiated with same rows as total minus 1 (for reasons TBD) and
     #   with column room for x and y values (it appears as though the likelihood values disappear)
-    array_data_filtered = np.zeros((data_x.shape[0], (data_x.shape[1]) * 2))  # Initialized as zeroes to be populated later  # currdf_filt: np.ndarray = np.zeros((data_x.shape[0]-1, (data_x.shape[1]) * 2))
+    array_data_filtered = np.full((data_x.shape[0], (data_x.shape[1]) * 2), fill_value=-1.0)  # Initialized as NAN to be populated later  # currdf_filt: np.ndarray = np.zeros((data_x.shape[0]-1, (data_x.shape[1]) * 2))
 
     logger.debug(f'{inspect.stack()[0][3]}(): Computing data threshold to forward fill any sub-threshold (x,y)...')
     percent_filterd_per_bodypart__perc_rect: List = [0. for _ in range(data_likelihood.shape[1])]  # for _ in range(data_lh.shape[1]): perc_rect.append(0)
