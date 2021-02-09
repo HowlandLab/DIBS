@@ -608,7 +608,7 @@ class PipelineHowland(BasePipeline):
         check_arg.ensure_type(in_df, pd.DataFrame)
         # Execute
         logger.debug(f'Engineering features for one data set...')
-        df = in_df.sort_values('frame').copy()
+        df = in_df.astype({'frame': int}).sort_values('frame').copy()
         # Filter
         df, _ = feature_engineering.adaptively_filter_dlc_output(df)
         # Engineer features
