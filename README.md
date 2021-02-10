@@ -19,8 +19,6 @@ Just follow the package installation instructions, the usage guide, and enjoy!
 
 - Ensure that you have Anaconda installed
   - You can ensure you have conda installed by running: `conda --version`
-- Run the following command to automate creation of the environment: `conda env create -n dibs -f env_windows.yml`
-
 - Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
 - Copy and paste all commands from [CONDA_ENV_COMMANDS.txt](./CONDA_ENV_COMMANDS.txt) into your 
   command line one at a time to download all necessary packages
@@ -69,4 +67,6 @@ general. This can be quite cluttered to the uninitiated. Changing the level of o
 
 
 
-### 
+### z
+
+- Run the following command to automate creation of the environment: `conda env create -n dibs -f env_windows.yml`
