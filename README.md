@@ -28,9 +28,10 @@ Just follow the package installation instructions, the usage guide, and enjoy!
 
 ## Usage
 
-### Bare package use option
+### Bare package use option (WIP)
 
-(WIP)
+Currently, the process for importing *DIBS* as a modular package is still being developed. 
+Stay tuned for more information.
 
 For clear examples on how best to use the DIBS Pipeline, open a local instance of `jupyter notebook`
 and open the [Try-Me! notebook](./notebooks/TryMe.ipynb).
@@ -59,12 +60,12 @@ To see the FAQ, read here: [FAQ.md](./FAQ.md)
 
 ## Tests
 
-To run tests, run: `python -m unittest discover DIBS/tests`
+To run the tests suite, execute the following command: `python -m unittest discover DIBS/tests`
 
 Note: you may see much more debug information during each test's pipeline build than you 
 were expecting if your config.ini variable for **[TESTING] [STREAM_LOG_LEVEL]** is too 
 general. This can be quite cluttered to the uninitiated. Changing the level of output from 
-DEBUG to WARNING will greatly reduce the amount of output.
+**DEBUG** to **WARNING** will greatly reduce the amount of output.
 
 
 
