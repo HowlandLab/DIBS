@@ -78,7 +78,14 @@ key_button_save_assignment = 'key_button_save_assignment'
 key_button_show_example_videos_options = 'key_button_show_example_videos_options'
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
 key_button_menu_label_entire_video = 'key_button_menu_label_entire_video'
-key_button_export_data = 'key_button_export_data'
+key_button_export_training_data = 'key_button_export_training_data'
+key_button_export_train_data_raw = 'key_button_export_data_raw'
+key_button_export_train_data_engineered = 'key_button_export_data_engineered'
+key_button_export_train_data_engineered_scaled = 'key_button_export_data_engineered_scaled'
+key_button_export_predict_data = 'key_button_export_predict_data'
+key_button_export_predict_data_raw = 'key_button_export_data_raw'
+key_button_export_predict_data_engineered = 'key_button_export_data_engineered'
+key_button_export_predict_data_engineered_scaled = 'key_button_export_data_engineered_scaled'
 ### Page variables data & default values ###
 streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_selected_layout: 'centered',  # Valid values include: "centered" and "wide"
@@ -106,7 +113,14 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_button_show_example_videos_options: False,
     key_button_create_new_example_videos: False,
     key_button_menu_label_entire_video: False,
-    key_button_export_data: False,
+    key_button_export_training_data: False,
+    key_button_export_train_data_raw: False,
+    key_button_export_train_data_engineered: False,
+    key_button_export_train_data_engineered_scaled: False,
+    key_button_export_predict_data: False,
+    key_button_export_predict_data_raw: False,
+    key_button_export_predict_data_engineered: False,
+    key_button_export_predict_data_engineered_scaled: False,
 }
 # TODO: propagate file path thru session var?
 session = {}
@@ -451,7 +465,7 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
             session[key_button_update_description] = False
             wait_seconds = session[default_n_seconds_sleep]
             st.success(f'Pipeline description has been changed!')
-            st.info(f'This page will refresh automatically to reflect your changes in {wait_seconds} seconds, or you can manually refresh the page (by clicking the page and pressing "R") to see changes.')
+            st.info(f'This page will refresh automatically to reflect your changes in {wait_seconds} seconds.')
             time.sleep(wait_seconds)
             st.experimental_rerun()
         for i in range(4):
@@ -1008,6 +1022,7 @@ def review_behaviours(p, pipeline_file_path):
                     if not os.path.isdir(os.path.dirname(pipeline_file_path)):
                         st.error(f'ERROR FOUND: The following path was not detected to be a directory: {os.path.isdir(os.path.dirname(pipeline_file_path))}')
                     # assert os.path.isdir(os.path.dirname(pipeline_file_path))
+                    # Execute
                     p = p.set_label(assignment_a, text_input_new_label).save_to_folder(os.path.dirname(pipeline_file_path))
 
     ### End section: review labels for behaviours ###
@@ -1031,15 +1046,12 @@ def results_section(p, pipeline_file_path):
         session[key_button_menu_label_entire_video] = not session[key_button_menu_label_entire_video]
     if session[key_button_menu_label_entire_video]:
         st.markdown('')
-        selected_data_source = st.selectbox('Select a data source to use as the labels set for specified video:',
-                                            options=['']+p.training_data_sources+p.predict_data_sources)
-        input_video_to_label = st.text_input('Input path to corresponding video which will be labeled:',
-                                             value=f'{config.DIBS_BASE_PROJECT_PATH}')
+        selected_data_source = st.selectbox('Select a data source to use as the labels set for specified video:', options=['']+p.training_data_sources+p.predict_data_sources)
+        input_video_to_label = st.text_input('Input path to corresponding video which will be labeled:', value=f'{config.DIBS_BASE_PROJECT_PATH}')
         st.markdown('')
         st.markdown('')
         input_new_video_name = st.text_input('Enter a file name for the labeled video output:')
-        output_folder = st.text_input('Enter a directory into which the labeled video will be saved:',
-                                      value=config.OUTPUT_PATH)
+        output_folder = st.text_input('Enter a directory into which the labeled video will be saved:', value=config.OUTPUT_PATH)
         # TODO: med/high: add FPS option for video out
         button_create_labeled_video = st.button('Create labeled video')
         if button_create_labeled_video:
@@ -1070,13 +1082,107 @@ def export_data(p, pipeline_file_path):
     ### Sidebar
 
     ### Main
-    st.markdown(f'## Export data')
-    button_export_data = st.button('Toggle: export data', key=key_button_export_data)
-    if button_export_data:
-        session[key_button_export_data] = not session[key_button_export_data]
-    if session[key_button_export_data]:
+    st.markdown('---------------------------------------------------------------------------------------------------')
+    st.markdown(f'## Exporting data')
+
+    # Export training data
+    button_export_training_data = st.button(f'Toggle: export training data menu', key=key_button_export_training_data)
+    if button_export_training_data:
+        session[key_button_export_training_data] = not session[key_button_export_training_data]
+    if session[key_button_export_training_data]:
+        st.markdown(f'### Export training data section')
+
+        # Export training data: raw
+        button_export_data_raw = st.button('Toggle: export raw train data', key=key_button_export_train_data_raw)
+        if button_export_data_raw:
+            session[key_button_export_train_data_raw] = not session[key_button_export_train_data_raw]
+        if session[key_button_export_train_data_raw]:
+            st.markdown(f'#### Export raw training data')
+            if len(p.df_features_train_raw) == 0:
+                st.info(f'No raw training data available. Load up data first, then exporting that data will be available.')
+            else:
+                raw_data_save_location = st.text_input('Input a file into which the data will be saved. Example: "/usr/home/my_raw_data.csv" (without the quotation marks)')
+                error_detected = False
+                if raw_data_save_location:
+                    if os.path.isdir(raw_data_save_location):
+                        st.error(f'File path submitted was of a folder. Submit a final path to a file.')
+                        error_detected = True
+                    if not os.path.isabs(raw_data_save_location):
+                        st.error(f'File path is not absolute. ')
+                        error_detected = True
+                    if not check_arg.is_pathname_valid(raw_data_save_location):
+                        st.error(f'Bad path input. Check again. Path detected: "{raw_data_save_location}"')
+                        error_detected = True
+
+                button_export_data_raw_confirmed = st.button('Export') if not error_detected else False
+
+                if button_export_data_raw_confirmed:
+                    if error_detected:
+                        st.error(f'Please resolve error before continuing')
+                    else:
+                        st.info(f'Saving file to "{raw_data_save_location}"...')
+                        logger.info(f'Trying to save training (raw) data to: {raw_data_save_location}...')
+                        p.df_features_train_raw.to_csv(raw_data_save_location, index=None)
+                        session[key_button_export_training_data] = False
+                        session[key_button_export_train_data_raw] = False
+                        time.sleep(session[default_n_seconds_sleep])
+                        st.experimental_rerun()
+            st.markdown('')
+            st.markdown('')
+
+        # Export training data: engineered
+        button_export_train_data_engineered = st.button('Toggle: export engineered training data', key=key_button_export_train_data_engineered)
+        if button_export_train_data_engineered:
+            session[key_button_export_train_data_engineered] = not session[key_button_export_train_data_engineered]
+        if session[key_button_export_train_data_engineered]:
+            st.markdown(f'#### Export engineered training data')
+            # TODO: implement
+            st.markdown('')
+            st.markdown('')
+
+        # Export training data: engineered, scaled
+        button_export_train_data_engineered_scaled = st.button('Toggle: export classifier-fed data', key=key_button_export_train_data_engineered_scaled)
+        if button_export_train_data_engineered_scaled:
+            session[key_button_export_train_data_engineered_scaled] = not session[key_button_export_train_data_engineered_scaled]
+        if session[key_button_export_train_data_engineered_scaled]:
+            st.markdown(f'#### Export classifier-fed data')
+            # TODO: implement
+            st.markdown('')
+            st.markdown('')
+
+        st.markdown('')
+
+    ### End of menu for exporting training data
+
+    # st.markdown('')
+
+    ### Menu: Export predict data
+    button_export_predict_data = st.button('Toggle: export predict data menu', key=key_button_export_predict_data)
+    if button_export_predict_data:
+        session[key_button_export_predict_data] = not session[key_button_export_predict_data]
+    if session[key_button_export_predict_data]:
+        st.markdown(f'### Export predict data')
+        button_export_data_raw = st.button('Toggle: export raw predict data', key=key_button_export_predict_data_raw)
+        if button_export_data_raw:
+            session[key_button_export_predict_data_raw] = not session[key_button_export_predict_data_raw]
+        if session[key_button_export_predict_data_raw]:
+            st.markdown(f'')
         # TODO: add a button
-        pass
+        # Export engineered feature data
+        button_export_predict_data_engineered = st.button('Toggle: export engineered, predicted predict data', key=key_button_export_predict_data_engineered)
+        if button_export_predict_data_engineered:
+            session[key_button_export_predict_data_engineered] = not session[key_button_export_predict_data_engineered]
+        if session[key_button_export_predict_data_engineered]:
+            st.markdown(f'')
+
+        # # Export engineered, scaled feature data
+        # button_export_predict_data_engineered_scaled = st.button('Toggle: export `classifier-fed` data', key=key_button_export_predict_data_engineered_scaled)
+        # if button_export_predict_data_engineered_scaled:
+        #     session[key_button_export_predict_data_engineered_scaled] = not session[key_button_export_predict_data_engineered_scaled]
+        # if session[key_button_export_predict_data_engineered_scaled]:
+        #     st.markdown(f'')
+
+    ### End of menu for exporting predict data
 
     return display_footer(p, pipeline_file_path)
 
