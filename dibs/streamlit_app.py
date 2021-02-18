@@ -214,7 +214,7 @@ def header(pipeline_file_path):
     # st.sidebar.markdown(f'Checkbox checked: {is_checked}')
 
     ### MAIN ###
-    st.markdown(f'# B-SOiD Streamlit app')
+    st.markdown(f'# DIBS Streamlit app')
 
     st.markdown('------------------------------------------------------------------------------------------')
     is_pipeline_loaded = False
