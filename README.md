@@ -75,7 +75,7 @@ Good clustering is qualified by how distinct each group of points is.
 
 Here is an example of **bad clustering**:
 
-![bad_clustering.jpg](./sample_data/bad_clustering.jpg)
+![bad_clustering.jpg](workflow_docs/bad_clustering.jpg)
 
 Notice how indistinct the clustering is between like groups. In this case, it doesn't matter 
 how many colours are used to identify the clusters; the clustering 
@@ -85,7 +85,7 @@ between groups is not distinct and therefore the t-SNE parameters are suboptimal
 
 Below is an example of **better clustering**:
 
-![better_clustering.jpg](./sample_data/better_clustering.jpg)
+![better_clustering.jpg](workflow_docs/better_clustering.jpg)
 
 Notice how the groups are much more distinct -- this is indicative of an improved set 
 of t-SNE parameters. Changing the number of GMM clusters present will not alter 
