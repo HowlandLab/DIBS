@@ -66,7 +66,36 @@ general. This can be quite cluttered to the uninitiated. Changing the level of o
 **DEBUG** to **WARNING** will greatly reduce the amount of output.
 
 
+## Parameter Tuning
 
-### z
+
+
+It is important to note that the colouring of the clustering is *not* indicative of the quality of clustering.
+Good clustering is qualified by how distinct each group of points is. 
+
+Here is an example of **bad clustering**:
+
+![bad_clustering.jpg](./sample_data/bad_clustering.jpg)
+
+Notice how indistinct the clustering is between like groups. In this case, it doesn't matter 
+how many colours are used to identify the clusters; the clustering 
+between groups is not distinct and therefore the t-SNE parameters are suboptimal.
+
+--
+
+Below is an example of **better clustering**:
+
+![better_clustering.jpg](./sample_data/better_clustering.jpg)
+
+Notice how the groups are much more distinct -- this is indicative of an improved set 
+of t-SNE parameters. Changing the number of GMM clusters present will not alter 
+the clustering arrangement, but can improve the clarity of
+how the clusters are assigned. In this case, it looks as though increasing 
+the number of cluster assignments (in the GMM parameters set) will 
+improve the visual clarity between clusters, but optimizing the t-SNE parameters for 
+distinctness of clustering should take priority. 
+
+
+### Spare words. Ignore the below.
 
 - Run the following command to automate creation of the environment: `conda env create -n dibs -f env_windows.yml`
