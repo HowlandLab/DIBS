@@ -3,6 +3,7 @@ Encapsulate all argument checking functions here.
 Since the patterns we use to log and raise exceptions are so frequent and
     consistent, we abstract away and implement and store them here.
 """
+from math import isnan
 from typing import Collection
 import errno
 import inspect
@@ -114,9 +115,27 @@ def ensure_numpy_arrays_are_same_shape(*arrays):
 
 
 def ensure_not_nan(value):
-    if value != value:
+    if value != value or isnan(value):
         err = f'{get_caller_function()}(): Value was expected to be a valid value (not NaN); however, found: {value}'
         raise ValueError(err)
+
+
+def ensure_valid_perplexity_lambda(lambda_str: str):
+    ensure_type(lambda_str, str)
+    if 'lambda' not in lambda_str:
+        lambda_missing_err = f'"lambda" not found in lambda. Lambda str value is: {lambda_str}'
+        raise ValueError(lambda_missing_err)
+    elif 'self' not in lambda_str:
+        self_missing_err = f'"self" term not found in lambda string. If you aren\'t using ' \
+                           f'`self` in the TSNE Perplexity lambda, then why use the lambda at ' \
+                           f'all? For now, this usage is invalid. Lambda string value: {lambda_str}'
+        raise ValueError(self_missing_err)
+    try:
+        eval(lambda_str)
+    except Exception as e:
+        lambda_not_evaluable_err = f'Lambda was found to be invalid. Lambda value: {lambda_str}. Error: {repr(e)}'
+        raise ValueError(lambda_not_evaluable_err)
+    return
 
 
 ###
