@@ -420,6 +420,46 @@ class TestPipeline(TestCase):
     Actual   {property_of_note} value: {actual_value}"""
         self.assertEqual(expected_value, actual_value, err)
 
+    def test__set_params__shouldMakePerplexityRelativeToNumFeatures__whenSpecifiedToBeRelativeToNumFeatures(self):
+        # Arrange
+        property_of_note = 'tsne_perplexity'
+        old_value = 10
+        new_value = 'lambda self: len(self.all_features) * 1.0'
+        p = default_pipeline_class(get_unique_pipe_name(), **{property_of_note: old_value})
+        expected_value = len(p.all_features) * 1.0
+        assert old_value != new_value
+        # logger.debug(f'Preplexity: {p.tsne_perplexity} / num features: {len(p.all_features)}')
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
+    @skip  # TODO: finish
+    def test__set_params__shouldMakePerplexityRelativeToNumFeatures__whenSpecifiedToBeRelativeToNumDataPoints(self):
+        # TODO
+        property_of_note = 'tsne_perplexity'
+        old_value = 10
+        new_value = 'lambda self: len(self.all_features) * 1.0'
+        p = default_pipeline_class(get_unique_pipe_name(), **{property_of_note: old_value})
+        expected_value = len(p.all_features) * 1.0
+        # Arrange
+        assert old_value != new_value
+        # logger.debug(f'Perplexity: {p.tsne_perplexity} / num features: {len(p.all_features)}')
+        new_params = {property_of_note: new_value, }
+        # Act
+        p = p.set_params(**new_params)
+        actual_value = getattr(p, property_of_note)
+        # Assert
+        err = f"""
+    Expected {property_of_note} value: {expected_value}
+    Actual   {property_of_note} value: {actual_value}"""
+        self.assertEqual(expected_value, actual_value, err)
+
     def test__set_params__tsne_learning_rate(self):
         property_of_note = 'tsne_learning_rate'
         old_value = 10
