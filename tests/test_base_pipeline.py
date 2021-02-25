@@ -3,7 +3,7 @@ Testing the BasePipeline class
 
 https://docs.python.org/3/library/unittest.html
 """
-from typing import Any, Dict, List, Set
+from typing import Set
 from unittest import TestCase, skip
 import os
 import random
@@ -425,7 +425,7 @@ class TestPipeline(TestCase):
         property_of_note = 'tsne_perplexity'
         old_value = 10
         new_value = 'lambda self: len(self.all_features) * 1.0'
-        p = default_pipeline_class(get_unique_pipe_name(), **{property_of_note: old_value})
+        p = get_unique_pipeline_loaded_with_data().set_params(**{property_of_note: old_value}).build()
         expected_value = len(p.all_features) * 1.0
         assert old_value != new_value
         # logger.debug(f'Preplexity: {p.tsne_perplexity} / num features: {len(p.all_features)}')
@@ -439,14 +439,16 @@ class TestPipeline(TestCase):
     Actual   {property_of_note} value: {actual_value}"""
         self.assertEqual(expected_value, actual_value, err)
 
-    @skip  # TODO: finish
     def test__set_params__shouldMakePerplexityRelativeToNumFeatures__whenSpecifiedToBeRelativeToNumDataPoints(self):
         # TODO
         property_of_note = 'tsne_perplexity'
         old_value = 10
-        new_value = 'lambda self: len(self.all_features) * 1.0'
-        p = default_pipeline_class(get_unique_pipe_name(), **{property_of_note: old_value})
-        expected_value = len(p.all_features) * 1.0
+        attr = 'num_training_data_points'
+
+        new_value = f'lambda self: self.{attr} * 1.0'
+        p = get_unique_pipeline_loaded_with_data().set_params(**{property_of_note: old_value}).build()
+        assert hasattr(p, attr)
+        expected_value = getattr(p, attr) * 1.0
         # Arrange
         assert old_value != new_value
         # logger.debug(f'Perplexity: {p.tsne_perplexity} / num features: {len(p.all_features)}')
@@ -661,7 +663,7 @@ Total TEST data rows: {test_rows}
         self.assertTrue(built_ok, err)
 
     ### Tests that need to be finished, confirmed, then moved to appropriate section ###
-    @skip  # TODO: finish test
+    @skip('Test needs to be worked on, finish')
     def test__add_train_data_AND_build__shouldHaveSameNumRowsInRawDataAsBuiltData__whenRawDataBuilt(self):
         """
         After adding just 1 train data source,
@@ -681,7 +683,7 @@ Total TEST data rows: {test_rows}
         err_msg = f'TODO: err msg'
         self.assertEqual(original_number_of_data_rows, actual_total_rows_after_feature_engineering, err_msg)
 
-    @skip  # TODO: review if test completely built
+    @skip('Review if test completely built')
     def test__pipeline_adding_train_data_file_source__shouldAddParticularFileTo____when____(self):
         """"""
         # Arrange
@@ -699,7 +701,7 @@ p.train_data_files_paths = {p.train_data_files_paths}
         self.assertTrue(is_path_now_in_list_of_paths, err_msg)
 
     ### Templates ###
-    @skip
+    @skip('Test stub')
     def test__stub7(self):
         """
 
@@ -710,7 +712,8 @@ p.train_data_files_paths = {p.train_data_files_paths}
         is_equal = 1 + 1 == 2
         # Assert
         self.assertTrue(is_equal)
-    @skip
+
+    @skip('Test stub')
     def test__stub__pipeline_instantiate(self):
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name())
