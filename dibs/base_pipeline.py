@@ -132,7 +132,7 @@ class BasePipeline(object):
     tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
     tsne_verbose: int = config.TSNE_VERBOSE
     tsne_init: str = config.TSNE_INIT
-    _tsne_perplexity: Union[float, callable] = config.TSNE_PERPLEXITY
+    _tsne_perplexity: Union[float, str] = config.TSNE_PERPLEXITY
     tsne_learning_rate: float = config.TSNE_LEARNING_RATE
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
@@ -232,9 +232,11 @@ class BasePipeline(object):
         """
         TODO:
         """  # TODO: review why this math is so useful
-        if isinstance(self._tsne_perplexity, FunctionType):
-            return self._tsne_perplexity(self)
-        return self._tsne_perplexity
+        perplexity = self._tsne_perplexity
+        if isinstance(self._tsne_perplexity, str):
+            check_arg.ensure_valid_perplexity_lambda(perplexity)
+            return eval(self._tsne_perplexity)(self)
+        return perplexity
 
     @property
     def tsne_perplexity_relative_to_num_features(self) -> float:
@@ -436,11 +438,10 @@ class BasePipeline(object):
         check_arg.ensure_type(tsne_n_jobs, int)
         self.tsne_n_jobs = tsne_n_jobs
         # TSNE perplexity
-        tsne_perplexity: Union[float, int, str, FunctionType] = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
+        tsne_perplexity: Union[float, int, str] = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
         if isinstance(tsne_perplexity, str):
             check_arg.ensure_valid_perplexity_lambda(tsne_perplexity)
-            tsne_perplexity = eval(tsne_perplexity)
-        check_arg.ensure_type(tsne_perplexity, float, int, FunctionType)
+        check_arg.ensure_type(tsne_perplexity, float, int, str)
         self._tsne_perplexity = float(tsne_perplexity) if isinstance(tsne_perplexity, int) else tsne_perplexity
         # TSNE verbosity
         tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
