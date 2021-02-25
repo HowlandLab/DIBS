@@ -14,9 +14,9 @@ Another way to od it is using the object method:
     e.g.: input: config.get('section', 'key') -> output: 'value of interest'
 
 """
-from ast import literal_eval
 from pathlib import Path
-from typing import Optional, Tuple
+from types import FunctionType
+from typing import Optional, Tuple, Union
 import configparser
 import numpy as np
 import os
@@ -59,6 +59,7 @@ configuration.read(os.path.join(DIBS_BASE_PROJECT_PATH, config_file_name))
 # Default variables asserts
 assert os.path.isdir(default_log_folder_path), f'log file save folder does not exist: {default_log_folder_path}'
 
+
 ### PATH ################################################################################
 DEFAULT_TRAIN_DATA_DIR = configuration.get('PATH', 'DEFAULT_TRAIN_DATA_DIR')
 if not os.path.isabs(DEFAULT_TRAIN_DATA_DIR):
@@ -81,6 +82,7 @@ assert os.path.isdir(OUTPUT_PATH), f'SPECIFIED OUTPUT PATH INVALID/DOES NOT EXIS
 assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
     f'`short_video_output_directory` dir. (value={VIDEO_OUTPUT_FOLDER_PATH}) must exist for runtime but does not.'
 
+
 ### APP #######################################################
 FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')  # E.g. png, jpg, svg, etc.
 N_JOBS = configuration.getint('APP', 'N_JOBS')  # TODO: low: currently not being used
@@ -100,6 +102,7 @@ if 'NUMEXPR_MAX_THREADS' not in os.environ and configuration.get('APP', 'NUMEXPR
 assert isinstance(PERCENT_FRAMES_TO_LABEL, float) and 0. < PERCENT_FRAMES_TO_LABEL < 1., \
     f'PERCENT_FRAMES_TO_LABEL is invalid. Value = {PERCENT_FRAMES_TO_LABEL}, type = {type(PERCENT_FRAMES_TO_LABEL)}.'
 # assert isinstance(N_JOBS, int) and N_JOBS > 0, f'N_JOBS is invalid. Value = `{N_JOBS}`'
+
 
 ### STREAMLIT ############################################################
 default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location', fallback='')
@@ -223,7 +226,7 @@ hdbscan_min_samples: int = configuration.getint('HDBSCAN', 'min_samples')
 
 ### MLP -- Feedforward neural network (MLP) params #####################################################################
 MLP_PARAMS = {
-    'hidden_layer_sizes': literal_eval(configuration.get('MLP', 'hidden_layer_sizes')),
+    'hidden_layer_sizes': eval(configuration.get('MLP', 'hidden_layer_sizes')),
     'activation': configuration.get('MLP', 'activation'),
     'solver': configuration.get('MLP', 'solver'),
     'learning_rate': configuration.get('MLP', 'learning_rate'),
@@ -269,8 +272,11 @@ TSNE_LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
 TSNE_N_COMPONENTS: int = configuration.getint('TSNE', 'n_components')
 TSNE_N_ITER: int = configuration.getint('TSNE', 'n_iter')
 TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
-TSNE_PERPLEXITY: Optional[str] = configuration.getfloat('TSNE', 'perplexity')
-# TSNE_PERPLEXITY: Optional[float] = float(TSNE_PERPLEXITY) if TSNE_PERPLEXITY else -1.0
+TSNE_PERPLEXITY: Union[str, float] = configuration.get('TSNE', 'perplexity')
+try:
+    TSNE_PERPLEXITY = float(TSNE_PERPLEXITY)
+except ValueError:
+    pass
 TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
 TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
 
@@ -284,6 +290,10 @@ assert TSNE_IMPLEMENTATION in valid_tsne_implementations, f''
 assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= minimum_tsne_n_iter, \
     f'TSNE_N_ITER should be an integer above {minimum_tsne_n_iter} but was found ' \
     f'to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
+# assert isinstance(TSNE_PERPLEXITY, float) \
+#     or isinstance(TSNE_PERPLEXITY, int) \
+#     or isinstance(TSNE_PERPLEXITY, str), \
+#     f'INVALID TYPE FOR PERPLEXITY: {type(TSNE_PERPLEXITY)} (value: {TSNE_PERPLEXITY})'
 
 ### UMAP ################################################################################
 UMAP_PARAMS = {
@@ -296,8 +306,10 @@ UMAP_PARAMS = {
 
 ###### VIDEO PARAMETERS #####
 DEFAULT_FONT_SCALE: int = configuration.getint('VIDEO', 'DEFAULT_FONT_SCALE')
-DEFAULT_TEXT_BGR: Tuple[int] = literal_eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BGR'))
-DEFAULT_TEXT_BACKGROUND_BGR: Tuple[int] = literal_eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BACKGROUND_BGR'))
+# DEFAULT_TEXT_BGR: Tuple[int] = literal_eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BGR'))
+DEFAULT_TEXT_BGR: Tuple[int] = eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BGR'))
+# DEFAULT_TEXT_BACKGROUND_BGR: Tuple[int] = literal_eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BACKGROUND_BGR'))
+DEFAULT_TEXT_BACKGROUND_BGR: Tuple[int] = eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BACKGROUND_BGR'))
 
 map_ext_to_fourcc = {
     'mp4': 'mp4v',
