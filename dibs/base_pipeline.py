@@ -22,13 +22,14 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils import shuffle as sklearn_shuffle_dataframe
-from typing import Any, Collection, Dict, List, Optional, Tuple  # TODO: med: review all uses of Optional
+from typing import Any, Collection, Dict, List, Optional, Tuple, Union  # TODO: med: review all uses of Optional
 import inspect
 import joblib
 import numpy as np
 import os
 import pandas as pd
 import time
+from types import FunctionType
 
 
 # from pandas.core.common import SettingWithCopyWarning
@@ -97,24 +98,20 @@ class BasePipeline(object):
     _df_features_predict_raw = pd.DataFrame(columns=default_cols)
     _df_features_predict = pd.DataFrame(columns=default_cols)
     _df_features_predict_scaled = pd.DataFrame(columns=default_cols)
+
     @property
-    def df_features_train_raw(self):
-        return self._df_features_train_raw.astype({'frame': int})
+    def df_features_train_raw(self): return self.convert_types(self._df_features_train_raw)
     @property
-    def df_features_train(self):
-        return self._df_features_train.astype({'frame': int})
+    def df_features_train(self): return self.convert_types(self._df_features_train)
     @property
-    def df_features_train_scaled(self):
-        return self._df_features_train_scaled.astype({'frame': int})
+    def df_features_train_scaled(self): return self.convert_types(self._df_features_train_scaled)
     @property
-    def df_features_predict_raw(self):
-        return self._df_features_predict_raw.astype({'frame': int})
+    def df_features_predict_raw(self): return self.convert_types(self._df_features_predict_raw)
     @property
-    def df_features_predict(self):
-        return self._df_features_predict.astype({'frame': int})
+    def df_features_predict(self): return self.convert_types(self._df_features_predict)
     @property
-    def df_features_predict_scaled(self):
-        return self._df_features_predict_scaled.astype({'frame': int})
+    def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
+
     # Other model vars (Rename this)
     video_fps: float = config.VIDEO_FPS
     cross_validation_k: int = config.CROSSVALIDATION_K
@@ -135,7 +132,7 @@ class BasePipeline(object):
     tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
     tsne_verbose: int = config.TSNE_VERBOSE
     tsne_init: str = config.TSNE_INIT
-    _tsne_perplexity: Optional[float] = config.TSNE_PERPLEXITY
+    _tsne_perplexity: Union[float, callable] = config.TSNE_PERPLEXITY
     tsne_learning_rate: float = config.TSNE_LEARNING_RATE
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
@@ -201,10 +198,9 @@ class BasePipeline(object):
         setattr(self, f'label_{assignment}', label)
         return self
 
-
-
     def convert_types(self, df):
-        return df.astype({'frame': int,})
+        return df.astype({'frame': int, })
+
     ### Properties & Getters ###
     @property
     def is_in_inconsistent_state(self):
@@ -225,45 +221,68 @@ class BasePipeline(object):
         return self._description
 
     @property
+    def num_training_data_points(self) -> int:
+        df_train = self.df_features_train_scaled
+        if len(df_train) == 0:
+            return 0
+        return len(df_train.loc[(~df_train[list(self.all_features)].isnull().any(axis=1)) & (~df_train[self.test_col_name])])
+
+    @property
     def tsne_perplexity(self) -> float:
-        """ Should perplexity be set to None, return the square root of the number of features. """  # TODO: review why this math is so useful
-        return self._tsne_perplexity if self._tsne_perplexity else np.sqrt(len(self.all_features))
+        """
+        TODO:
+        """  # TODO: review why this math is so useful
+        if isinstance(self._tsne_perplexity, FunctionType):
+            return self._tsne_perplexity(self)
+        return self._tsne_perplexity
 
     @property
-    def clf_gmm(self):
-        return self._clf_gmm
+    def tsne_perplexity_relative_to_num_features(self) -> float:
+        # TODO: med: evaluate
+        """
+        :return: (float) perplexity_value_used / number of features
+        """
+        return self.tsne_perplexity / len(self.all_features)
 
     @property
-    def clf(self):
-        return self._classifier
+    def tsne_perplexity_relative_to_num_data_points(self) -> float:
+        # TODO: med: evaluate
+        """
+
+        :return: perplexity / number of data points for training
+        """
+        num_data_points = len(self.df_features_train_scaled)
+        if num_data_points == 0:
+            return 0
+
+        return self.tsne_perplexity / self.num_training_data_points
 
     @property
-    def random_state(self):
-        return self._random_state
+    def clf_gmm(self): return self._clf_gmm
 
     @property
-    def is_built(self):
-        return self._is_built
+    def clf(self): return self._classifier
 
     @property
-    def has_train_data(self):
-        return bool(len(self.df_features_train_raw))
+    def random_state(self): return self._random_state
 
     @property
-    def has_test_data(self):
-        return bool(len(self.df_features_predict_raw))
+    def is_built(self): return self._is_built
 
     @property
-    def accuracy_score(self):
-        return self._acc_score
+    def has_train_data(self) -> bool: return bool(len(self.df_features_train_raw))
 
     @property
-    def scaler(self):
-        return self._scaler
+    def has_test_data(self) -> bool: return bool(len(self.df_features_predict_raw))
 
     @property
-    def svm_col(self) -> str:
-        return self.clf_assignment_col_name
+    def accuracy_score(self): return self._acc_score
+
+    @property
+    def scaler(self): return self._scaler
+
+    @property
+    def svm_col(self) -> str: return self.clf_assignment_col_name
 
     @property
     def svm_assignment(self) -> str:
@@ -292,16 +311,13 @@ class BasePipeline(object):
         return []
 
     @property
-    def all_features(self) -> Tuple[str]:
-        return self._all_features
+    def all_features(self) -> Tuple[str]: return self._all_features
 
     @property
-    def all_features_list(self) -> List[str]:
-        return list(self._all_features)
+    def all_features_list(self) -> List[str]: return list(self._all_features)
 
     @property
-    def total_build_time(self):
-        return self.seconds_to_engineer_train_features
+    def total_build_time(self): return self.seconds_to_engineer_train_features
 
     @property
     def dims_cols_names(self) -> List[str]:
@@ -365,9 +381,11 @@ class BasePipeline(object):
         """
         check_arg.ensure_type(read_config_on_missing_param, bool)
         ### General Params ###
+        # Test/train split %
         test_train_split_pct = kwargs.get('test_train_split_pct', config.HOLDOUT_PERCENT if read_config_on_missing_param else self.test_train_split_pct)
         check_arg.ensure_type(test_train_split_pct, float)
         self.test_train_split_pct = test_train_split_pct
+        # Classifier model
         classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
         check_arg.ensure_type(classifier_type, str)
         if classifier_type not in config.valid_classifiers:
@@ -376,68 +394,92 @@ class BasePipeline(object):
             raise ValueError(err)
         self.classifier_type = classifier_type
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
+        # Source video FPS
         video_fps = kwargs.get('video_fps', config.VIDEO_FPS if read_config_on_missing_param else self.video_fps)
         check_arg.ensure_type(video_fps, int, float)
         self.video_fps = float(video_fps)
+        # Window averaging
         average_over_n_frames = kwargs.get('average_over_n_frames', self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
         check_arg.ensure_type(average_over_n_frames, int)
         self.average_over_n_frames = average_over_n_frames
+        # Random state value
         random_state = kwargs.get('random_state', config.RANDOM_STATE if read_config_on_missing_param else self.random_state)  # TODO: low: ensure random state correct
         check_arg.ensure_type(random_state, int)
         self._random_state = random_state
         ### TSNE ###
+        # TSNE implementation type
         tsne_implementation = kwargs.get('tsne_implementation', config.TSNE_IMPLEMENTATION if read_config_on_missing_param else self.tsne_implementation)
         check_arg.ensure_type(tsne_implementation, str)
         self.tsne_implementation = tsne_implementation
+        # TSNE Initialization
         tsne_init = kwargs.get('tsne_init', config.TSNE_INIT if read_config_on_missing_param else self.tsne_init)
         check_arg.ensure_type(tsne_init, str)
         self.tsne_init = tsne_init
+        # TSNE early exaggeration
         tsne_early_exaggeration = kwargs.get('tsne_early_exaggeration', config.TSNE_EARLY_EXAGGERATION if read_config_on_missing_param else self.tsne_early_exaggeration)
         check_arg.ensure_type(tsne_early_exaggeration, float, int)
         self.tsne_early_exaggeration = float(tsne_early_exaggeration)
+        # TSNE learning rate
         tsne_learning_rate = kwargs.get('tsne_learning_rate', config.TSNE_LEARNING_RATE if read_config_on_missing_param else self.tsne_learning_rate)
         check_arg.ensure_type(tsne_learning_rate, float, int)
         self.tsne_learning_rate = float(tsne_learning_rate)
+        # TSNE n components
         tsne_n_components = kwargs.get('tsne_n_components', config.TSNE_N_COMPONENTS if read_config_on_missing_param else self.tsne_n_components)  # TODO: low: shape up kwarg name for n components? See string name
         check_arg.ensure_type(tsne_n_components, int)
         self.tsne_n_components = tsne_n_components
+        # TSNE n iterations
         tsne_n_iter = kwargs.get('tsne_n_iter', config.TSNE_N_ITER if read_config_on_missing_param else self.tsne_n_iter)
         check_arg.ensure_type(tsne_n_iter, int)
         self.tsne_n_iter = tsne_n_iter
+        # TSNE n jobs
         tsne_n_jobs = kwargs.get('tsne_n_jobs', config.TSNE_N_JOBS if read_config_on_missing_param else self.tsne_n_jobs)
         check_arg.ensure_type(tsne_n_jobs, int)
         self.tsne_n_jobs = tsne_n_jobs
-        tsne_perplexity = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
-        check_arg.ensure_type(tsne_perplexity, float, int)
-        self._tsne_perplexity = float(tsne_perplexity)
+        # TSNE perplexity
+        tsne_perplexity: Union[float, int, str, FunctionType] = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
+        if isinstance(tsne_perplexity, str):
+            check_arg.ensure_valid_perplexity_lambda(tsne_perplexity)
+            tsne_perplexity = eval(tsne_perplexity)
+        check_arg.ensure_type(tsne_perplexity, float, int, FunctionType)
+        self._tsne_perplexity = float(tsne_perplexity) if isinstance(tsne_perplexity, int) else tsne_perplexity
+        # TSNE verbosity
         tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
         check_arg.ensure_type(tsne_verbose, int)
         self.tsne_verbose = tsne_verbose
-        # GMM vars
+        ### GMM parameters
+        # GMM n components
         gmm_n_components = kwargs.get('gmm_n_components', config.gmm_n_components if read_config_on_missing_param else self.gmm_n_components)
         check_arg.ensure_type(gmm_n_components, int)
         self.gmm_n_components = gmm_n_components
+        # GMM covariance type
         gmm_covariance_type = kwargs.get('gmm_covariance_type', config.gmm_covariance_type if read_config_on_missing_param else self.gmm_covariance_type)
         check_arg.ensure_type(gmm_covariance_type, str)
         self.gmm_covariance_type = gmm_covariance_type
+        # GMM tolerance
         gmm_tol = kwargs.get('gmm_tol', config.gmm_tol if read_config_on_missing_param else self.gmm_tol)
         check_arg.ensure_type(gmm_tol, float)
         self.gmm_tol = gmm_tol
+        # TODO: what does reg cover stand for?
         gmm_reg_covar = kwargs.get('gmm_reg_covar', config.gmm_reg_covar if read_config_on_missing_param else self.gmm_reg_covar)
         check_arg.ensure_type(gmm_reg_covar, float, int)
         self.gmm_reg_covar = float(gmm_reg_covar)
-        gmm_max_iter = kwargs.get('gmm_max_iter',config.gmm_max_iter if read_config_on_missing_param else self.gmm_max_iter)
+        # GMM maximum iterations
+        gmm_max_iter = kwargs.get('gmm_max_iter', config.gmm_max_iter if read_config_on_missing_param else self.gmm_max_iter)
         check_arg.ensure_type(gmm_max_iter, int)
         self.gmm_max_iter = gmm_max_iter
+        # GMM n init TODO
         gmm_n_init = kwargs.get('gmm_n_init', config.gmm_n_init if read_config_on_missing_param else self.gmm_n_init)
         check_arg.ensure_type(gmm_n_init, int)
         self.gmm_n_init = gmm_n_init
+        # GMM initialization parameters
         gmm_init_params = kwargs.get('gmm_init_params', config.gmm_init_params if read_config_on_missing_param else self.gmm_init_params)
         check_arg.ensure_type(gmm_init_params, str)
         self.gmm_init_params = gmm_init_params
+        # GMM verbosity
         gmm_verbose = kwargs.get('gmm_verbose', config.gmm_verbose if read_config_on_missing_param else self.gmm_verbose)
         check_arg.ensure_type(gmm_verbose, int)
         self.gmm_verbose = gmm_verbose
+        # GMM verbosity interval
         gmm_verbose_interval = kwargs.get('gmm_verbose_interval', config.gmm_verbose_interval if read_config_on_missing_param else self.gmm_verbose_interval)
         check_arg.ensure_type(gmm_verbose_interval, int)
         self.gmm_verbose_interval = gmm_verbose_interval
@@ -445,25 +487,33 @@ class BasePipeline(object):
         classifier_verbose = kwargs.get('classifier_verbose', config.CLASSIFIER_VERBOSE if read_config_on_missing_param else self.classifier_verbose)
         check_arg.ensure_type(classifier_verbose, int)
         self.classifier_verbose = classifier_verbose
-        # Random Forest vars
+        ### Random Forest vars
+        # Random Forest n estimators
         rf_n_estimators = kwargs.get('rf_n_estimators', config.rf_n_estimators if read_config_on_missing_param else self.rf_n_estimators)
         check_arg.ensure_type(rf_n_estimators, int)
         self.rf_n_estimators = rf_n_estimators
+        # Random Forest n jobs
         rf_n_jobs = kwargs.get('rf_n_jobs', config.rf_n_jobs if read_config_on_missing_param else self.rf_n_jobs)
         check_arg.ensure_type(rf_n_jobs, int)
         self.rf_n_jobs = rf_n_jobs
-        # SVM vars
+        ### SVM vars
+        # SVM C
         svm_c = kwargs.get('svm_c', config.svm_c if read_config_on_missing_param else self.svm_c)
         self.svm_c = svm_c
+        # SVM gamma
         svm_gamma = kwargs.get('svm_gamma', config.svm_gamma if read_config_on_missing_param else self.svm_gamma)
         self.svm_gamma = svm_gamma
+        # SVM probability
         svm_probability = kwargs.get('svm_probability', config.svm_probability if read_config_on_missing_param else self.svm_probability)
         self.svm_probability = svm_probability
+        # SVM verbosity
         svm_verbose = kwargs.get('svm_verbose', config.svm_verbose if read_config_on_missing_param else self.svm_verbose)
         self.svm_verbose = svm_verbose
+        # Cross-validation K
         cross_validation_k = kwargs.get('cross_validation_k', config.CROSSVALIDATION_K if read_config_on_missing_param else self.cross_validation_k)
         check_arg.ensure_type(cross_validation_k, int)
         self.cross_validation_k = cross_validation_k
+        # Cross-validation n jobs
         cross_validation_n_jobs = kwargs.get('cross_validation_n_jobs', config.CROSSVALIDATION_N_JOBS if read_config_on_missing_param else self.cross_validation_n_jobs)
         check_arg.ensure_type(cross_validation_n_jobs, int)
         self.cross_validation_n_jobs = cross_validation_n_jobs
