@@ -55,7 +55,7 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     if not os.path.isfile(csv_file_path):
         err = f'Input filepath to csv was not a valid file path: {csv_file_path} (type = {type(csv_file_path)}.'
         logger.error(err)
-        raise ValueError(err)
+        raise FileNotFoundError(err)
     # Read in kwargs
     nrows = kwargs.get('nrows', sys.maxsize)  # TODO: address case where nrows is <= 3 (no data parsed then)
     # file_path = csv_file_path  # os.path.split(csv_file_path)[-1]
@@ -146,7 +146,7 @@ def read_pipeline(path_to_file: str):
     :param path_to_file:
     :return:
     """
-    # TODO: do final checks on this function
+    # TODO: low: do final checks on this function
     check_arg.ensure_is_file(path_to_file)
     logger.debug(f'{logging_enhanced.get_current_function()}(): Trying to open: {path_to_file}')
     with open(path_to_file, 'rb') as file:
@@ -170,13 +170,6 @@ def save_pipeline(pipeline_obj, dir_path: str = config.OUTPUT_PATH):
         dir_path,
         pipeline.generate_pipeline_filename_from_pipeline(pipeline_obj)
     )
-    # # TODO: high: check if its being overwritten without os.remove usage
-    # if os.path.isfile(final_out_path):
-    #     logger.debug(f'Removing file: {final_out_path}')
-    #     os.remove(final_out_path)
-    #     if os.path.isfile(final_out_path):
-    #         did_not_delete_file = True
-    #         logger.error(f'os.remove DID NOT WORK TO REMOVE FILE!')
 
     with open(final_out_path, 'wb') as file:
         joblib.dump(pipeline_obj, file)
