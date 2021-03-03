@@ -1341,7 +1341,7 @@ class BasePipeline(object):
             self.df_features_train_scaled[self.clf_assignment_col_name])
         return fig, ax
 
-    def plot_clusters_by_assignments(self, show_now=False, save_to_file=False, azim_elev: tuple = (70, 135), draw_now=False, **kwargs) -> Tuple[object, object]:
+    def plot_clusters_by_assignments(self, title='', show_now=False, save_to_file=False, azim_elev: tuple = (70, 135), draw_now=False, **kwargs) -> Tuple[object, object]:
         """
         # TODO: rename function as plot assignments by cluster
         Get plot of clusters colored by GMM assignment
@@ -1355,7 +1355,8 @@ class BasePipeline(object):
         :return:
         """
         # Hard coded args to be fixed later  # TODO: med
-        title = f'Perplexity={self.tsne_perplexity} / EarlyExaggeration={self.tsne_early_exaggeration} / LearnRate={self.tsne_learning_rate}'
+        if not title:
+            title = f'Perplexity={self.tsne_perplexity} / EarlyExaggeration={self.tsne_early_exaggeration} / LearnRate={self.tsne_learning_rate}'
         # Arg checking
         check_arg.ensure_type(azim_elev, tuple)
         # TODO: low: check for other runtime vars
