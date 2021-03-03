@@ -366,7 +366,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
         show_pipeline_info(p, pipeline_file_path)
 
 
-def show_pipeline_info(p, pipeline_path):
+def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
 
     """  """
     # logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
@@ -374,6 +374,10 @@ def show_pipeline_info(p, pipeline_path):
     ### SIDEBAR ###
 
     ### MAIN PAGE ###
+    st.markdown(f'## Raw perplexity value: {p._tsne_perplexity}')  # TODO: high: remove this
+    st.markdown(f'## Number of data points: {p.num_training_data_points}')
+    st.markdown(f'')
+
     st.markdown(f'## Pipeline basic information')
     st.markdown(f'- Name: **{p.name}**')
     st.markdown(f'- Description: **{p.description}**')
@@ -384,7 +388,7 @@ def show_pipeline_info(p, pipeline_path):
     st.markdown(f'- Build time: ' + (f'{p.seconds_to_build} seconds' if p.is_built else f'N/A'))  # TODO: low: remove this line after debugging
 
     ### Menu button: show more info
-    button_show_advanced_pipeline_information = st.button(f'Toggle advanced info', key=key_button_show_adv_pipeline_information)
+    button_show_advanced_pipeline_information = st.button(f'Toggle: show advanced info', key=key_button_show_adv_pipeline_information)
     if button_show_advanced_pipeline_information:
         session[key_button_show_adv_pipeline_information] = not session[key_button_show_adv_pipeline_information]
     if session[key_button_show_adv_pipeline_information]:
@@ -420,6 +424,8 @@ def show_pipeline_info(p, pipeline_path):
         if p.is_built:
             st.markdown('')
             st.markdown(f'- Build time: {p.seconds_to_build} seconds')
+        st.markdown(f'Perplexity: {p.tsne_perplexity}')
+        st.markdown(f'Perplexity % of training data (perp / data): {round(p.tsne_perplexity_relative_to_num_data_points, 5)*100}%')
 
     ###
 
@@ -441,7 +447,7 @@ We recommend that you rebuild the model to avoid future problems. """.strip())
     return show_actions(p, pipeline_path)
 
 
-def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
+def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
     """ Show basic actions that we can perform on the model """
     ### SIDEBAR ###
 
@@ -691,23 +697,24 @@ def show_actions(p: pipeline.PipelinePrime, pipeline_file_path):
                 st.info('See the original paper describing this algorithm for more details.'
                         ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
                         ' Section 2 includes perplexity.')
-            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity, min_value=0.1)
+            # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
+            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity if p.tsne_perplexity else 100., min_value=0.1)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
             # Extra info: tsne-perplexity
             if session[checkbox_show_extra_text]:
-                st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
+                st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')  # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
             input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
             # Extra info: learning rate
             if session[checkbox_show_extra_text]:
                 st.info('TODO: learning rate')  # TODO: low
-            input_tsne_early_exaggeration = st.number_input(f'TSNE: early exaggeration', value=p.tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
+            input_tsne_early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=p.tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
             # Extra info: early exaggeration
             if session[checkbox_show_extra_text]:
                 st.info('TODO: early exaggeration')  # TODO: low
-            input_tsne_n_iter = st.number_input(label=f'TSNE n iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
+            input_tsne_n_iter = st.number_input(label=f'TSNE N Iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
             # Extra info: number of iterations
             if session[checkbox_show_extra_text]:
                 st.info('TODO: number of iterations')  # TODO: low
-            input_tsne_n_components = st.number_input(f'TSNE: n components/dimensions', value=p.tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
+            input_tsne_n_components = st.number_input(f'TSNE N Components/Dimensions', value=p.tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
             # Extra info: number of components (dimensions)
             if session[checkbox_show_extra_text]:
                 st.info('TODO: number of components (dimensions)')  # TODO: low
@@ -1091,8 +1098,7 @@ def export_data(p, pipeline_file_path):
         session[key_button_export_training_data] = not session[key_button_export_training_data]
     if session[key_button_export_training_data]:
         st.markdown(f'### Export training data section')
-
-        # Export training data: raw
+        # 1/3: Export training data: raw
         button_export_data_raw = st.button('Toggle: export raw train data', key=key_button_export_train_data_raw)
         if button_export_data_raw:
             session[key_button_export_train_data_raw] = not session[key_button_export_train_data_raw]
@@ -1101,52 +1107,87 @@ def export_data(p, pipeline_file_path):
             if len(p.df_features_train_raw) == 0:
                 st.info(f'No raw training data available. Load up data first, then exporting that data will be available.')
             else:
-                raw_data_save_location = st.text_input('Input a file into which the data will be saved. Example: "/usr/home/my_raw_data.csv" (without the quotation marks)')
-                error_detected = False
+                raw_data_save_location = st.text_input('Input a file into which the data will be saved. Example: "/usr/home/my_raw_data.csv" (without the quotation marks)', value=config.OUTPUT_PATH)
+                error_detected_raw = False
                 if raw_data_save_location:
                     if os.path.isdir(raw_data_save_location):
                         st.error(f'File path submitted was of a folder. Submit a final path to a file.')
-                        error_detected = True
+                        error_detected_raw = True
                     if not os.path.isabs(raw_data_save_location):
                         st.error(f'File path is not absolute. ')
-                        error_detected = True
+                        error_detected_raw = True
                     if not check_arg.is_pathname_valid(raw_data_save_location):
                         st.error(f'Bad path input. Check again. Path detected: "{raw_data_save_location}"')
-                        error_detected = True
+                        error_detected_raw = True
 
-                button_export_data_raw_confirmed = st.button('Export') if not error_detected else False
-
+                button_export_data_raw_confirmed = st.button('Export') if not error_detected_raw else False
                 if button_export_data_raw_confirmed:
-                    if error_detected:
-                        st.error(f'Please resolve error before continuing')
-                    else:
-                        st.info(f'Saving file to "{raw_data_save_location}"...')
-                        logger.info(f'Trying to save training (raw) data to: {raw_data_save_location}...')
-                        p.df_features_train_raw.to_csv(raw_data_save_location, index=None)
-                        session[key_button_export_training_data] = False
-                        session[key_button_export_train_data_raw] = False
-                        time.sleep(session[default_n_seconds_sleep])
-                        st.experimental_rerun()
+                    st.info(f'Saving file to "{raw_data_save_location}"...')
+                    logger.info(f'Trying to save training (raw) data to: {raw_data_save_location}...')
+                    p.df_features_train_raw.to_csv(raw_data_save_location, index=None)
+                    session[key_button_export_training_data] = False
+                    session[key_button_export_train_data_raw] = False
+                    time.sleep(session[default_n_seconds_sleep])
+                    st.experimental_rerun()
             st.markdown('')
             st.markdown('')
 
-        # Export training data: engineered
-        button_export_train_data_engineered = st.button('Toggle: export engineered training data', key=key_button_export_train_data_engineered)
+        # 2/3: Export training data: engineered
+        button_export_train_data_engineered = st.button('Toggle: export engineered training data', key=key_button_export_train_data_engineered)  # TODO: low: ensure button string well formed
         if button_export_train_data_engineered:
             session[key_button_export_train_data_engineered] = not session[key_button_export_train_data_engineered]
         if session[key_button_export_train_data_engineered]:
             st.markdown(f'#### Export engineered training data')
-            # TODO: implement
+            data_save_location = st.text_input('Input a full file path into which the data will be saved', value=config.OUTPUT_PATH)  # TODO: low: improve message string
+            err_detected = False
+            if data_save_location:
+                if not os.path.isabs(data_save_location):
+                    warning_msg_is_abs = f''
+                    st.info(warning_msg_is_abs)
+                    logger.warning(warning_msg_is_abs)
+                    st.stop()
+                    err_detected = True
+                if os.path.isdir(data_save_location):
+                    warning_msg_dir = f''
+                    st.info(warning_msg_dir)
+                    err_detected = True
+                button_export_data_confirmed = st.button('Export' if not err_detected else False)
+                if button_export_data_confirmed:
+                    st.info(f'Saving file to "{data_save_location}"')
+                    p.df_features_train.to_csv(data_save_location, index=None)
+                    session[key_button_export_train_data_engineered] = False
+                    session[key_button_export_training_data] = False
+                    st.success(f'Data saved to "{data_save_location}"')
+                    time.sleep(session[default_n_seconds_sleep])
+                    st.experimental_rerun()
             st.markdown('')
             st.markdown('')
 
-        # Export training data: engineered, scaled
-        button_export_train_data_engineered_scaled = st.button('Toggle: export classifier-fed data', key=key_button_export_train_data_engineered_scaled)
+        # 3/3: Export training data: engineered, scaled, and directly used for model training
+        button_export_train_data_engineered_scaled = st.button('Toggle: export classifier-fed data', key=key_button_export_train_data_engineered_scaled)  # TODO: low: ensure button string well formed
         if button_export_train_data_engineered_scaled:
             session[key_button_export_train_data_engineered_scaled] = not session[key_button_export_train_data_engineered_scaled]
         if session[key_button_export_train_data_engineered_scaled]:
             st.markdown(f'#### Export classifier-fed data')
-            # TODO: implement
+            # TODO: check implementation
+            data_scaled_save_location = st.text_input(f'Input a full file path into which the classifier-fed data will be saved', value=config.OUTPUT_PATH)
+            err_scaled_data_save = False
+            if data_scaled_save_location:
+                if not os.path.isabs(data_scaled_save_location):
+                    err_scaled_data_save = True
+                    warning_msg_is_abs_scaled = f''
+                    st.info(warning_msg_is_abs_scaled)
+                if os.path.isdir(data_scaled_save_location):
+                    err_scaled_data_save = True
+                button_export_data_scaled_confirm = st.button('Export' if not err_scaled_data_save else False)
+                if button_export_data_scaled_confirm:
+                    st.info(f'Saving file to "{data_scaled_save_location}"')
+                    p.df_features_train_scaled.to_csv(data_scaled_save_location, index=None)
+                    session[key_button_export_training_data] = False
+                    session[key_button_export_train_data_engineered_scaled] = False
+                    st.success(f'Data saved to "{data_scaled_save_location}"')
+                    time.sleep(session[default_n_seconds_sleep])
+                    st.experimental_rerun()
             st.markdown('')
             st.markdown('')
 
@@ -1162,13 +1203,14 @@ def export_data(p, pipeline_file_path):
         session[key_button_export_predict_data] = not session[key_button_export_predict_data]
     if session[key_button_export_predict_data]:
         st.markdown(f'### Export predict data')
+        # 1/2: export raw data
         button_export_data_raw = st.button('Toggle: export raw predict data', key=key_button_export_predict_data_raw)
         if button_export_data_raw:
             session[key_button_export_predict_data_raw] = not session[key_button_export_predict_data_raw]
         if session[key_button_export_predict_data_raw]:
             st.markdown(f'')
         # TODO: add a button
-        # Export engineered feature data
+        # 2/2: Export engineered feature data but with labels
         button_export_predict_data_engineered = st.button('Toggle: export engineered, predicted predict data', key=key_button_export_predict_data_engineered)
         if button_export_predict_data_engineered:
             session[key_button_export_predict_data_engineered] = not session[key_button_export_predict_data_engineered]
@@ -1262,6 +1304,29 @@ def example_of_value_saving():
             st.markdown('Button 2 pressed')
 
 
+def checking_file_session_timings():
+    space1 = st.empty()
+    space2 = st.empty()
+    iters = 1000
+    global session
+    session = streamlit_session_state.get(**streamlit_persistence_variables)
+    start1 = time.perf_counter()
+    for i in range(iters):
+        x = session[checkbox_show_extra_text]
+        st.markdown(x)
+    end1 = time.perf_counter()
+
+    start2 = time.perf_counter()
+    y = session[checkbox_show_extra_text]
+    for i in range(iters):
+        x = y
+        st.markdown(x)
+    end2 = time.perf_counter()
+    space1.write(f'File checking time: {end1-start1}')
+    space2.write(f'file checkimt time 2: {end2-start2}')
+    pass
+
+
 # Main: only use for debugging. It will be deleted later.
 
 if __name__ == '__main__':
@@ -1270,5 +1335,5 @@ if __name__ == '__main__':
     DIBS_project_path = os.path.dirname(os.path.dirname(__file__))
     if DIBS_project_path not in sys.path:
         sys.path.insert(0, DIBS_project_path)
-    # home()
-    example_of_value_saving()
+    start_app()
+    # checking_file_session_timings()
