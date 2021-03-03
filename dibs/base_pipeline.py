@@ -91,26 +91,13 @@ class BasePipeline(object):
     _has_modified_model_variables: bool = False
 
     # Data
-    default_cols = ['frame', 'data_source', 'file_source']  # ,  clf_assignment_col_name, gmm_assignment_col_name]
+    default_cols = ['frame', 'data_source', 'file_source', ]  # ,  clf_assignment_col_name, gmm_assignment_col_name]
     _df_features_train_raw = pd.DataFrame(columns=default_cols)
     _df_features_train = pd.DataFrame(columns=default_cols)
     _df_features_train_scaled = pd.DataFrame(columns=default_cols)
     _df_features_predict_raw = pd.DataFrame(columns=default_cols)
     _df_features_predict = pd.DataFrame(columns=default_cols)
     _df_features_predict_scaled = pd.DataFrame(columns=default_cols)
-
-    @property
-    def df_features_train_raw(self): return self.convert_types(self._df_features_train_raw)
-    @property
-    def df_features_train(self): return self.convert_types(self._df_features_train)
-    @property
-    def df_features_train_scaled(self): return self.convert_types(self._df_features_train_scaled)
-    @property
-    def df_features_predict_raw(self): return self.convert_types(self._df_features_predict_raw)
-    @property
-    def df_features_predict(self): return self.convert_types(self._df_features_predict)
-    @property
-    def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
 
     # Other model vars (Rename this)
     video_fps: float = config.VIDEO_FPS
@@ -132,7 +119,7 @@ class BasePipeline(object):
     tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
     tsne_verbose: int = config.TSNE_VERBOSE
     tsne_init: str = config.TSNE_INIT
-    _tsne_perplexity: Union[float, str] = config.TSNE_PERPLEXITY
+    _tsne_perplexity: Union[float, str] = None  # config.TSNE_PERPLEXITY
     tsne_learning_rate: float = config.TSNE_LEARNING_RATE
     # GMM
     gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
@@ -203,6 +190,19 @@ class BasePipeline(object):
 
     ### Properties & Getters ###
     @property
+    def df_features_train_raw(self): return self.convert_types(self._df_features_train_raw)
+    @property
+    def df_features_train(self): return self.convert_types(self._df_features_train)
+    @property
+    def df_features_train_scaled(self): return self.convert_types(self._df_features_train_scaled)
+    @property
+    def df_features_predict_raw(self): return self.convert_types(self._df_features_predict_raw)
+    @property
+    def df_features_predict(self): return self.convert_types(self._df_features_predict)
+    @property
+    def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
+
+    @property
     def is_in_inconsistent_state(self):
         """
         Useful for checking if training data has been added/removed from pipeline
@@ -225,38 +225,42 @@ class BasePipeline(object):
         df_train = self.df_features_train_scaled
         if len(df_train) == 0:
             return 0
-        return len(df_train.loc[(~df_train[list(self.all_features)].isnull().any(axis=1)) & (~df_train[self.test_col_name])])
+        df_train = df_train.loc[~df_train[list(self.all_features)].isnull().any(axis=1)]
+        if self.test_col_name in set(df_train.columns):
+            df_train = df_train.loc[~df_train[self.test_col_name]]
+        return len(df_train)
 
     @property
     def tsne_perplexity(self) -> float:
         """
         TODO:
-        """  # TODO: review why this math is so useful
+        """
         perplexity = self._tsne_perplexity
-        if isinstance(self._tsne_perplexity, str):
+        logger.info(f'{get_current_function()}(): Perplexity starts as "{perplexity}"')
+        if isinstance(perplexity, str):
             check_arg.ensure_valid_perplexity_lambda(perplexity)
-            return eval(self._tsne_perplexity)(self)
+            perplexity = eval(perplexity)(self)
+            logger.info(f'{get_current_function()}(): after perp eval, perplexity is: {perplexity}')
+        check_arg.ensure_type(perplexity, float)
+        logger.debug(f'@property.{get_current_function()} returns: {perplexity}')
         return perplexity
 
     @property
     def tsne_perplexity_relative_to_num_features(self) -> float:
-        # TODO: med: evaluate
         """
+        # TODO: med: evaluate
         :return: (float) perplexity_value_used / number of features
         """
         return self.tsne_perplexity / len(self.all_features)
 
     @property
     def tsne_perplexity_relative_to_num_data_points(self) -> float:
-        # TODO: med: evaluate
         """
-
+        # TODO: med: evaluate
         :return: perplexity / number of data points for training
         """
-        num_data_points = len(self.df_features_train_scaled)
-        if num_data_points == 0:
+        if self.num_training_data_points == 0:
             return 0
-
         return self.tsne_perplexity / self.num_training_data_points
 
     @property
@@ -287,24 +291,21 @@ class BasePipeline(object):
     def svm_col(self) -> str: return self.clf_assignment_col_name
 
     @property
-    def svm_assignment(self) -> str:
-        return self.clf_assignment_col_name
+    def svm_assignment(self) -> str: return self.clf_assignment_col_name
 
     @property
-    def cross_val_scores(self):
-        return self._cross_val_scores
+    def cross_val_scores(self): return self._cross_val_scores
 
     @property
     def training_data_sources(self) -> List[str]:
         return list(np.unique(self.df_features_train_raw['data_source'].values))
 
     @property
-    def predict_data_sources(self):  # List[str]
+    def predict_data_sources(self):
         return list(np.unique(self.df_features_predict_raw['data_source'].values))
 
     @property
-    def raw_assignments(self):  # List[str]
-        return self.raw_assignments
+    def raw_assignments(self): return self.raw_assignments
 
     @property
     def unique_assignments(self) -> List[any]:
@@ -323,7 +324,21 @@ class BasePipeline(object):
 
     @property
     def dims_cols_names(self) -> List[str]:
+        """
+        Automatically creates a list of consistent column names, relative to the number of
+        TSNE components, that labels the columns of reduced data after the TSNE operation.
+        """
         return [f'dim_{d+1}' for d in range(self.tsne_n_components)]
+
+    # Init
+    def __init__(self, name: str, **kwargs):
+        # Pipeline name
+        check_arg.ensure_type(name, str)
+        self.set_name(name)
+        #
+        self.kwargs = kwargs
+        # Final setup
+        self.set_params(read_config_on_missing_param=True, **kwargs)
 
     # Setters
     def set_name(self, name: str):
@@ -336,16 +351,6 @@ class BasePipeline(object):
         check_arg.ensure_type(description, str)
         self._description = description
         return self
-
-    # Init
-    def __init__(self, name: str, **kwargs):
-        # Pipeline name
-        check_arg.ensure_type(name, str)
-        self.set_name(name)
-        #
-        self.kwargs = kwargs
-        # Final setup
-        self.set_params(read_config_on_missing_param=True, **kwargs)
 
     def set_params(self, read_config_on_missing_param: bool = False, **kwargs):
         """
@@ -520,6 +525,16 @@ class BasePipeline(object):
         self.cross_validation_n_jobs = cross_validation_n_jobs
 
         self._has_modified_model_variables = True
+        return self
+
+    def set_tsne_perplexity_as_fraction_of_training_data(self, fraction: float):
+        check_arg.ensure_type(fraction, float)
+        if not 0. < fraction <= 1.:
+            err = f'TSNE perplexity fraction is not between 0 and 1, and thus is invalid. ' \
+                  f'Fraction detected: {fraction} (type: {type(fraction)}).'
+            raise ValueError(err)
+        self._tsne_perplexity = f'lambda self: self.num_training_data_points * {fraction}'
+        check_arg.ensure_valid_perplexity_lambda(self._tsne_perplexity)  # TODO: delete this line later. it's a sanity check.
         return self
 
     # Important functions that should be overwritten by child classes
@@ -742,24 +757,24 @@ class BasePipeline(object):
         data and stores it in pipeline
         Note: this function implicitly filters out NAN results that may be present in the features set.
         The final result is that all scaled training data will be valid to put into the classifier
-        :param features:
-        :param create_new_scaler:
-
+        :param features: (List[str]) List of feature names (column names)
+        :param create_new_scaler: (bool)
         :return: self
         """
         # Queue up data to use
         if features is None:  # TODO: low: remove his if statement as a default feature?
             features = self.all_features
         features = list(features)
-        df_features_train = self.df_features_train.loc[~self.df_features_train[features].isnull().any(axis=1)].copy()
+        df_features_train = self.df_features_train.copy()
+        df_features_train = df_features_train.loc[~df_features_train[features].isnull().any(axis=1)]
         # Check args
         check_arg.ensure_type(features, list)
         check_arg.ensure_columns_in_DataFrame(df_features_train, features)
         # Get scaled data
-        df_scaled_data = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
-        check_arg.ensure_type(df_scaled_data, pd.DataFrame)  # Debugging effort. Remove later.
+        df_features_train_scaled = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
+        check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # Debugging effort. Remove later.
         # Save data. Return.
-        self._df_features_train_scaled = df_scaled_data
+        self._df_features_train_scaled = df_features_train_scaled
         return self
 
     def _scale_transform_predict_data(self, features: List[str] = None):
@@ -798,6 +813,7 @@ class BasePipeline(object):
         # Check args
         check_arg.ensure_type(data, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
+        logger.info(f'pre-TSNE info: Perplexity={self.tsne_perplexity} / numtrainingdatapoints={self.num_training_data_points} / number of df_features_train: {len(self.df_features_train)} / number of df_features_train_scaled={len(self.df_features_train_scaled)}')
         # Execute
         start = time.perf_counter()
         logger.debug(f'Now reducing data with {self.tsne_implementation} implementation...')
@@ -851,7 +867,7 @@ class BasePipeline(object):
                 random_state=self.random_state,
                 verbose=bool(self.tsne_verbose),
             )
-            arr_result = tsne.fit(data[list(self.all_features_list)].values)
+            arr_result = tsne.fit(data[list(self.all_features)].values)
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logger.error(err)
@@ -864,7 +880,9 @@ class BasePipeline(object):
         Attach new reduced dimension columns to existing (scaled) features DataFrame
         :return: self
         """
-        arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train)
+        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train)  # TODO: review this and below lines
+        arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train_scaled)
+        # Attach dimensionally reduced data
         self._df_features_train_scaled = pd.concat([
             self.df_features_train_scaled,
             pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
@@ -911,7 +929,8 @@ class BasePipeline(object):
 
         return self
 
-    def clf_predict(self, arr):
+    def clf_predict(self, arr: np.ndarray):
+        # TODO: low/med: add checks for NULL values in array
         return self.clf.predict(arr)
 
     def recolor_gmm_and_retrain_classifier(self, n_components: int):
