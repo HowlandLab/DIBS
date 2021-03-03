@@ -174,7 +174,7 @@ class TestPipeline(TestCase):
         # Assert
         self.assertEqual(input_label, actual_label)
 
-    @skip  # TODO: fix test for specificity
+    @skip  # TODO: low/med: fix test for specificity
     def test__updatingAssignment__shouldSaveLabel__whenSavedAndRereadIn(self):
         # Arrange
         # out_path =
@@ -534,8 +534,41 @@ class TestPipeline(TestCase):
         # Assert
         err = f"""
     Expected {property_of_note} value: {expected_value}
-    Actual   {property_of_note} value: {actual_value}"""
+    Actual   {property_of_note} value: {actual_value}
+"""
         self.assertEqual(expected_value, actual_value, err)
+
+    def test__set_tsne_perplexity_as_fraction_of_training_data__shouldRunFine__whenFractionValid(self):
+        p = get_unique_pipeline_loaded_with_data()
+        p = p.set_tsne_perplexity_as_fraction_of_training_data(0.2).build()
+        err = f"""
+"""
+        self.assertTrue(True, err)
+
+    def test__set_tsne_perplexity_as_fraction_of_training_data__shouldProduceError__whenFractionAt0(self):
+        p = get_unique_pipeline_loaded_with_data()
+        err = f"""
+"""
+        new_perp_frac = 0.
+        expected_exception = ValueError
+        self.assertRaises(expected_exception, p.set_tsne_perplexity_as_fraction_of_training_data, new_perp_frac)
+
+    def test__set_tsne_perplexity_as_fraction_of_training_data__shouldProduceError__whenFractionBelow0(self):
+        p = get_unique_pipeline_loaded_with_data()
+        err = f"""
+"""
+        new_perp_frac = -1.
+        expected_exception = ValueError
+        self.assertRaises(expected_exception, p.set_tsne_perplexity_as_fraction_of_training_data, new_perp_frac)
+    pass
+
+    def test__set_tsne_perplexity_as_fraction_of_training_data__shouldProduceError__whenFractionAbove1(self):
+        p = get_unique_pipeline_loaded_with_data()
+        err = f"""
+    """
+        new_perp_frac = 1.0001
+        expected_exception = ValueError
+        self.assertRaises(expected_exception, p.set_tsne_perplexity_as_fraction_of_training_data, new_perp_frac)
 
     # SVM
     def test__set_params__svm_c(self):
