@@ -236,13 +236,13 @@ class BasePipeline(object):
         TODO:
         """
         perplexity = self._tsne_perplexity
-        logger.info(f'{get_current_function()}(): Perplexity starts as "{perplexity}"')
+        # logger.debug(f'{get_current_function()}(): Perplexity starts as "{perplexity}"')
         if isinstance(perplexity, str):
             check_arg.ensure_valid_perplexity_lambda(perplexity)
             perplexity = eval(perplexity)(self)
-            logger.info(f'{get_current_function()}(): after perp eval, perplexity is: {perplexity}')
+            # logger.debug(f'{get_current_function()}(): after perp eval, perplexity is: {perplexity}')
         check_arg.ensure_type(perplexity, float)
-        logger.debug(f'@property.{get_current_function()} returns: {perplexity}')
+        # logger.debug(f'@property.{get_current_function()} returns: {perplexity}')
         return perplexity
 
     @property
@@ -260,6 +260,8 @@ class BasePipeline(object):
         :return: perplexity / number of data points for training
         """
         if self.num_training_data_points == 0:
+            logger.warning(f'{logging_enhanced.get_caller_function()}() is calling to get perplexity, '
+                           f'but there are zero data points. Returning 0 for TSNE perplexity!')
             return 0
         return self.tsne_perplexity / self.num_training_data_points
 
@@ -667,7 +669,7 @@ class BasePipeline(object):
         check_arg.ensure_type(list_dfs_of_raw_data, list)
 
         # Execute
-        # TODO: HIGH: implement multiprocessing
+        # TODO: MED: implement multiprocessing
         list_dfs_engineered_features: List[pd.DataFrame] = []
         for i, df_i in enumerate(list_dfs_of_raw_data):
             df_i = df_i.copy().astype({'frame': float}).astype({'frame': int})
@@ -737,7 +739,6 @@ class BasePipeline(object):
         check_arg.ensure_columns_in_DataFrame(df_data, features)
         # Execute
         if create_new_scaler:
-            # TODO: HIGH: set scaling to 0-1
             # self._scaler = StandardScaler()
             self._scaler = MinMaxScaler()
             self._scaler.fit(df_data[features])
@@ -1346,6 +1347,7 @@ class BasePipeline(object):
         # TODO: rename function as plot assignments by cluster
         Get plot of clusters colored by GMM assignment
         NOTE: all kwargs expected by the plotting function are passed from this function down to that plotting function.
+        :param title: (str) Title of graph
         :param show_now: (bool)
         :param save_to_file: (bool)
         :param azim_elev:
@@ -1354,7 +1356,7 @@ class BasePipeline(object):
             azim_elev : Tuple[int, int]
         :return:
         """
-        # Hard coded args to be fixed later  # TODO: med
+        # Hard coded args to be fixed later  # TODO: HIGH
         if not title:
             title = f'Perplexity={self.tsne_perplexity} / EarlyExaggeration={self.tsne_early_exaggeration} / LearnRate={self.tsne_learning_rate}'
         # Arg checking
