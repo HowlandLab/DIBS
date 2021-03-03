@@ -814,7 +814,7 @@ class BasePipeline(object):
         # Check args
         check_arg.ensure_type(data, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
-        logger.info(f'pre-TSNE info: Perplexity={self.tsne_perplexity} / numtrainingdatapoints={self.num_training_data_points} / number of df_features_train: {len(self.df_features_train)} / number of df_features_train_scaled={len(self.df_features_train_scaled)}')
+        logger.info(f'Pre-TSNE info: Perplexity={self.tsne_perplexity} / Raw perplexity={self._tsne_perplexity} / num_training_data_points={self.num_training_data_points} / number of df_features_train={len(self.df_features_train)} / number of df_features_train_scaled={len(self.df_features_train_scaled)}')
         # Execute
         start = time.perf_counter()
         logger.debug(f'Now reducing data with {self.tsne_implementation} implementation...')
@@ -829,7 +829,7 @@ class BasePipeline(object):
                 n_jobs=self.tsne_n_jobs,
                 verbose=self.tsne_verbose,
                 init=self.tsne_init,
-            ).fit_transform(data[list(self.all_features_list)])
+            ).fit_transform(data[list(self.all_features)])
         elif self.tsne_implementation == 'BHTSNE':
             arr_result = TSNE_bhtsne(
                 data[list(self.all_features)],
@@ -980,7 +980,7 @@ class BasePipeline(object):
                 max_samples=None,
             )
         else:
-            err = f'TODO: elaborate: an unexpected classifier type was detected: {self.classifier_type}'
+            err = f'Unexpected classifier type was detected: {self.classifier_type}'
             logging_enhanced.log_then_raise(err, logger, KeyError)
 
         # Fit classifier to non-test data
@@ -1301,8 +1301,7 @@ class BasePipeline(object):
                                    f'BehaviourExample__assignment_{assignment_val}__example_{i + 1}_of_{num_examples}'
                 frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
 
-                frame_idx, additional_length_i = values_list[
-                    i]  # Recall: first elem is frame idx, second elem is additional length
+                frame_idx, additional_length_i = values_list[i]  # Recall: first elem is frame idx, second elem is additional length
 
                 lower_bound_row_idx: int = max(0, int(frame_idx) - num_frames_buffer)
                 upper_bound_row_idx: int = min(len(df) - 1, frame_idx + additional_length_i - 1 + num_frames_buffer)
@@ -1356,9 +1355,6 @@ class BasePipeline(object):
             azim_elev : Tuple[int, int]
         :return:
         """
-        # Hard coded args to be fixed later  # TODO: HIGH
-        if not title:
-            title = f'Perplexity={self.tsne_perplexity} / EarlyExaggeration={self.tsne_early_exaggeration} / LearnRate={self.tsne_learning_rate}'
         # Arg checking
         check_arg.ensure_type(azim_elev, tuple)
         # TODO: low: check for other runtime vars
@@ -1388,7 +1384,6 @@ class BasePipeline(object):
         return visuals.plot_cross_validation_scores(self._cross_val_scores)
 
     def generate_confusion_matrix(self) -> np.ndarray:
-        # TODO: high: implement this function in stats then put it into here
         df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
         y_pred = self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)])
         y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
