@@ -27,6 +27,8 @@ map_command_to_func = {
     # 'newbuild': dibs.app.build_classifier_new_pipeline,
     'streamlit': dibs.streamlit_app.start_app,
     'test': lambda *args, **kwargs: print(args, kwargs),
+    'checktiming': dibs.streamlit_app.checking_file_session_timings,
+    'gridsearch': dibs.app.tsnegridsearch,
 }
 
 
