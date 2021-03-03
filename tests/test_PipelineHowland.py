@@ -81,7 +81,10 @@ class TestPipelineMimic(TestCase):
         self.assertTrue(True)
 
     def test__build__shouldBuildFine__whenSklearnIsSpecified(self):
-        # TODO: high: research this test and resolve following error: ValueError: The number of classes has to be greater than one; got 1 class (CV)
+        """
+        When GMM N components/CV-K are badly balanced, you will get the
+        following error: ValueError: The number of classes has to be greater than one; got 1 class (CV)
+        """
         # Arrange
         gmm_n_components, cv = 3, 2  # Set gmm clusters low so that runtime isn't long
         p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
@@ -96,6 +99,9 @@ class TestPipelineMimic(TestCase):
         self.assertTrue(True)
 
     def test__build__shouldBuildFine__whenSetParamsForAlmostEverything__example1(self):
+        """
+        This is a kitchen sink test from legacy
+        """
         # Arrange
         gmm_n_components, cv = 2, 2  # Set gmm clusters low so that runtime isn't long
         p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
@@ -150,7 +156,6 @@ class TestPipelineMimic(TestCase):
 
         }
 
-        # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
         p = p.set_params(**model_vars)
 
         # Act
