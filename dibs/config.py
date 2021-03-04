@@ -29,10 +29,10 @@ from dibs import logging_enhanced
 
 
 ### Debug options
-pd.set_option('display.max_rows', 1_000)
-pd.set_option('display.max_columns', 1_000)
-pd.set_option('display.width', 1_000)
-pd.set_option('display.max_colwidth', 1_000)
+# pd.set_option('display.max_rows', 1_000)
+# pd.set_option('display.max_columns', 1_000)
+# pd.set_option('display.width', 1_000)
+# pd.set_option('display.max_colwidth', 1_000)
 np.set_printoptions(threshold=1_000)
 
 
