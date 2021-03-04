@@ -63,7 +63,7 @@ def tsnegridsearch():
     perplexity_fracs = [0.001, ]
     exaggerations = [500, ]
     learn_rates = [100, ]
-    percent_epm_train_files_to_cluster_on = 0.1
+    percent_epm_train_files_to_cluster_on = 0.25
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
 
