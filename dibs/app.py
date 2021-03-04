@@ -59,7 +59,7 @@ def streamlit(**kwargs) -> None:
 
 
 def tsnegridsearch():
-    # Param section
+    # Param section -- MAGIC VARIABLES GO HERE
     perplexity_fracs = [0.001, ]
     exaggerations = [500, ]
     learn_rates = [100, ]
