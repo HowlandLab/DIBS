@@ -25,9 +25,9 @@ map_command_to_func = {
     # 'cleanoutput': dibs.app.clear_output_folders,
     # 'buildandrunlegacy': dibs.main_LEGACY.test_function_to_build_then_run_py,
     # 'newbuild': dibs.app.build_classifier_new_pipeline,
-    'streamlit': dibs.streamlit_app.start_app,
+    # 'streamlit': dibs.streamlit_app.start_app,
     'test': lambda *args, **kwargs: print(args, kwargs),
-    'checktiming': dibs.streamlit_app.checking_file_session_timings,
+    # 'checktiming': dibs.streamlit_app.checking_file_session_timings,
     'gridsearch': dibs.app.tsnegridsearch,
 }
 
