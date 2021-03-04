@@ -1,5 +1,6 @@
-# TODO: Wishlist of things to implement (unordered)
+# TODO: Wishlist of things to implement (ordered)
 - [ ] Easy: Add a button for exporting (all) data
+- [ ] Med: (high priority) analyze fill value for adaptive filtering
 - [ ] Med/easy: *** Pipeline: do a check to see how many NAN values get passed from stage to stage...im guessing the binning helps us solve that, but does adaptive filtering actually solve it first?
 - [ ] Hard: *** Further container-ize steps in build process s.t. TSNE can be evaluated without training classifier so evaluate clustering
 - [ ] Med: In the diagnostics section, have a button that produces a *HISTOGRAM* of the lengths of actions distributions (1 histogram per action...? Seems that way for now...)
