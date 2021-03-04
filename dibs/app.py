@@ -61,8 +61,8 @@ def streamlit(**kwargs) -> None:
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
     perplexity_fracs = [0.001, ]
-    exaggerations = [500, ]
-    learn_rates = [100, ]
+    exaggerations = list(range(100, 1100, 100))
+    learn_rates = list(range(50, 500, 50))
     percent_epm_train_files_to_cluster_on = 0.25
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
