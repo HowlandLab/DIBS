@@ -73,7 +73,7 @@ def tsnegridsearch():
     ### Diagnostics parameters (graphing) ###
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
     graph_dimensions = (10, 10)  # length x width.
-
+    max_cores_per_pipe = 2
     # Auto-generate the product between all possible parameters
     kwargs_product = [{
         'tsne_perplexity': perplexity_i,
@@ -82,10 +82,10 @@ def tsnegridsearch():
         'gmm_n_components': num_gmm_clusters_aka_num_colours,
         'tsne_n_components': 2,  # n-D dimensionality reduction
 
-        'cross_validation_k': 2,
-        'cross_validation_n_jobs': 2,
-        'rf_n_jobs': 2,
-        'tsne_n_jobs': 2,
+        'cross_validation_k': max_cores_per_pipe,
+        'cross_validation_n_jobs': max_cores_per_pipe,
+        'rf_n_jobs': max_cores_per_pipe,
+        'tsne_n_jobs': max_cores_per_pipe,
     } for learning_rate_k, early_exaggeration_j, perplexity_i in itertools.product(
         learn_rates,
         exaggerations,
