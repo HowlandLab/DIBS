@@ -112,7 +112,8 @@ def tsnegridsearch():
     for i, p_i in enumerate(pipelines_ready_for_building):
         print(f'START {i}: Pipeline={p_i.name} / Frac={p_i._tsne_perplexity}')
         try:
-            pipelines_ready_for_building[i] = p_i.build()
+            p_i = p_i.build()
+            pipelines_ready_for_building[i] = p_i
         except Exception as e:
             info = f'PerpRaw={p_i._tsne_perplexity}/Perp={p_i.tsne_perplexity}/EE={p_i.tsne_early_exaggeration}/LR={p_i.tsne_learning_rate}/GMM-N={p_i.gmm_n_components}'
             err = f'app.{logging_enhanced.get_current_function()}(): an unexpected exception occurred when building many pipelines to get good graphs. Info is as follows: {info}. Exception is: {repr(e)}'
