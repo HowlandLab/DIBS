@@ -110,7 +110,7 @@ def tsnegridsearch():
 
     for i, kwargs_i in enumerate(kwargs_product):
         p_i = pipeline_implementation(pipeline_names_by_index[i], **kwargs_i).add_train_data_source(*(train_data.copy()))
-        print(f'START {i}: Pipeline={p_i.name} / Frac={p_i._tsne_perplexity}')
+        print(f'Start build for pipeline idx {i} -- Frac={p_i._tsne_perplexity}')
         try:
             p_i = p_i.build()
         except Exception as e:
@@ -121,7 +121,7 @@ def tsnegridsearch():
             # Save graph to file
             perplexity_ratio_i, perplexity_i, learning_rate_i, early_exaggeration_i = p_i.tsne_perplexity_relative_to_num_data_points, p_i.tsne_perplexity, p_i.tsne_learning_rate, p_i.tsne_early_exaggeration
 
-            title = f"Perp ratio: {round(perplexity_ratio_i, 5)} / Perp: {perplexity_i} / EE: {early_exaggeration_i} / LearnRate: {learning_rate_i} "
+            title = f"Perp ratio: {round(perplexity_ratio_i, 5)} / Perp: {perplexity_i} / EE: {early_exaggeration_i} / LearnRate: {learning_rate_i} / #data={p_i.num_training_data_points}"
 
             p_i.plot_clusters_by_assignments(
                 title=title,
@@ -129,7 +129,6 @@ def tsnegridsearch():
                 show_now=False, save_to_file=True, figsize=graph_dimensions,
                 s=0.4 if show_cluster_graphs_in_a_popup_window else 1.5,
             )
-
         print('--------------------------\n\n')
     end_time = time.perf_counter()
     print(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes.')
