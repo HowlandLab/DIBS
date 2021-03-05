@@ -8,7 +8,7 @@ import itertools
 import os
 import time
 
-from dibs import config, logging_enhanced, pipeline
+from dibs import config, logging_enhanced, pipeline, streamlit_app
 
 
 logger = config.initialize_logger(__name__)
@@ -60,10 +60,10 @@ def streamlit(**kwargs) -> None:
 
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
-    perplexity_fracs = [0.0001, ]
+    # perplexity_fracs = [0.0001, ]
     perplexities = list(range(25, 1_000, 25))
     exaggerations = list(range(22, 1100, 22))
-    learn_rates = [100, 200, 300, 400, 500]#list(range(500, ))
+    learn_rates = [100, 200, 300, 400, 500]
     percent_epm_train_files_to_cluster_on = 0.5
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
@@ -97,25 +97,24 @@ def tsnegridsearch():
     # print('Number of parameter permutations:', len(kwargs_product))
 
     # Queue up which data files will be added to each Pipeline
-    all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in
-                 os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
-    train_data = half_files = all_files[:int(len(all_files) * percent_epm_train_files_to_cluster_on)]
+    all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
+    train_data = all_files[:int(len(all_files) * percent_epm_train_files_to_cluster_on)]
+
     # print(train_data)  # Uncomment this line to see which exact data files are added to the Pipeline
 
     # Create list of pipelines with all of the different combinations of parameters inserted
-    pipelines_ready_for_building = [pipeline_implementation(name, **kwargs).add_train_data_source(*train_data) for
-                                    name, kwargs in zip(pipeline_names_by_index, kwargs_product)]
+    # pipelines_ready_for_building = [pipeline_implementation(name, **kwargs).add_train_data_source(*(train_data.copy())) for name, kwargs in zip(pipeline_names_by_index, kwargs_product)]
 
     # The heavy lifting/processing is done here
     results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
     print(f'Start time: {results_current_time}')
     start_time = time.perf_counter()
-    print(len(pipelines_ready_for_building))
-    for i, p_i in enumerate(pipelines_ready_for_building):
-        print(f'START {i}: Pipeline={p_i.name} / Frac={p_i._tsne_perplexity}')
+
+    for i, kwargs_i in enumerate(kwargs_product):
+        p_i = pipeline_implementation(pipeline_names_by_index[i], **kwargs_i).add_train_data_source(*(train_data.copy()))
+        print(f'Start build for pipeline idx {i} -- Frac={p_i._tsne_perplexity}')
         try:
             p_i = p_i.build()
-            pipelines_ready_for_building[i] = p_i
         except Exception as e:
             info = f'PerpRaw={p_i._tsne_perplexity}/Perp={p_i.tsne_perplexity}/EE={p_i.tsne_early_exaggeration}/LR={p_i.tsne_learning_rate}/GMM-N={p_i.gmm_n_components}'
             err = f'app.{logging_enhanced.get_current_function()}(): an unexpected exception occurred when building many pipelines to get good graphs. Info is as follows: {info}. Exception is: {repr(e)}'
@@ -124,7 +123,7 @@ def tsnegridsearch():
             # Save graph to file
             perplexity_ratio_i, perplexity_i, learning_rate_i, early_exaggeration_i = p_i.tsne_perplexity_relative_to_num_data_points, p_i.tsne_perplexity, p_i.tsne_learning_rate, p_i.tsne_early_exaggeration
 
-            title = f"Perp ratio: {round(perplexity_ratio_i, 5)} / Perp: {perplexity_i} / EE: {early_exaggeration_i} / LearnRate: {learning_rate_i} "
+            title = f"Perp ratio: {round(perplexity_ratio_i, 5)} / Perp: {perplexity_i} / EE: {early_exaggeration_i} / LearnRate: {learning_rate_i} / #data={p_i.num_training_data_points}"
 
             p_i.plot_clusters_by_assignments(
                 title=title,
@@ -132,7 +131,6 @@ def tsnegridsearch():
                 show_now=False, save_to_file=True, figsize=graph_dimensions,
                 s=0.4 if show_cluster_graphs_in_a_popup_window else 1.5,
             )
-
         print('--------------------------\n\n')
     end_time = time.perf_counter()
     print(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes.')
