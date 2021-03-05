@@ -60,10 +60,11 @@ def streamlit(**kwargs) -> None:
 
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
-    perplexity_fracs = [0.001, ]
-    exaggerations = list(range(100, 1100, 100))
-    learn_rates = list(range(50, 500, 50))
-    percent_epm_train_files_to_cluster_on = 0.25
+    perplexity_fracs = [0.0001, ]
+    perplexities = list(range(25, 1_000, 25))
+    exaggerations = list(range(22, 1100, 22))
+    learn_rates = [100, 200, 300, 400, 500]#list(range(500, ))
+    percent_epm_train_files_to_cluster_on = 0.5
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
 
@@ -73,7 +74,7 @@ def tsnegridsearch():
     ### Diagnostics parameters (graphing) ###
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
     graph_dimensions = (10, 10)  # length x width.
-    max_cores_per_pipe = 2
+    max_cores_per_pipe = 3
     # Auto-generate the product between all possible parameters
     kwargs_product = [{
         'tsne_perplexity': perplexity_i,
@@ -89,7 +90,8 @@ def tsnegridsearch():
     } for learning_rate_k, early_exaggeration_j, perplexity_i in itertools.product(
         learn_rates,
         exaggerations,
-        [f'lambda self: self.num_training_data_points * {f}' for f in perplexity_fracs],
+        perplexities,
+        # [f'lambda self: self.num_training_data_points * {f}' for f in perplexity_fracs],
     )]
     pipeline_names_by_index = [f'Pipeline_{i}' for i in range(len(kwargs_product))]
     # print('Number of parameter permutations:', len(kwargs_product))
