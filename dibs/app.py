@@ -95,24 +95,24 @@ def tsnegridsearch():
     # print('Number of parameter permutations:', len(kwargs_product))
 
     # Queue up which data files will be added to each Pipeline
-    all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in
-                 os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
-    train_data = half_files = all_files[:int(len(all_files) * percent_epm_train_files_to_cluster_on)]
+    all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
+    train_data = all_files[:int(len(all_files) * percent_epm_train_files_to_cluster_on)]
+
     # print(train_data)  # Uncomment this line to see which exact data files are added to the Pipeline
 
     # Create list of pipelines with all of the different combinations of parameters inserted
-    pipelines_ready_for_building = [pipeline_implementation(name, **kwargs).add_train_data_source(*train_data) for
-                                    name, kwargs in zip(pipeline_names_by_index, kwargs_product)]
+    # pipelines_ready_for_building = [pipeline_implementation(name, **kwargs).add_train_data_source(*(train_data.copy())) for name, kwargs in zip(pipeline_names_by_index, kwargs_product)]
 
     # The heavy lifting/processing is done here
     results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
     print(f'Start time: {results_current_time}')
     start_time = time.perf_counter()
-    print(len(pipelines_ready_for_building))
-    for i, p_i in enumerate(pipelines_ready_for_building):
+
+    for i, kwargs_i in enumerate(kwargs_product):
+        p_i = pipeline_implementation(pipeline_names_by_index[i], **kwargs_i).add_train_data_source(*(train_data.copy()))
         print(f'START {i}: Pipeline={p_i.name} / Frac={p_i._tsne_perplexity}')
         try:
-            pipelines_ready_for_building[i] = p_i.build()
+            p_i = p_i.build()
         except Exception as e:
             info = f'PerpRaw={p_i._tsne_perplexity}/Perp={p_i.tsne_perplexity}/EE={p_i.tsne_early_exaggeration}/LR={p_i.tsne_learning_rate}/GMM-N={p_i.gmm_n_components}'
             err = f'app.{logging_enhanced.get_current_function()}(): an unexpected exception occurred when building many pipelines to get good graphs. Info is as follows: {info}. Exception is: {repr(e)}'
