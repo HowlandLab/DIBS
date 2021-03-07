@@ -8,7 +8,7 @@ import itertools
 import os
 import time
 
-from dibs import config, logging_enhanced, pipeline, streamlit_app
+from dibs import config, logging_enhanced, pipeline  #, streamlit_app
 
 
 logger = config.initialize_logger(__name__)
