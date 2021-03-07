@@ -76,10 +76,9 @@ class BasePipeline(object):
 
         # TODO: med: expand on further kwargs
     """
-
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
-    # valid_tsne_sources: set = {'bhtsne', 'sklearn', }  # TODO: low: remove this since not used anymore
+
     # Column names
     gmm_assignment_col_name, clf_assignment_col_name, = 'gmm_assignment', 'classifier_assignment'
     behaviour_col_name = 'behaviour'
@@ -186,7 +185,7 @@ class BasePipeline(object):
         return self
 
     def convert_types(self, df):
-        return df.astype({'frame': int, })
+        return df.astype({'frame': float, }).astype({'frame': int, })
 
     ### Properties & Getters ###
     @property
@@ -203,6 +202,14 @@ class BasePipeline(object):
     def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
 
     @property
+    def name(self):
+        return self._name
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
     def is_in_inconsistent_state(self):
         """
         Useful for checking if training data has been added/removed from pipeline
@@ -211,14 +218,6 @@ class BasePipeline(object):
         return self._is_training_data_set_different_from_model_input \
             or self._has_unengineered_predict_data \
             or self._has_modified_model_variables
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def description(self):
-        return self._description
 
     @property
     def num_training_data_points(self) -> int:
@@ -348,7 +347,7 @@ class BasePipeline(object):
         self._name = name
         return self
 
-    def set_description(self, description):
+    def set_description(self, description: str):
         """ Set a description of the pipeline. Include any notes you want to keep regarding the process used. """
         check_arg.ensure_type(description, str)
         self._description = description
@@ -527,6 +526,7 @@ class BasePipeline(object):
         self.cross_validation_n_jobs = cross_validation_n_jobs
 
         self._has_modified_model_variables = True
+
         return self
 
     def set_tsne_perplexity_as_fraction_of_training_data(self, fraction: float):
@@ -672,7 +672,7 @@ class BasePipeline(object):
         # TODO: MED: implement multiprocessing
         list_dfs_engineered_features: List[pd.DataFrame] = []
         for i, df_i in enumerate(list_dfs_of_raw_data):
-            df_i = df_i.copy().astype({'frame': float}).astype({'frame': int})
+            df_i = self.convert_types(df_i.copy())
             check_arg.ensure_frame_indices_are_integers(df_i)
             logger.debug(f'{get_current_function()}(): Engineering df feature set {i+1} of {len(list_dfs_of_raw_data)}')
             df_engineered_features: pd.DataFrame = self.engineer_features(df_i)
@@ -871,8 +871,7 @@ class BasePipeline(object):
             arr_result = tsne.fit(data[list(self.all_features)].values)
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
-            logger.error(err)
-            raise RuntimeError(err)
+            logging_enhanced.log_then_raise(err, logger, RuntimeError)
         logger.debug(f'Number of seconds it took to train TSNE: {round(time.perf_counter() - start, 1)}')
         return arr_result
 
@@ -1070,7 +1069,7 @@ class BasePipeline(object):
 
         # Accuracy scoring
         if skip_cross_val_scoring:
-            logger.debug(f'Cross-validation scoring is being skipped.')
+            logger.debug(f'Accuracy/cross-validation scoring is being skipped.')
         else:
             self.generate_accuracy_scores()
 
