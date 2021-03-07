@@ -1051,6 +1051,7 @@ class BasePipeline(object):
         """
         Builds the model for predicting behaviours.
         :param force_reengineer_train_features: (bool) If True, forces the training data to be re-engineered.
+        :param skip_cross_val_scoring: (bool) TODO: low
         """
         # Engineer features
         if force_reengineer_train_features or self._is_training_data_set_different_from_model_input:
