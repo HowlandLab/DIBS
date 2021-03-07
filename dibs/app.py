@@ -109,6 +109,7 @@ def tsnegridsearch():
     # pipelines_ready_for_building = [pipeline_implementation(name, **kwargs).add_train_data_source(*(train_data.copy())) for name, kwargs in zip(pipeline_names_by_index, kwargs_product)]
 
     # The heavy lifting/processing is done here
+    print(f'# of combinations: {len(pipeline_names_by_index)}')
     print(f'Start time: {time.strftime("%Y-%m-%d_%HH%MM")}')
     start_time = time.perf_counter()
     for i, kwargs_i in enumerate(kwargs_product):
