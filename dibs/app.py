@@ -109,10 +109,8 @@ def tsnegridsearch():
     # pipelines_ready_for_building = [pipeline_implementation(name, **kwargs).add_train_data_source(*(train_data.copy())) for name, kwargs in zip(pipeline_names_by_index, kwargs_product)]
 
     # The heavy lifting/processing is done here
-    results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
-    print(f'Start time: {results_current_time}')
+    print(f'Start time: {time.strftime("%Y-%m-%d_%HH%MM")}')
     start_time = time.perf_counter()
-
     for i, kwargs_i in enumerate(kwargs_product):
         results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
         p_i = pipeline_implementation(f'{pipeline_names_by_index[i]}www_{results_current_time}', **kwargs_i).add_train_data_source(*(train_data.copy()))
@@ -138,6 +136,7 @@ def tsnegridsearch():
         print('--------------------------\n\n')
     end_time = time.perf_counter()
     print(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes.')
+    print(f'Total jobs completed: {len(pipeline_names_by_index)}')
     done_time = time.strftime("%Y-%m-%d_%HH%MM")
     print(f'Done job at: {done_time}')
 
