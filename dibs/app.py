@@ -60,11 +60,11 @@ def streamlit(**kwargs) -> None:
 
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
-    # perplexity_fracs = [0.0001, ]
-    perplexities = list(range(25, 1_000, 25))
+    perplexity_fracs = [0.0001, 1e-5, 1e-6, 1e-7, 1e-8, ]
+    # perplexities = list(range(500, 750, 25))
     exaggerations = list(range(22, 1100, 22))
     learn_rates = [100, 200, 300, 400, 500]
-    percent_epm_train_files_to_cluster_on = 0.5
+    percent_epm_train_files_to_cluster_on = 0.75
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
 
@@ -90,8 +90,8 @@ def tsnegridsearch():
     } for learning_rate_k, early_exaggeration_j, perplexity_i in itertools.product(
         learn_rates,
         exaggerations,
-        perplexities,
-        # [f'lambda self: self.num_training_data_points * {f}' for f in perplexity_fracs],
+        # perplexities,
+        [f'lambda self: self.num_training_data_points * {f}' for f in perplexity_fracs],
     )]
     pipeline_names_by_index = [f'Pipeline_{i}' for i in range(len(kwargs_product))]
     # print('Number of parameter permutations:', len(kwargs_product))
