@@ -876,7 +876,7 @@ class BasePipeline(object):
         logger.debug(f'Number of seconds it took to train TSNE: {round(time.perf_counter() - start, 1)}')
         return arr_result
 
-    def _tsne_reduce_df_features_train(self):
+    def _tsne_reduce_training_data_features(self):
         """
         Attach new reduced dimension columns to existing (scaled) features DataFrame
         :return: self
@@ -992,7 +992,7 @@ class BasePipeline(object):
         # Save classifier
         self._classifier = clf
 
-    def _generate_accuracy_scores(self):
+    def generate_accuracy_scores(self):
         """
 
         :return:
@@ -1009,7 +1009,6 @@ class BasePipeline(object):
             pre_dispatch=self.cross_validation_n_jobs,
         )
 
-        # logger.debug(f'Generating accuracy score with a test split % of: {self.test_train_split_pct*100}%')
         df_features_train_scaled_test_data = df.loc[df[self.test_col_name]]
         self._acc_score = accuracy_score(
             y_pred=self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)]),
@@ -1064,15 +1063,16 @@ class BasePipeline(object):
 
         # TSNE -- create new dimensionally reduced data
         logger.debug(f'TSNE reducing features now...')
-        self._tsne_reduce_df_features_train()
+        self._tsne_reduce_training_data_features()
 
         # GMM + Classifier
         self._train_gmm_and_classifier()
 
+        # Accuracy scoring
         if skip_cross_val_scoring:
-            logger.debug(f'Skipping cross-validation scoring...')
+            logger.debug(f'Cross-validation scoring is being skipped.')
         else:
-            self._generate_accuracy_scores()
+            self.generate_accuracy_scores()
 
         # Final touches. Save state of pipeline.
         self._is_built = True
@@ -1167,6 +1167,7 @@ class BasePipeline(object):
         check_arg.ensure_is_dir(os.path.split(out_path))
         # Execute
         # TODO: MED
+        raise NotImplementedError(f'implementation TBD')
         # Return pipeline that was saved-as
         return io.read_pipeline(out_path)
 
