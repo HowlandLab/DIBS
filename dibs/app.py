@@ -61,12 +61,14 @@ def streamlit(**kwargs) -> None:
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
     perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, ]
-    perplexity_fracs = [1e-4, ]
+    perplexity_fracs = [1e-2, ]
     # perplexities = list(range(500, 750, 25))
     exaggerations = list(range(22, 1100, 22))
     exaggerations = [200, ]
     learn_rates = list(range(100, 1_000, 200))
     learn_rates = [100, ]
+
+    tsne_n_iters = [1_000, 1_500, 2_000, ]
     percent_epm_train_files_to_cluster_on = 0.80
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
@@ -85,16 +87,17 @@ def tsnegridsearch():
         'tsne_learning_rate': learning_rate_k,
         'gmm_n_components': num_gmm_clusters_aka_num_colours,
         'tsne_n_components': 2,  # n-D dimensionality reduction
-
+        'tsne_n_iter': tsne_n_iter,
         'cross_validation_k': max_cores_per_pipe,
         'cross_validation_n_jobs': max_cores_per_pipe,
         'rf_n_jobs': max_cores_per_pipe,
         'tsne_n_jobs': max_cores_per_pipe,
-    } for learning_rate_k, early_exaggeration_j, perplexity_i in itertools.product(
+    } for learning_rate_k, early_exaggeration_j, perplexity_i, tsne_n_iter in itertools.product(
         learn_rates,
         exaggerations,
         # perplexities,
         [f'lambda self: self.num_training_data_points * {f}' for f in perplexity_fracs],
+        tsne_n_iters,
     )]
     pipeline_names_by_index = [f'Pipeline_{i}' for i in range(len(kwargs_product))]
     # print('Number of parameter permutations:', len(kwargs_product))
