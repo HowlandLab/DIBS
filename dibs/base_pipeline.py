@@ -1082,14 +1082,14 @@ class BasePipeline(object):
 
         return self
 
-    def build(self, force_reengineer_train_features=False, reengineer_predict_features=False):
+    def build(self, force_reengineer_train_features=False, reengineer_predict_features=False, skip_cross_val_scoring: bool = False):
         """
         Encapsulate entire build process from front to back.
         This included transforming training data, predict data, training classifiers, and getting all results.
         """
         start = time.perf_counter()
         # Build model
-        self._build_pipeline(force_reengineer_train_features=force_reengineer_train_features)
+        self._build_pipeline(force_reengineer_train_features=force_reengineer_train_features, skip_cross_val_scoring=skip_cross_val_scoring)
         # Get predict data
         self._generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
         # Wrap up
