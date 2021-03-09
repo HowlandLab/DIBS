@@ -33,6 +33,8 @@ import pandas as pd
 
 from dibs import check_arg, config, logging_enhanced, statistics
 
+from sklearn.utils import shuffle as sklearn_shuffle_dataframe
+
 
 logger = config.initialize_logger(__name__)
 
@@ -185,6 +187,21 @@ def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_
     # TODO: HIGH: Review which function for delta_angle is used below
     df[output_feature_name] = delta_two_body_parts_angle_killian_try(df[[f'{bodypart_1}_x', f'{bodypart_1}_y']].values,
                                                                      df[[f'{bodypart_2}_x', f'{bodypart_2}_y']].values)
+
+    return df
+
+
+def attach_train_test_split_col(df, test_col: str, test_train_split_pct: float, copy: bool = False) -> pd.DataFrame:
+    df = df.copy() if copy else df
+    df[test_col] = False
+    df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
+    # TODO: med: fix setting with copy warning
+    df_shuffled.iloc[:round(len(df_shuffled) * test_train_split_pct), :][test_col] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
+
+    df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
+
+    actual_split_pct = round(len(df_shuffled.loc[df_shuffled[test_col]]) / len(df_shuffled), 3)
+    logger.debug(f"Final test/train split is calculated to be: {actual_split_pct}")
 
     return df
 
