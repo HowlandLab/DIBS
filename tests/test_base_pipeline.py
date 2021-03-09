@@ -39,12 +39,13 @@ class TestPipeline(TestCase):
 
     ### Scaling data ###
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
+        # TODO: med/high: evaluate
         # Note: this function takes a while to run
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv__train_data__file_path__TRAINING_DATA).build(True)
 
         # Act
-        p = p._scale_transform_train_data()
+        p = p._scale_training_data_and_add_train_test_split()
 
         unscaled_features_cols: Set[str] = set(p.df_features_train.columns)
         scaled_features_cols: Set[str] = set(p.df_features_train_scaled.columns)
