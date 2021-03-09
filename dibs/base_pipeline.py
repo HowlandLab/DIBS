@@ -90,6 +90,7 @@ class BasePipeline(object):
     _has_modified_model_variables: bool = False
 
     # Data
+    test_col_name = 'is_test_data'
     default_cols = ['frame', 'data_source', 'file_source', ]  # ,  clf_assignment_col_name, gmm_assignment_col_name]
     _df_features_train_raw = pd.DataFrame(columns=default_cols)
     _df_features_train = pd.DataFrame(columns=default_cols)
@@ -142,7 +143,6 @@ class BasePipeline(object):
     features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength', 'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
     features_which_average_by_sum = ['SnoutToTailbaseChangeInAngle', 'SnoutSpeed', 'TailbaseSpeed']
     _all_features: Tuple[str] = tuple(features_which_average_by_mean + features_which_average_by_sum)
-    test_col_name = 'is_test_data'
 
     # All label properties for respective assignments instantiated below to ensure no missing properties b/w Pipelines (aka: quick fix, not enough time to debug in full)
     label_0, label_1, label_2, label_3, label_4, label_5, label_6, label_7, label_8, label_9 = ['' for _ in range(10)]
@@ -776,6 +776,10 @@ class BasePipeline(object):
         check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # Debugging effort. Remove later.
         # Save data. Return.
         self._df_features_train_scaled = df_features_train_scaled
+
+        # Test-train split
+        self._add_test_data_column_to_scaled_train_data()
+
         return self
 
     def _scale_transform_predict_data(self, features: List[str] = None):
@@ -820,15 +824,20 @@ class BasePipeline(object):
         logger.debug(f'Now reducing data with {self.tsne_implementation} implementation...')
         if self.tsne_implementation == 'SKLEARN':
             arr_result = TSNE_sklearn(
-                perplexity=self.tsne_perplexity,
-                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: low: encapsulate this later                     !!!
                 n_components=self.tsne_n_components,
-                random_state=self.random_state,
-                n_iter=self.tsne_n_iter,
+                perplexity=self.tsne_perplexity,
                 early_exaggeration=self.tsne_early_exaggeration,
-                n_jobs=self.tsne_n_jobs,
-                verbose=self.tsne_verbose,
+                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: low: encapsulate this later                     !!!
+                n_iter=self.tsne_n_iter,
+                # n_iter_without_progress=300,
+                # min_grad_norm=1e-7,
+                # metric="euclidean",
                 init=self.tsne_init,
+                verbose=self.tsne_verbose,
+                random_state=self.random_state,
+                # method='barnes_hut',
+                # angle=0.5,
+                n_jobs=self.tsne_n_jobs,
             ).fit_transform(data[list(self.all_features)])
         elif self.tsne_implementation == 'BHTSNE':
             arr_result = TSNE_bhtsne(
@@ -872,7 +881,7 @@ class BasePipeline(object):
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logging_enhanced.log_then_raise(err, logger, RuntimeError)
-        logger.debug(f'Number of seconds it took to train TSNE: {round(time.perf_counter() - start, 1)}')
+        logger.debug(f'Number of seconds it took to train TSNE: {round(time.perf_counter() - start, 1)} (# rows of data: {arr_result.shape[0]}).')
         return arr_result
 
     def _tsne_reduce_training_data_features(self):
@@ -880,7 +889,11 @@ class BasePipeline(object):
         Attach new reduced dimension columns to existing (scaled) features DataFrame
         :return: self
         """
-        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train)  # TODO: review this and below lines
+        # TODO: HIGH: Proposed: use only TRAIN data !!!!
+        # data = self.df_features_train_scaled
+        # data = data.loc[~data[self.test_col_name]]
+        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(data)
+
         arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train_scaled)
         # Attach dimensionally reduced data
         self._df_features_train_scaled = pd.concat([
@@ -916,7 +929,7 @@ class BasePipeline(object):
         ).fit(data)
         self._df_features_train_scaled[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled[self.dims_cols_names].values)
 
-        # Test-train split
+        # Test-train split  # TODO: HIGH: move this to the scaling section
         self._add_test_data_column_to_scaled_train_data()
 
         # # Train Classifier
