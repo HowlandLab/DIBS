@@ -38,8 +38,8 @@ def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
 class TestPipeline(TestCase):
 
     ### Scaling data ###
+    @skip('Test needs to be reevaluated')  # TODO: med/high
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
-        # TODO: med/high: evaluate
         # Note: this function takes a while to run
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv__train_data__file_path__TRAINING_DATA).build(True)
