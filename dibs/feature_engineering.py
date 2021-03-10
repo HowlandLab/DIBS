@@ -201,7 +201,8 @@ def attach_train_test_split_col(df, test_col: str, test_train_split_pct: float, 
     df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
 
     actual_split_pct = round(len(df_shuffled.loc[df_shuffled[test_col]]) / len(df_shuffled), 3)
-    logger.debug(f"Final test/train split is calculated to be: {actual_split_pct}")
+    logger.debug(f"{logging_enhanced.get_current_function()}(): "
+                 f"Final test/train split is calculated to be: {actual_split_pct}")
 
     return df
 
