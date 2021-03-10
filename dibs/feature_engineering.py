@@ -23,7 +23,7 @@ Author also specifies that: the features are also smoothed over, or averaged acr
     a sliding window of size equivalent to 60ms (30ms prior to and after the frame of interest).
 """
 from tqdm import tqdm
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import inspect
 import itertools
 import math
@@ -191,14 +191,34 @@ def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_
     return df
 
 
-def attach_train_test_split_col(df, test_col: str, test_train_split_pct: float, copy: bool = False) -> pd.DataFrame:
+def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
+    """
+
+    :param df:
+    :param test_col:
+    :param test_pct:
+    :param sort_results_by: (Optional[List[str]])
+    :param copy:
+    :return:
+    """
+    # Arg checking
+    if sort_results_by is not None:
+        check_arg.ensure_type(sort_results_by, list)
+    if len(sort_results_by) <= 0:
+        err = f'{logging_enhanced.get_current_function()}(): List cannot be empty TODO: elaborate'
+        logging_enhanced.log_then_raise(err, logger, ValueError)
+    for col_name in sort_results_by:
+        check_arg.ensure_type(col_name, str)
+
+    # Execute
     df = df.copy() if copy else df
     df[test_col] = False
     df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
     # TODO: med: fix setting with copy warning
-    df_shuffled.iloc[:round(len(df_shuffled) * test_train_split_pct), :][test_col] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
+    df_shuffled.iloc[:round(len(df_shuffled) * test_pct), :][test_col] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
 
-    df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
+    if sort_results_by is not None:
+        df_shuffled = df_shuffled.sort_values(sort_results_by)
 
     actual_split_pct = round(len(df_shuffled.loc[df_shuffled[test_col]]) / len(df_shuffled), 3)
     logger.debug(f"{logging_enhanced.get_current_function()}(): "
@@ -746,7 +766,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
     idx_col = 0
     for idx_col_i in tqdm(range(data_likelihood.shape[1]),
                           desc=f'{logging_enhanced.get_current_function()}(): Adaptively filtering DLC data...',
-                          disable=False if config.stdout_log_level.strip().upper() == 'DEBUG' else True):
+                          disable=True if config.stdout_log_level.strip().upper() != 'DEBUG' else False):
         # Get histogram of likelihood data in col_i (ignoring first row since its just labels (e.g.: [x  x  x  x ...]))
         histogram, bin_edges = np.histogram(data_likelihood[:, idx_col_i].astype(np.float))
         # Determine "rise".
