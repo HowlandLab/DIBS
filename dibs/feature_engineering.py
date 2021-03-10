@@ -409,7 +409,7 @@ def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
     #     return 0.
 
     theta = (180 / np.pi) * np.arccos((x0 * x1 + y0 * y1) / ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))))
-    theta = round(theta, 8)  # TODO: med/high: review rounding
+    theta = round(theta, 5)  # TODO: med/high: review rounding
 
     signed_theta = -theta if is_angle_change_negative(x0, y0, x1, y1) else theta
 
@@ -756,7 +756,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
 
     # The below variable is instantiated with same rows as total minus 1 (for reasons TBD) and
     #   with column room for x and y values (it appears as though the likelihood values disappear)
-    array_data_filtered = np.full((data_x.shape[0], (data_x.shape[1]) * 2), fill_value=-1.0)  # TODO: HIGH: Initialized as NAN to be populated later  # currdf_filt: np.ndarray = np.zeros((data_x.shape[0]-1, (data_x.shape[1]) * 2)) #
+    array_data_filtered = np.full((data_x.shape[0], (data_x.shape[1]) * 2), fill_value=np.NaN)  # TODO: HIGH: Initialized as NAN to be populated later  # currdf_filt: np.ndarray = np.zeros((data_x.shape[0]-1, (data_x.shape[1]) * 2)) #
 
     logger.debug(f'{inspect.stack()[0][3]}(): Computing data threshold to forward fill any sub-threshold (x,y)...')
     percent_filterd_per_bodypart__perc_rect: List = [0. for _ in range(data_likelihood.shape[1])]  # for _ in range(data_lh.shape[1]): perc_rect.append(0)
