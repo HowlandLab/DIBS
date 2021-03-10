@@ -782,8 +782,13 @@ class BasePipeline(object):
         df_features_train_scaled = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
         check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # TODO: low: Remove later. Debugging effort.
 
-        # Add test-train cols
-        df_features_train_scaled = feature_engineering.attach_train_test_split_col(df_features_train_scaled, self.test_col_name, self.test_train_split_pct)
+        # Add train/test assignment col
+        df_features_train_scaled = feature_engineering.attach_train_test_split_col(
+            df_features_train_scaled,
+            self.test_col_name,
+            self.test_train_split_pct,
+            sort_results_by=['data_source', 'frame'],
+        )
 
         # Save data. Return.
         self._df_features_train_scaled = df_features_train_scaled
@@ -804,7 +809,6 @@ class BasePipeline(object):
         df_features_predict = self.df_features_predict
 
         # Check args before execution
-        check_arg.ensure_type(features, list)
         check_arg.ensure_type(df_features_predict, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(df_features_predict, features)
 
@@ -912,7 +916,7 @@ class BasePipeline(object):
 
         return self
 
-    # GMMZ
+    # GMM
     def _train_gmm_and_classifier(self, n_clusters: int = None):
         """ """
         if n_clusters is not None:
