@@ -38,7 +38,7 @@ from types import FunctionType
 import sys
 
 from dibs.logging_enhanced import get_current_function
-from dibs import check_arg, config, io, logging_enhanced, statistics, videoprocessing, visuals
+from dibs import check_arg, config, feature_engineering, io, logging_enhanced, statistics, videoprocessing, visuals
 
 logger = config.initialize_logger(__name__)
 
@@ -94,6 +94,7 @@ class BasePipeline(object):
     default_cols = ['frame', 'data_source', 'file_source', ]  # ,  clf_assignment_col_name, gmm_assignment_col_name]
     _df_features_train_raw = pd.DataFrame(columns=default_cols)
     _df_features_train = pd.DataFrame(columns=default_cols)
+    df_features_train_scaled_temp = pd.DataFrame(columns=default_cols)
     _df_features_train_scaled = pd.DataFrame(columns=default_cols)
     _df_features_predict_raw = pd.DataFrame(columns=default_cols)
     _df_features_predict = pd.DataFrame(columns=default_cols)
@@ -126,8 +127,7 @@ class BasePipeline(object):
     gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
     gmm_verbose: int = config.gmm_verbose
     gmm_verbose_interval: int = config.gmm_verbose_interval
-
-    # Classifier
+    # Classifier, general
     classifier_type: str = config.DEFAULT_CLASSIFIER
     classifier_verbose: int = config.CLASSIFIER_VERBOSE
     _classifier = None
@@ -138,7 +138,6 @@ class BasePipeline(object):
     rf_n_estimators = config.rf_n_estimators
     rf_n_jobs = config.rf_n_jobs
     rf_verbose = config.rf_verbose
-
     # Column names
     features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength', 'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
     features_which_average_by_sum = ['SnoutToTailbaseChangeInAngle', 'SnoutSpeed', 'TailbaseSpeed']
@@ -224,9 +223,17 @@ class BasePipeline(object):
         df_train = self.df_features_train_scaled
         if len(df_train) == 0:
             return 0
-        df_train = df_train.loc[~df_train[list(self.all_features)].isnull().any(axis=1)]
-        if self.test_col_name in set(df_train.columns):
-            df_train = df_train.loc[~df_train[self.test_col_name]]
+
+        df_train = df_train.loc[
+            (~df_train[list(self.all_features)].isnull().any(axis=1))
+            & (~df_train[self.test_col_name])
+            # &
+            # (~df_train[self.gmm_assignment_col_name].isnull())
+        ]
+
+        # if self.test_col_name in set(df_train.columns):
+        #     df_train = df_train.loc[~df_train[self.test_col_name]]
+
         return len(df_train)
 
     @property
@@ -752,7 +759,7 @@ class BasePipeline(object):
 
         return df_scaled_data
 
-    def _scale_transform_train_data(self, features: Collection[str] = None, create_new_scaler=True):
+    def _scale_training_data_and_add_train_test_split(self, features: Collection[str] = None, create_new_scaler=True):
         """
         Scales training data. By default, creates new scaler according to train
         data and stores it in pipeline
@@ -773,12 +780,13 @@ class BasePipeline(object):
         check_arg.ensure_columns_in_DataFrame(df_features_train, features)
         # Get scaled data
         df_features_train_scaled = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
-        check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # Debugging effort. Remove later.
+        check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # TODO: low: Remove later. Debugging effort.
+
+        # Add test-train cols
+        df_features_train_scaled = feature_engineering.attach_train_test_split_col(df_features_train_scaled, self.test_col_name, self.test_train_split_pct)
+
         # Save data. Return.
         self._df_features_train_scaled = df_features_train_scaled
-
-        # Test-train split
-        self._add_test_data_column_to_scaled_train_data()
 
         return self
 
@@ -887,34 +895,32 @@ class BasePipeline(object):
     def _tsne_reduce_training_data_features(self):
         """
         Attach new reduced dimension columns to existing (scaled) features DataFrame
+        Post-condition: creates
         :return: self
         """
-        # TODO: HIGH: Proposed: use only TRAIN data !!!!
-        # data = self.df_features_train_scaled
-        # data = data.loc[~data[self.test_col_name]]
-        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(data)
+        # TODO: HIGHEST PRIORITY: make sure that grabbing the data for training is standardized
+        df_train_data_for_tsne = self.df_features_train_scaled.loc[~self.df_features_train_scaled[self.test_col_name]].copy()
 
-        arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train_scaled)
-        # Attach dimensionally reduced data
-        self._df_features_train_scaled = pd.concat([
-            self.df_features_train_scaled,
+        arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)
+        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train_scaled)
+
+        # Attach dimensionally reduced data, save
+        self.df_features_train_scaled_temp = pd.concat([
+            df_train_data_for_tsne,
             pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
         ], axis=1)
 
         return self
 
-    # GMM
+    # GMMZ
     def _train_gmm_and_classifier(self, n_clusters: int = None):
-        """
-
-        :return:
-        """
+        """ """
         if n_clusters is not None:
             self.set_params(gmm_n_components=n_clusters)
 
         # Train GMM, get assignments
         logger.debug(f'Training GMM now...')
-        data = self.df_features_train_scaled[self.dims_cols_names].values
+        data = self.df_features_train_scaled_temp[self.dims_cols_names].values
         self._clf_gmm = GaussianMixture(
             n_components=self.gmm_n_components,
             covariance_type=self.gmm_covariance_type,
@@ -927,7 +933,7 @@ class BasePipeline(object):
             verbose_interval=self.gmm_verbose_interval,
             random_state=self.random_state,
         ).fit(data)
-        self._df_features_train_scaled[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled[self.dims_cols_names].values)
+        self.df_features_train_scaled_temp[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled_temp[self.dims_cols_names].values)
 
         # Test-train split  # TODO: HIGH: move this to the scaling section
         self._add_test_data_column_to_scaled_train_data()
@@ -936,7 +942,6 @@ class BasePipeline(object):
         self._train_classifier()
 
         # Set predictions
-        # self._df_features_train_scaled[self.clf_assignment_col_name] = self.clf.predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
         self._df_features_train_scaled[self.clf_assignment_col_name] = self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
         self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
 
@@ -957,8 +962,10 @@ class BasePipeline(object):
         For any kwarg that does not take it's value from the it's own Pipeline config., then that
         variable
         """
-        df = self.df_features_train_scaled
-        df = df.loc[(~df[self.test_col_name]) & (~df[list(self.all_features)].isnull().any(axis=1))]
+        df = self.df_features_train_scaled_temp
+        df = df.loc[
+            (~df[list(self.all_features)].isnull().any(axis=1)) & (~df[self.gmm_assignment_col_name].isnull())
+        ]  # df_features_train_scaled_temp
         if self.classifier_type == 'SVM':
             clf = SVC(
                 C=self.svm_c,
@@ -1057,6 +1064,15 @@ class BasePipeline(object):
 
         return self
 
+    def _label_data_with_classifier(self):
+        """
+
+        :return:
+        """
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
+        return self
+
     # Pipeline building
     def _build_pipeline(self, force_reengineer_train_features: bool = False, skip_cross_val_scoring: bool = False):
         """
@@ -1066,12 +1082,12 @@ class BasePipeline(object):
         """
         # Engineer features
         if force_reengineer_train_features or self._is_training_data_set_different_from_model_input:
-            logger.debug(f'{inspect.stack()[0][3]}(): Start engineering features...')
+            logger.debug(f'{get_current_function()}(): Start engineering features...')
             self._engineer_features_train()
 
         # Scale data
         logger.debug(f'Scaling data now...')
-        self._scale_transform_train_data(create_new_scaler=True)
+        self._scale_training_data_and_add_train_test_split(create_new_scaler=True)
 
         # TSNE -- create new dimensionally reduced data
         logger.debug(f'TSNE reducing features now...')
@@ -1079,6 +1095,9 @@ class BasePipeline(object):
 
         # GMM + Classifier
         self._train_gmm_and_classifier()
+
+        # Circle back and apply labels to all data, train & test alike
+        self._label_data_with_classifier()
 
         # Accuracy scoring
         if skip_cross_val_scoring:
@@ -1424,6 +1443,21 @@ self._is_training_data_set_different_from_model_input: {self._is_training_data_s
     def __repr__(self) -> str:
         # TODO: low: flesh out how these are usually built. Add a last updated info?
         return f'{self.name}'
+
+    def _add_test_train_split_col(self, df: pd.DataFrame, copy=False) -> pd.DataFrame:
+        raise DeprecationWarning('Deprecated. Now a feature engineering problem since solution not Pipeline dependent. ')
+        df = df.copy() if copy else df
+        df[self.test_col_name] = False
+        df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
+        # TODO: med: fix setting with copy warning
+        df_shuffled.iloc[:round(len(df_shuffled) * self.test_train_split_pct), :][self.test_col_name] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
+
+        df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
+
+        actual_split_pct = round(len(df_shuffled.loc[df_shuffled[self.test_col_name]]) / len(df_shuffled), 3)
+        logger.debug(f"Final test/train split is calculated to be: {actual_split_pct}")
+
+        return df
 
 
 def generate_pipeline_filename(name: str):
