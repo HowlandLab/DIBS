@@ -16,7 +16,8 @@ non-programmers to utilize the package without any prior programming knowledge.
 Just follow the package installation instructions, the usage guide, and enjoy!
 
 ## Installation & Setup
-
+- Ensure that you have Python installed
+  - To ensure that you have Python installed, try running: `python --version`
 - Ensure that you have Anaconda installed
   - You can ensure you have conda installed by running: `conda --version`
 - Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
