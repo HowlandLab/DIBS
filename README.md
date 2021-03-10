@@ -71,8 +71,9 @@ general. This can be quite cluttered to the uninitiated. Changing the level of o
 
 
 
-It is important to note that the colouring of the clustering is *not* indicative of the quality of clustering.
-Good clustering is qualified by how distinct each group of points is. 
+It is important to note that the colouring of the clustering is *not* indicative of the quality of clustering. 
+As well, distance between clusters is *not* indicative of quality of clustering.
+**Good clustering is qualified by how distinct each group of points is.** 
 
 Here is an example of **bad clustering**:
 
