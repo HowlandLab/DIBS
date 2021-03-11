@@ -647,6 +647,27 @@ Actual    (shape={actual_output_array.shape})  =
 """
         self.assertTrue(is_equal, err)
 
+    def test__delta_angle_between_two_vectors_by_all_positions__shouldReturnNANIfT0VectorHasNoAngle(self):
+        ax0, ay0 = 0, 0
+        bx0, by0 = 0, 0
+        ax1, ay1 = 0, 0
+        bx1, by1 = 1, 1
+
+        expected = np.NaN
+
+        # Act
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(
+            ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+-------------------
+Expected = {expected}
+Actual   = {actual}
+-------------------
+""".strip()
+        is_equal = np.isnan(actual)
+        self.assertTrue(is_equal, err)
+
     ### WIP Section. Tests that are either unfinished or not passing go here.
     @skip  # TODO: test looks fine but review function implementation
     def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant1(self):
