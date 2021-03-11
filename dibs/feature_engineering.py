@@ -393,12 +393,9 @@ def delta_angle_between_two_vectors_starting_at_origin(x_t0, y_t0, x_t1, y_t1) -
     :param y_t1: (float)
     :return: (float) Returns the difference in angles between vectors in degrees
     """
-    # TODO: low: evaluate. Seems to be working!
-    # Arg checking -- below is OVERKILL, but necessary for debugging effort
-    check_arg.ensure_not_nan(x_t0)
-    check_arg.ensure_not_nan(y_t0)
-    check_arg.ensure_not_nan(x_t1)
-    check_arg.ensure_not_nan(y_t1)
+    for arg in (x_t0, y_t0, x_t1, y_t1):
+        if math.isnan(arg):
+            return np.NaN
 
     if x_t0 == x_t1 and y_t0 == y_t1:
         # Vectors are identical. No angle possible.
@@ -407,6 +404,7 @@ def delta_angle_between_two_vectors_starting_at_origin(x_t0, y_t0, x_t1, y_t1) -
         # Ostensibly a non-vector since it has no angle
         return np.NaN
 
+    # Execute math
     theta = (180 / np.pi) * np.arccos((x_t0 * x_t1 + y_t0 * y_t1) / ((np.sqrt(x_t0 ** 2 + y_t0 ** 2)) * (np.sqrt(x_t1 ** 2 + y_t1 ** 2))))
     theta = round(theta, 5)  # TODO: med/high: review rounding
 
