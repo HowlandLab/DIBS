@@ -462,27 +462,29 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     return change_in_angle
 
 
-def delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1) -> float:
+def delta_angle_given_all_positions(ax_t0, ay_t0, bx_t0, by_t0, ax_t1, ay_t1, bx_t1, by_t1) -> float:
     """
     TODO: docstring
-    :param bx0: (float)
-    :param by0: (float)
-    :param bx1: (float)
-    :param by1: (float)
+    :param bx_t0: (float)
+    :param by_t0: (float)
+    :param bx_t1: (float)
+    :param by_t1: (float)
     :return: (float)
     """
-    bx0 -= ax0
-    by0 -= ay0
-    bx1 -= ax1
-    by1 -= ay1
+    for arg in (ax_t0, ay_t0, bx_t0, by_t0, ax_t1, ay_t1, bx_t1, by_t1):
+        if math.isnan(arg):
+            return np.NaN
+    bx_t0 -= ax_t0
+    by_t0 -= ay_t0
+    bx_t1 -= ax_t1
+    by_t1 -= ay_t1
 
-    # bx0, by0, bx1, by1 = bx0 - ax0, by0 - ay0, bx1 - ax1, by1 - ay1
-    for i in (bx0, by0, bx1, by1):
-        check_arg.ensure_not_nan(i)
+    # for i in (bx_t0, by_t0, bx_t1, by_t1):
+    #     check_arg.ensure_not_nan(i)
 
-    bx0, by0, bx1, by1 = float(bx0), float(by0), float(bx1), float(by1)
+    bx_t0, by_t0, bx_t1, by_t1 = float(bx_t0), float(by_t0), float(bx_t1), float(by_t1)
 
-    return delta_angle(bx0, by0, bx1, by1)
+    return delta_angle(bx_t0, by_t0, bx_t1, by_t1)
 
 
 def delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1):
