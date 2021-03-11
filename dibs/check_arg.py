@@ -36,7 +36,9 @@ def ensure_type(var, *expected_types):
 
 
 def ensure_collection_not_empty(collection):
-    """"""
+    """
+    Raises error if argument collection is empty. Otherwise, return None.
+    """
     if len(collection) == 0:
         err = f'Caller: {get_caller_function()}(): Input variable was expected ' \
               f'to be non-empty but was in fact empty. Value = {collection}.'
@@ -115,17 +117,28 @@ def ensure_numpy_arrays_are_same_shape(*arrays):
 
 
 def ensure_not_nan(value):
+    """
+
+    :param value:
+    :return:
+    """
     if value != value or isnan(value):
         err = f'{get_caller_function()}(): Value was expected to be a valid value (not NaN); however, found: {value}'
         raise ValueError(err)
 
 
 def ensure_valid_perplexity_lambda(lambda_str: str):
+    """
+    TODO: HIGH: explain
+    :param lambda_str:
+    :return:
+    """
     ensure_type(lambda_str, str)
     if 'lambda' not in lambda_str:
         lambda_missing_err = f'"lambda" not found in lambda. Lambda str value is: {lambda_str}'
         raise ValueError(lambda_missing_err)
     elif 'self' not in lambda_str:
+        # If it doesn't reference an attribute within, then why bother using. Use an exact number.
         self_missing_err = f'"self" term not found in lambda string. If you aren\'t using ' \
                            f'`self` in the TSNE Perplexity lambda, then why use the lambda at ' \
                            f'all? For now, this usage is invalid. Lambda string value: {lambda_str}'
@@ -133,6 +146,7 @@ def ensure_valid_perplexity_lambda(lambda_str: str):
     try:
         eval(lambda_str)
     except Exception as e:
+        # Lambda not evaluable
         lambda_not_evaluable_err = f'Lambda was found to be invalid. Lambda value: {lambda_str}. Error: {repr(e)}'
         raise ValueError(lambda_not_evaluable_err)
     return
