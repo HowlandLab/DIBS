@@ -680,19 +680,28 @@ Total TEST data rows: {test_rows}
         # Assert
         return self.assertAlmostEqual(expected, actual, round_by, err)
 
+    # Plotting
+    def test__plot_clusters_by_assignments__shouldPullDataJustFine__whenUsedNormally(self):
+        # Arrange
+        p = get_unique_pipeline_loaded_with_data().build()
+        # Act
+        fig, ax = p.plot_clusters_by_assignments()
+        # Assert
+        self.assertTrue(True)
+
     ### End-to-end tests ###
     def test___DefaultPipelineListedAbove___buliding_pipeline_start_to_finish(self):
         # Arrange
         p = get_unique_pipeline_loaded_with_data()
 
         # Act
-        built_ok = True
+        built_ok = False
         err = f'Build failed. Error: '
         try:
             p = p.build(True, True)
+            built_ok = True
         except BaseException as e:
             err += repr(e)
-            built_ok = False
         # Assert
         self.assertTrue(built_ok, err)
 
