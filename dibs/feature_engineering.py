@@ -382,36 +382,32 @@ def is_angle_change_negative(x0, y0, x1, y1) -> bool:
     return False
 
 
-def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
+def delta_angle_between_two_vectors_starting_at_origin(x_t0, y_t0, x_t1, y_t1) -> float:
     """
     Returns angle between two vectors in degrees.
     # TODO: med/high: review use of rounding value at end
     Assumptions: the start of the vector for (x0, y0) and (x1, y1) are both at (0, 0).
-    :param x0: (float)
-    :param y0: (float)
-    :param x1: (float)
-    :param y1: (float)
+    :param x_t0: (float)
+    :param y_t0: (float)
+    :param x_t1: (float)
+    :param y_t1: (float)
     :return: (float) Returns the difference in angles between vectors in degrees
     """
     # TODO: low: evaluate. Seems to be working!
     # Arg checking -- below is OVERKILL, but necessary for debugging effort
-    check_arg.ensure_not_nan(x0)
-    check_arg.ensure_not_nan(y0)
-    check_arg.ensure_not_nan(x1)
-    check_arg.ensure_not_nan(y1)
+    check_arg.ensure_not_nan(x_t0)
+    check_arg.ensure_not_nan(y_t0)
+    check_arg.ensure_not_nan(x_t1)
+    check_arg.ensure_not_nan(y_t1)
 
-    if x0 == x1 and y0 == y1:
+    if x_t0 == x_t1 and y_t0 == y_t1:
         # Vectors are identical. No angle possible.
         return 0.
 
-    # # TODO: low: make tests to ensure that below comment isn't needed anymore
-    # if ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))) == 0:
-    #     return 0.
-
-    theta = (180 / np.pi) * np.arccos((x0 * x1 + y0 * y1) / ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))))
+    theta = (180 / np.pi) * np.arccos((x_t0 * x_t1 + y_t0 * y_t1) / ((np.sqrt(x_t0 ** 2 + y_t0 ** 2)) * (np.sqrt(x_t1 ** 2 + y_t1 ** 2))))
     theta = round(theta, 5)  # TODO: med/high: review rounding
 
-    signed_theta = -theta if is_angle_change_negative(x0, y0, x1, y1) else theta
+    signed_theta = -theta if is_angle_change_negative(x_t0, y_t0, x_t1, y_t1) else theta
 
     return signed_theta
 
@@ -464,9 +460,13 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
 
 def delta_angle_given_all_positions(ax_t0, ay_t0, bx_t0, by_t0, ax_t1, ay_t1, bx_t1, by_t1) -> float:
     """
-    TODO: docstring
+    TODO: med: docstring
+    :param ay_t0:
+    :param ax_t0:
     :param bx_t0: (float)
     :param by_t0: (float)
+    :param ax_t1:
+    :param ay_t1:
     :param bx_t1: (float)
     :param by_t1: (float)
     :return: (float)
@@ -479,8 +479,8 @@ def delta_angle_given_all_positions(ax_t0, ay_t0, bx_t0, by_t0, ax_t1, ay_t1, bx
     bx_t1 -= ax_t1
     by_t1 -= ay_t1
 
-    # for i in (bx_t0, by_t0, bx_t1, by_t1):
-    #     check_arg.ensure_not_nan(i)
+    for i in (bx_t0, by_t0, bx_t1, by_t1):
+        check_arg.ensure_not_nan(i)
 
     bx_t0, by_t0, bx_t1, by_t1 = float(bx_t0), float(by_t0), float(bx_t1), float(by_t1)
 
@@ -500,14 +500,16 @@ def delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay
         if math.isnan(arg):
             return np.NaN
 
-    check_arg.ensure_not_nan(ax0)
-    check_arg.ensure_not_nan(ay0)
-    check_arg.ensure_not_nan(bx0)
-    check_arg.ensure_not_nan(by0)
-    check_arg.ensure_not_nan(ax1)
-    check_arg.ensure_not_nan(ay1)
-    check_arg.ensure_not_nan(bx1)
-    check_arg.ensure_not_nan(by1)
+    # check_arg.ensure_not_nan(ax0)
+    # check_arg.ensure_not_nan(ay0)
+    # check_arg.ensure_not_nan(bx0)
+    # check_arg.ensure_not_nan(by0)
+    # check_arg.ensure_not_nan(ax1)
+    # check_arg.ensure_not_nan(ay1)
+    # check_arg.ensure_not_nan(bx1)
+    # check_arg.ensure_not_nan(by1)
+
+
     # First, normalize points s.t. the a_0 and a_1 starts at origin and b_0/b_1 is translated to keep same angle, magnitude
 
     bx0 -= ax0
