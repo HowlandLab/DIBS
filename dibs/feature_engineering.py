@@ -494,6 +494,10 @@ def delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay
     # TODO: low: evaluate. Seems to be working!
 
     # Arg checking -- below is OVERKILL, but necessary for debugging effort
+    for arg in (ax0, ay0, bx0, by0, ax1, ay1, bx1, by1):
+        if math.isnan(arg):
+            return np.NaN
+
     check_arg.ensure_not_nan(ax0)
     check_arg.ensure_not_nan(ay0)
     check_arg.ensure_not_nan(bx0)
