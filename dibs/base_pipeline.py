@@ -94,7 +94,7 @@ class BasePipeline(object):
     default_cols = ['frame', 'data_source', 'file_source', ]  # ,  clf_assignment_col_name, gmm_assignment_col_name]
     _df_features_train_raw = pd.DataFrame(columns=default_cols)
     _df_features_train = pd.DataFrame(columns=default_cols)
-    df_features_train_scaled_temp = pd.DataFrame(columns=default_cols)
+    _df_features_train_scaled_train_split_only = pd.DataFrame(columns=default_cols)
     _df_features_train_scaled = pd.DataFrame(columns=default_cols)
     _df_features_predict_raw = pd.DataFrame(columns=default_cols)
     _df_features_predict = pd.DataFrame(columns=default_cols)
@@ -148,6 +148,7 @@ class BasePipeline(object):
     label_10, label_11, label_12, label_13, label_14, label_15, label_16, label_17, label_18 = ['' for _ in range(9)]
     label_19, label_20, label_21, label_22, label_23, label_24, label_25, label_26, label_27 = ['' for _ in range(9)]
     label_28, label_29, label_30, label_31, label_32, label_33, label_34, label_35, label_36 = ['' for _ in range(9)]
+    label_999 = 'DATA_MISSING'
 
     # Misc attributes
     kwargs: dict = {}
@@ -199,6 +200,8 @@ class BasePipeline(object):
     def df_features_predict(self): return self.convert_types(self._df_features_predict)
     @property
     def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
+    @property
+    def df_features_train_scaled_train_split_only(self): return self.convert_types(self._df_features_train_scaled_train_split_only)
 
     @property
     def name(self):
@@ -780,13 +783,13 @@ class BasePipeline(object):
         check_arg.ensure_columns_in_DataFrame(df_features_train, features)
         # Get scaled data
         df_features_train_scaled = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
-        check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # TODO: low: Remove later. Debugging effort.
+        # check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # TODO: low: Remove later. Debugging effort.
 
         # Add train/test assignment col
         df_features_train_scaled = feature_engineering.attach_train_test_split_col(
             df_features_train_scaled,
-            self.test_col_name,
-            self.test_train_split_pct,
+            test_col=self.test_col_name,
+            test_pct=self.test_train_split_pct,
             sort_results_by=['data_source', 'frame'],
         )
 
@@ -909,7 +912,7 @@ class BasePipeline(object):
         # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train_scaled)
 
         # Attach dimensionally reduced data, save
-        self.df_features_train_scaled_temp = pd.concat([
+        self._df_features_train_scaled_train_split_only = pd.concat([
             df_train_data_for_tsne,
             pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
         ], axis=1)
@@ -924,7 +927,7 @@ class BasePipeline(object):
 
         # Train GMM, get assignments
         logger.debug(f'Training GMM now...')
-        data = self.df_features_train_scaled_temp[self.dims_cols_names].values
+        data = self.df_features_train_scaled_train_split_only[self.dims_cols_names].values
         self._clf_gmm = GaussianMixture(
             n_components=self.gmm_n_components,
             covariance_type=self.gmm_covariance_type,
@@ -937,7 +940,7 @@ class BasePipeline(object):
             verbose_interval=self.gmm_verbose_interval,
             random_state=self.random_state,
         ).fit(data)
-        self.df_features_train_scaled_temp[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled_temp[self.dims_cols_names].values)
+        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled_train_split_only[self.dims_cols_names].values)
 
         # Test-train split  # TODO: HIGH: move this to the scaling section
         self._add_test_data_column_to_scaled_train_data()
@@ -951,9 +954,16 @@ class BasePipeline(object):
 
         return self
 
-    def clf_predict(self, arr: np.ndarray):
+    def clf_predict(self, arr: np.ndarray) -> np.ndarray:  # TODO: add type hinting once return type confirmed
         # TODO: low/med: add checks for NULL values in array
-        return self.clf.predict(arr)
+        # predict = self.clf.predict(arr)
+        try:
+            prediction = self.clf.predict(arr)
+        except AttributeError as ae:  # TODO: HIGHEST: change exception to correct one. AttributeError is a stand-in until we can confirm what a bad prediction error actually is
+            err = f'{get_current_function()}(): Unexpected error: CHECK CODE FOR COMMENTS. NOTE THE EXCEPTION TYPE!!! You\'ll need it to replace things here later'
+            logger.error(err)
+            raise ae
+        return prediction
 
     def recolor_gmm_and_retrain_classifier(self, n_components: int):
         self._train_gmm_and_classifier(n_components)
@@ -966,10 +976,12 @@ class BasePipeline(object):
         For any kwarg that does not take it's value from the it's own Pipeline config., then that
         variable
         """
-        df = self.df_features_train_scaled_temp
+        df = self.df_features_train_scaled_train_split_only
         df = df.loc[
-            (~df[list(self.all_features)].isnull().any(axis=1)) & (~df[self.gmm_assignment_col_name].isnull())
-        ]  # df_features_train_scaled_temp
+            (~df[list(self.all_features)].isnull().any(axis=1))
+            &
+            (~df[self.gmm_assignment_col_name].isnull())
+        ]
         if self.classifier_type == 'SVM':
             clf = SVC(
                 C=self.svm_c,
@@ -1325,8 +1337,10 @@ class BasePipeline(object):
                 rle_by_assignment[label].append([frame_idx, additional_length])
         # Sort from longest additional length (ostensibly the duration of behaviour) to least
         for assignment_val in rle_by_assignment.keys():
-            rle_by_assignment[assignment_val] = sorted(rle_by_assignment[assignment_val], key=lambda x: x[1],
-                                                       reverse=True)
+            rle_by_assignment[assignment_val] = sorted(rle_by_assignment[assignment_val],
+                                                       key=lambda x: x[1],
+                                                       reverse=True  # True means sort largest to smallest
+                                                       )
 
         ### Finally: make video clips
         # Loop over assignments
@@ -1375,7 +1389,7 @@ class BasePipeline(object):
         Get a histogram of assignments in order to review their distribution in the TRAINING data
         """
         fig, ax = visuals.plot_assignment_distribution_histogram(
-            self.df_features_train_scaled[self.clf_assignment_col_name])
+            self.df_features_train_scaled_train_split_only[self.clf_assignment_col_name])
         return fig, ax
 
     def plot_clusters_by_assignments(self, title='', show_now=False, save_to_file=False, azim_elev: tuple = (70, 135), draw_now=False, **kwargs) -> Tuple[object, object]:
@@ -1403,8 +1417,8 @@ class BasePipeline(object):
         # fig_file_prefix = kwargs.get('fig_file_prefix', f'{self.name}__train_assignments_and_clustering__')
         # Execute
         fig, ax = visuals.plot_clusters_by_assignment(
-            self.df_features_train_scaled[self.dims_cols_names].values,
-            self.df_features_train_scaled[self.gmm_assignment_col_name].values,
+            self.df_features_train_scaled_train_split_only[self.dims_cols_names].values,
+            self.df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].values,
             # fig_file_prefix=fig_file_prefix,
             save_fig_to_file=save_to_file,
             show_now=show_now,
@@ -1421,7 +1435,7 @@ class BasePipeline(object):
         return visuals.plot_cross_validation_scores(self._cross_val_scores)
 
     def generate_confusion_matrix(self) -> np.ndarray:
-        df_features_train_scaled_test_data = self.df_features_train_scaled.loc[self.df_features_train_scaled[self.test_col_name]]
+        df_features_train_scaled_test_data = self.df_features_train_scaled_train_split_only.loc[self.df_features_train_scaled_train_split_only[self.test_col_name]]
         y_pred = self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)])
         y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
         cnf_matrix = statistics.confusion_matrix(y_true, y_pred)
@@ -1434,8 +1448,8 @@ class BasePipeline(object):
         """
         diag = f"""
 self.is_built: {self.is_built}
-unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_train[self.gmm_assignment_col_name].values))}
-unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train[self.clf_assignment_col_name].values))}
+unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].values))}
+unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.clf_assignment_col_name].values))}
 self._is_training_data_set_different_from_model_input: {self._is_training_data_set_different_from_model_input}
 """.strip()
         return diag
