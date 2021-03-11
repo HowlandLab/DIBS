@@ -403,6 +403,9 @@ def delta_angle_between_two_vectors_starting_at_origin(x_t0, y_t0, x_t1, y_t1) -
     if x_t0 == x_t1 and y_t0 == y_t1:
         # Vectors are identical. No angle possible.
         return 0.
+    elif (x_t0 == 0 and y_t0 == 0) or (x_t1 == 0 and y_t1 == 0):
+        # Ostensibly a non-vector since it has no angle
+        return np.NaN
 
     theta = (180 / np.pi) * np.arccos((x_t0 * x_t1 + y_t0 * y_t1) / ((np.sqrt(x_t0 ** 2 + y_t0 ** 2)) * (np.sqrt(x_t1 ** 2 + y_t1 ** 2))))
     theta = round(theta, 5)  # TODO: med/high: review rounding
