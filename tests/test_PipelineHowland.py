@@ -49,27 +49,38 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenBhtsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 2  # Set gmm clusters low so that it can still work with 10 rows of data
-        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
+        p = default_pipeline_class(get_unique_pipe_name(),
+                                   cross_validation_k=cv,
+                                   gmm_n_components=gmm_n_components,
+                                   )
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         p.tsne_implementation = 'BHTSNE'
         # Act
-        p = p.build()
-
-        # Assert
         err = f"""
+        Columns: {list(p.df_features_train_scaled.columns)}
 
+        """.strip()
+        try:
+            p = p.build()
+        except Exception as e:
+            print(err)
+            raise e
+        # Assert
 
-
-"""
-        self.assertTrue(True)
+        self.assertTrue(True, err)
 
     def test__build__shouldBuildFine__whenOpentsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 2  # Set gmm clusters low so that runtime isn't long
-        p = default_pipeline_class(get_unique_pipe_name(), cross_validation_k=cv, gmm_n_components=gmm_n_components)
+        tsne_n_iter = 500
+        p = default_pipeline_class(get_unique_pipe_name(),
+                                   cross_validation_k=cv,
+                                   gmm_n_components=gmm_n_components,
+                                   tsne_n_iter=tsne_n_iter
+                                   )
         p.cross_validation_n_jobs = 1  # Reduce CPU load. Optional.
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)

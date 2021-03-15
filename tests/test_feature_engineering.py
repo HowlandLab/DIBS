@@ -6,6 +6,19 @@ import pandas as pd
 import dibs
 
 
+def are_two_arrays_equal_including_possible_NaN_entries(a: np.ndarray, b: np.ndarray):
+    try:
+        np.testing.assert_equal(a, b)
+    except AssertionError:
+        return False
+    return True
+
+
+def anotherequalityimplementation(a, b):
+    # TODO: lowest: confirm that this works
+    return np.allclose(a, b, equal_nan=True)
+
+
 ########################################################################################################################
 
 single_test_file_location = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
@@ -26,11 +39,12 @@ class TestFeatureEngineering(TestCase):
 
         # Assert
         err_msg = f"""
+Input:
 {df_input.to_string()}
 
+Output:
 {df_output.to_string()}
-TODO: improve error message
-""".strip()
+""".strip()  # TODO: improve error message
         self.assertEqual(input_num_rows, output_num_rows, err_msg)
 
     # Array feature functions
@@ -180,8 +194,6 @@ actual actual_output_arr: {actual_output_arr}
 
     # delta angle using two body parts arrays data
     def test__delta_two_body_parts_angle_killian_try__shouldGiveZeroes__whenNoAngleChangesOccur(self):
-        fill_first = 321321321
-        assert fill_first == fill_first
         # Arrange
         data_xy_1 = [[1, 1],
                      [1, 1],
@@ -199,12 +211,10 @@ actual actual_output_arr: {actual_output_arr}
         actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(arr_xy_1, arr_xy_2)
         # and actual_output[0] != expected_output[0]
         self.assertTrue(actual_output[0] != expected_output[0], f'{actual_output[0]}, {expected_output[0]}')
-        # Note: we fill first entry in array since we cannot find equality between arrays when values are NaN.
-        expected_output[0] = fill_first
-        actual_output[0] = fill_first
-        # Assert
 
-        is_equal = (expected_output == actual_output).all()
+        # Assert
+        # is_equal = (expected_output == actual_output).all()
+        is_equal = are_two_arrays_equal_including_possible_NaN_entries(expected_output, actual_output)
         err = f"""
 Expected output = {expected_output}
 
@@ -235,11 +245,11 @@ Actual output   = {actual_output}
         ]
         arr_xy_1 = np.array(data_xy_1)
         arr_xy_2 = np.array(data_xy_2)
-        expected_output = np.array(data_for_expected_output)
-        expected_output_minus_first_row = expected_output[1:]
+        expected_output: np.ndarray = np.array(data_for_expected_output)
+        expected_output_minus_first_row: np.ndarray = expected_output[1:]
         # Act
-        actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(arr_xy_1, arr_xy_2)
-        actual_output_minus_first_row = actual_output[1:]
+        actual_output: np.ndarray = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(arr_xy_1, arr_xy_2)
+        actual_output_minus_first_row: np.ndarray = actual_output[1:]
         # Assert
 
         is_equal = (expected_output_minus_first_row == actual_output_minus_first_row).all()
@@ -592,8 +602,9 @@ Actual    = {actual}
         expected = 180.0
 
         # Act
-        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1,
-                                                                                           ay1, bx1, by1)
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(
+            ax0, ay0, bx0, by0,
+            ax1, ay1, bx1, by1)
         # Assert
         err = f"""
 
@@ -634,6 +645,27 @@ Expected (shape={expected_output_array.shape}) =
 Actual    (shape={actual_output_array.shape})  =
 {actual_output_array}
 """
+        self.assertTrue(is_equal, err)
+
+    def test__delta_angle_between_two_vectors_by_all_positions__shouldReturnNANIfT0VectorHasNoAngle(self):
+        ax0, ay0 = 0, 0
+        bx0, by0 = 0, 0
+        ax1, ay1 = 0, 0
+        bx1, by1 = 1, 1
+
+        expected = np.NaN
+
+        # Act
+        actual = dibs.feature_engineering.delta_angle_between_two_vectors_by_all_positions(
+            ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
+        # Assert
+        err = f"""
+-------------------
+Expected = {expected}
+Actual   = {actual}
+-------------------
+""".strip()
+        is_equal = np.isnan(actual)
         self.assertTrue(is_equal, err)
 
     ### WIP Section. Tests that are either unfinished or not passing go here.
@@ -687,12 +719,51 @@ Actual    (shape={actual_output_array.shape})  =
 
         """
         self.assertEqual(expected, actual, err)
+    pass
+
+    def test__delta_two_body_parts_angle_killian_try__shouldGetTwoNANSToStart__whenOneBodyPartRemainsStationary(self):
+        # TODO: MED/HIGH: WIP: verify expected output!
+        # Create a
+        # Arrange
+        data_xy_bodypart1 = [
+            [0, 0],
+            [0, 0],
+            [0, 0],
+        ]
+        data_xy_bodypart2 = [
+            [0, 0],
+            [1, 1],
+            [-1, 1],
+        ]
+        data_for_expected_output = [
+            np.NaN,
+            np.NaN,
+            90.,
+        ]
+        arr_xy_1 = np.array(data_xy_bodypart1)
+        arr_xy_2 = np.array(data_xy_bodypart2)
+        expected_output = np.array(data_for_expected_output)
+
+        # Act
+        actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(
+            body_part_arr_1=arr_xy_1,
+            body_part_arr_2=arr_xy_2,
+        )
+
+        # Assert
+        is_equal = are_two_arrays_equal_including_possible_NaN_entries(expected_output, actual_output)
+        err = f"""
+    Expected output = {expected_output}
+
+    Actual output   = {actual_output}
+    """
+        self.assertTrue(is_equal, err)
 
     @skip  # TODO: test looks fine but review function implementation
     def test__delta_angle_given_all_positions__shouldGet90degrees__whenAllPointsInQuadrant4(self):
         ax0, ay0 = 1, -1
-        bx0, by0 = 2, -2
         ax1, ay1 = 3, -3
+        bx0, by0 = 2, -2
         bx1, by1 = 2, -4
         expected = 90.0
 
@@ -700,11 +771,13 @@ Actual    (shape={actual_output_array.shape})  =
         actual = dibs.feature_engineering.delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1)
         # Assert
         err = f"""
+        Expected = {expected}
+        Actual   = {actual}
 
         """
         self.assertEqual(expected, actual, err)
 
-    @skip  # TODO: test looks fine but review function implementation
+    @skip  # TODO: MED: review expected output
     def test__delta_two_body_parts_angle_killian_try__lazy_delta_angle___(self):
         # TODO: WIP: verify expected output!
         # Create a
@@ -712,15 +785,18 @@ Actual    (shape={actual_output_array.shape})  =
         data_xy_1 = [
             [0, 0],
             [0, 0],
+            [0, 0],
             [0, 0]
         ]
         data_xy_2 = [
+            [0, 0],
             [0, 0],
             [1, 1],
             [2, 2],
         ]
         data_for_expected_output = [
             np.NaN,
+            0,
             45,
             0.,
         ]
@@ -729,14 +805,12 @@ Actual    (shape={actual_output_array.shape})  =
         expected_output = np.array(data_for_expected_output)
 
         # Act
-        actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(body_part_arr_1=arr_xy_1, body_part_arr_2=arr_xy_2)
-
-        expected_output_minus_first_row = expected_output[1:]
-        actual_output_minus_first_row = actual_output[1:]
+        actual_output = dibs.feature_engineering.delta_two_body_parts_angle_killian_try(
+            body_part_arr_1=arr_xy_1,
+            body_part_arr_2=arr_xy_2)
 
         # Assert
-        is_equal = (expected_output_minus_first_row == actual_output_minus_first_row).all()
-        # is_equal = (expected_output == actual_output).all()
+        is_equal = are_two_arrays_equal_including_possible_NaN_entries(expected_output, actual_output)
         err = f"""
 Expected output = {expected_output}
 
@@ -748,12 +822,6 @@ Actual output   = {actual_output}
 
     @skip
     def test__stub2(self):
-        # Arrange
-        # Act
-        # Assert
-        self.assertTrue(True)
-    @skip
-    def test__stub3(self):
         # Arrange
         # Act
         # Assert

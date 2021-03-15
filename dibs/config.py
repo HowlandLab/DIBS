@@ -159,6 +159,11 @@ TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH = os.path.join(DIBS_BASE_PRO
 TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE')
 TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE)
 
+# Howland data files
+TEST_FILE__PipelineHowland__CSV__TRAIN_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE')
+TEST_FILE__PipelineHowland__CSV__TRAIN_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE)
+TEST_FILE__PipelineHowland__CSV__PREDICT_DATA_FILE: str = configuration.get('TESTING', 'TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE')
+TEST_FILE__PipelineHowland__CSV__PREDICT_DATA_FILE_PATH = os.path.join(DIBS_BASE_PROJECT_PATH, 'tests', 'test_data', TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE)
 
 # DEFAULT_PIPELINE__MIMIC__CSV_TEST_FILE_PATH = os.path.join()
 

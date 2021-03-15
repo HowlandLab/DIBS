@@ -38,13 +38,14 @@ def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
 class TestPipeline(TestCase):
 
     ### Scaling data ###
+    @skip('Test needs to be reevaluated')  # TODO: med/high
     def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
         # Note: this function takes a while to run
         # Arrange
         p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv__train_data__file_path__TRAINING_DATA).build(True)
 
         # Act
-        p = p._scale_transform_train_data()
+        p = p._scale_training_data_and_add_train_test_split()
 
         unscaled_features_cols: Set[str] = set(p.df_features_train.columns)
         scaled_features_cols: Set[str] = set(p.df_features_train_scaled.columns)
@@ -679,19 +680,28 @@ Total TEST data rows: {test_rows}
         # Assert
         return self.assertAlmostEqual(expected, actual, round_by, err)
 
+    # Plotting
+    def test__plot_clusters_by_assignments__shouldPullDataJustFine__whenUsedNormally(self):
+        # Arrange
+        p = get_unique_pipeline_loaded_with_data().build()
+        # Act
+        fig, ax = p.plot_clusters_by_assignments()
+        # Assert
+        self.assertTrue(True)
+
     ### End-to-end tests ###
     def test___DefaultPipelineListedAbove___buliding_pipeline_start_to_finish(self):
         # Arrange
         p = get_unique_pipeline_loaded_with_data()
 
         # Act
-        built_ok = True
+        built_ok = False
         err = f'Build failed. Error: '
         try:
             p = p.build(True, True)
+            built_ok = True
         except BaseException as e:
             err += repr(e)
-            built_ok = False
         # Assert
         self.assertTrue(built_ok, err)
 

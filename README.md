@@ -16,7 +16,8 @@ non-programmers to utilize the package without any prior programming knowledge.
 Just follow the package installation instructions, the usage guide, and enjoy!
 
 ## Installation & Setup
-
+- Ensure that you have Python installed
+  - To ensure that you have Python installed, try running: `python --version`
 - Ensure that you have Anaconda installed
   - You can ensure you have conda installed by running: `conda --version`
 - Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
@@ -70,8 +71,9 @@ general. This can be quite cluttered to the uninitiated. Changing the level of o
 
 
 
-It is important to note that the colouring of the clustering is *not* indicative of the quality of clustering.
-Good clustering is qualified by how distinct each group of points is. 
+It is important to note that the colouring of the clustering is *not* indicative of the quality of clustering. 
+As well, distance between clusters is *not* indicative of quality of clustering.
+**Good clustering is qualified by how distinct each group of points is.** 
 
 Here is an example of **bad clustering**:
 

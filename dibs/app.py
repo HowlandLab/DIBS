@@ -8,7 +8,7 @@ import itertools
 import os
 import time
 
-from dibs import config, logging_enhanced, pipeline  #, streamlit_app
+from dibs import config, logging_enhanced, pipeline
 
 
 logger = config.initialize_logger(__name__)
@@ -54,8 +54,9 @@ def streamlit(**kwargs) -> None:
     """
     Entry point for the Streamlit companion app.
     """
-    # streamlit_app.header(**kwargs)
-    streamlit_app.start_app(**kwargs)
+
+    # streamlit_app.start_app(**kwargs)
+    pass
 
 
 def tsnegridsearch():
@@ -79,7 +80,7 @@ def tsnegridsearch():
     ### Diagnostics parameters (graphing) ###
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
     graph_dimensions = (10, 10)  # length x width.
-    max_cores_per_pipe = 3
+    max_cores_per_pipe = 1
     # Auto-generate the product between all possible parameters
     kwargs_product = [{
         'tsne_perplexity': perplexity_i,
@@ -114,13 +115,14 @@ def tsnegridsearch():
     # The heavy lifting/processing is done here
     print(f'# of combinations: {len(pipeline_names_by_index)}')
     print(f'Start time: {time.strftime("%Y-%m-%d_%HH%MM")}')
+
     start_time = time.perf_counter()
     for i, kwargs_i in enumerate(kwargs_product):
         results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
-        p_i = pipeline_implementation(f'{pipeline_names_by_index[i]}_{results_current_time}', **kwargs_i).add_train_data_source(*(train_data.copy()))
+        p_i: pipeline.BasePipeline = pipeline_implementation(f'{pipeline_names_by_index[i]}_{results_current_time}', **kwargs_i).add_train_data_source(*(train_data.copy()))
         print(f'Start build for pipeline idx {i} -- Frac={p_i._tsne_perplexity}')
         try:
-            p_i = p_i.build(skip_cross_val_scoring=True)
+            p_i = p_i.build(skip_accuracy_score=True)
         except Exception as e:
             info = f'PerpRaw={p_i._tsne_perplexity}/Perp={p_i.tsne_perplexity}/EE={p_i.tsne_early_exaggeration}/LR={p_i.tsne_learning_rate}/GMM-N={p_i.gmm_n_components}'
             err = f'app.{logging_enhanced.get_current_function()}(): an unexpected exception occurred when building many pipelines to get good graphs. Info is as follows: {info}. Exception is: {repr(e)}'

@@ -832,3 +832,18 @@ def generate_pipeline_filename(name: str):
 
 def generate_pipeline_filename_from_pipeline(pipeline_obj: BasePipeline) -> str:
     return generate_pipeline_filename(pipeline_obj.name)
+
+
+def generate_standardized_Howland_pipeline(name: str) -> BasePipeline:
+    # TODO: med: remove this function after debugging
+    """
+    Tool to quickly create a Pipeline with data
+    :param name:
+    :return:
+    """
+    p = PipelineHowland(name)
+    p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
+    p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
+
+    return p
+

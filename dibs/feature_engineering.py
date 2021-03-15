@@ -23,7 +23,7 @@ Author also specifies that: the features are also smoothed over, or averaged acr
     a sliding window of size equivalent to 60ms (30ms prior to and after the frame of interest).
 """
 from tqdm import tqdm
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import inspect
 import itertools
 import math
@@ -32,6 +32,8 @@ import numpy as np
 import pandas as pd
 
 from dibs import check_arg, config, logging_enhanced, statistics
+
+from sklearn.utils import shuffle as sklearn_shuffle_dataframe
 
 
 logger = config.initialize_logger(__name__)
@@ -185,6 +187,42 @@ def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_
     # TODO: HIGH: Review which function for delta_angle is used below
     df[output_feature_name] = delta_two_body_parts_angle_killian_try(df[[f'{bodypart_1}_x', f'{bodypart_1}_y']].values,
                                                                      df[[f'{bodypart_2}_x', f'{bodypart_2}_y']].values)
+
+    return df
+
+
+def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
+    """
+
+    :param df:
+    :param test_col:
+    :param test_pct:
+    :param sort_results_by: (Optional[List[str]])
+    :param copy:
+    :return:
+    """
+    # Arg checking
+    if sort_results_by is not None:
+        check_arg.ensure_type(sort_results_by, list)
+    if len(sort_results_by) <= 0:
+        err = f'{logging_enhanced.get_current_function()}(): List cannot be empty TODO: elaborate'
+        logging_enhanced.log_then_raise(err, logger, ValueError)
+    for col_name in sort_results_by:
+        check_arg.ensure_type(col_name, str)
+
+    # Execute
+    df = df.copy() if copy else df
+    df[test_col] = False
+    df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
+    # TODO: med: fix setting with copy warning
+    df_shuffled.iloc[:round(len(df_shuffled) * test_pct), :][test_col] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
+
+    if sort_results_by is not None:
+        df_shuffled = df_shuffled.sort_values(sort_results_by)
+
+    actual_split_pct = round(len(df_shuffled.loc[df_shuffled[test_col]]) / len(df_shuffled), 3)
+    logger.debug(f"{logging_enhanced.get_current_function()}(): "
+                 f"Final test/train split is calculated to be: {actual_split_pct}")
 
     return df
 
@@ -344,36 +382,33 @@ def is_angle_change_negative(x0, y0, x1, y1) -> bool:
     return False
 
 
-def delta_angle_between_two_vectors_starting_at_origin(x0, y0, x1, y1) -> float:
+def delta_angle_between_two_vectors_starting_at_origin(x_t0, y_t0, x_t1, y_t1) -> float:
     """
     Returns angle between two vectors in degrees.
     # TODO: med/high: review use of rounding value at end
     Assumptions: the start of the vector for (x0, y0) and (x1, y1) are both at (0, 0).
-    :param x0: (float)
-    :param y0: (float)
-    :param x1: (float)
-    :param y1: (float)
+    :param x_t0: (float)
+    :param y_t0: (float)
+    :param x_t1: (float)
+    :param y_t1: (float)
     :return: (float) Returns the difference in angles between vectors in degrees
     """
-    # TODO: low: evaluate. Seems to be working!
-    # Arg checking -- below is OVERKILL, but necessary for debugging effort
-    check_arg.ensure_not_nan(x0)
-    check_arg.ensure_not_nan(y0)
-    check_arg.ensure_not_nan(x1)
-    check_arg.ensure_not_nan(y1)
+    for arg in (x_t0, y_t0, x_t1, y_t1):
+        if math.isnan(arg):
+            return np.NaN
 
-    if x0 == x1 and y0 == y1:
+    if x_t0 == x_t1 and y_t0 == y_t1:
         # Vectors are identical. No angle possible.
         return 0.
+    elif (x_t0 == 0 and y_t0 == 0) or (x_t1 == 0 and y_t1 == 0):
+        # Ostensibly a non-vector since it has no angle
+        return np.NaN
 
-    # # TODO: low: make tests to ensure that below comment isn't needed anymore
-    # if ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))) == 0:
-    #     return 0.
+    # Execute math
+    theta = (180 / np.pi) * np.arccos((x_t0 * x_t1 + y_t0 * y_t1) / ((np.sqrt(x_t0 ** 2 + y_t0 ** 2)) * (np.sqrt(x_t1 ** 2 + y_t1 ** 2))))
+    theta = round(theta, 5)  # TODO: med/high: review rounding
 
-    theta = (180 / np.pi) * np.arccos((x0 * x1 + y0 * y1) / ((np.sqrt(x0 ** 2 + y0 ** 2)) * (np.sqrt(x1 ** 2 + y1 ** 2))))
-    theta = round(theta, 8)  # TODO: med/high: review rounding
-
-    signed_theta = -theta if is_angle_change_negative(x0, y0, x1, y1) else theta
+    signed_theta = -theta if is_angle_change_negative(x_t0, y_t0, x_t1, y_t1) else theta
 
     return signed_theta
 
@@ -424,27 +459,33 @@ def delta_angle(pos_x_0, pos_y_0, pos_x_1, pos_y_1) -> float:
     return change_in_angle
 
 
-def delta_angle_given_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1) -> float:
+def delta_angle_given_all_positions(ax_t0, ay_t0, bx_t0, by_t0, ax_t1, ay_t1, bx_t1, by_t1) -> float:
     """
-    TODO: docstring
-    :param bx0: (float)
-    :param by0: (float)
-    :param bx1: (float)
-    :param by1: (float)
+    TODO: med: docstring
+    :param ay_t0:
+    :param ax_t0:
+    :param bx_t0: (float)
+    :param by_t0: (float)
+    :param ax_t1:
+    :param ay_t1:
+    :param bx_t1: (float)
+    :param by_t1: (float)
     :return: (float)
     """
-    bx0 -= ax0
-    by0 -= ay0
-    bx1 -= ax1
-    by1 -= ay1
+    for arg in (ax_t0, ay_t0, bx_t0, by_t0, ax_t1, ay_t1, bx_t1, by_t1):
+        if math.isnan(arg):
+            return np.NaN
+    bx_t0 -= ax_t0
+    by_t0 -= ay_t0
+    bx_t1 -= ax_t1
+    by_t1 -= ay_t1
 
-    # bx0, by0, bx1, by1 = bx0 - ax0, by0 - ay0, bx1 - ax1, by1 - ay1
-    for i in (bx0, by0, bx1, by1):
+    for i in (bx_t0, by_t0, bx_t1, by_t1):
         check_arg.ensure_not_nan(i)
 
-    bx0, by0, bx1, by1 = float(bx0), float(by0), float(bx1), float(by1)
+    bx_t0, by_t0, bx_t1, by_t1 = float(bx_t0), float(by_t0), float(bx_t1), float(by_t1)
 
-    return delta_angle(bx0, by0, bx1, by1)
+    return delta_angle(bx_t0, by_t0, bx_t1, by_t1)
 
 
 def delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay1, bx1, by1):
@@ -456,14 +497,20 @@ def delta_angle_between_two_vectors_by_all_positions(ax0, ay0, bx0, by0, ax1, ay
     # TODO: low: evaluate. Seems to be working!
 
     # Arg checking -- below is OVERKILL, but necessary for debugging effort
-    check_arg.ensure_not_nan(ax0)
-    check_arg.ensure_not_nan(ay0)
-    check_arg.ensure_not_nan(bx0)
-    check_arg.ensure_not_nan(by0)
-    check_arg.ensure_not_nan(ax1)
-    check_arg.ensure_not_nan(ay1)
-    check_arg.ensure_not_nan(bx1)
-    check_arg.ensure_not_nan(by1)
+    for arg in (ax0, ay0, bx0, by0, ax1, ay1, bx1, by1):
+        if math.isnan(arg):
+            return np.NaN
+
+    # check_arg.ensure_not_nan(ax0)
+    # check_arg.ensure_not_nan(ay0)
+    # check_arg.ensure_not_nan(bx0)
+    # check_arg.ensure_not_nan(by0)
+    # check_arg.ensure_not_nan(ax1)
+    # check_arg.ensure_not_nan(ay1)
+    # check_arg.ensure_not_nan(bx1)
+    # check_arg.ensure_not_nan(by1)
+
+
     # First, normalize points s.t. the a_0 and a_1 starts at origin and b_0/b_1 is translated to keep same angle, magnitude
 
     bx0 -= ax0
@@ -718,7 +765,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
 
     # The below variable is instantiated with same rows as total minus 1 (for reasons TBD) and
     #   with column room for x and y values (it appears as though the likelihood values disappear)
-    array_data_filtered = np.full((data_x.shape[0], (data_x.shape[1]) * 2), fill_value=-1.0)  # TODO: HIGH: Initialized as NAN to be populated later  # currdf_filt: np.ndarray = np.zeros((data_x.shape[0]-1, (data_x.shape[1]) * 2)) #
+    array_data_filtered = np.full((data_x.shape[0], (data_x.shape[1]) * 2), fill_value=np.NaN)  # TODO: HIGH: Initialized as NAN to be populated later  # currdf_filt: np.ndarray = np.zeros((data_x.shape[0]-1, (data_x.shape[1]) * 2)) #
 
     logger.debug(f'{inspect.stack()[0][3]}(): Computing data threshold to forward fill any sub-threshold (x,y)...')
     percent_filterd_per_bodypart__perc_rect: List = [0. for _ in range(data_likelihood.shape[1])]  # for _ in range(data_lh.shape[1]): perc_rect.append(0)
@@ -728,7 +775,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
     idx_col = 0
     for idx_col_i in tqdm(range(data_likelihood.shape[1]),
                           desc=f'{logging_enhanced.get_current_function()}(): Adaptively filtering DLC data...',
-                          disable=False if config.stdout_log_level.strip().upper() == 'DEBUG' else True):
+                          disable=True if config.stdout_log_level.strip().upper() != 'DEBUG' else False):
         # Get histogram of likelihood data in col_i (ignoring first row since its just labels (e.g.: [x  x  x  x ...]))
         histogram, bin_edges = np.histogram(data_likelihood[:, idx_col_i].astype(np.float))
         # Determine "rise".
