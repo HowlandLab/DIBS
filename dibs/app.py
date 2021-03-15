@@ -70,6 +70,7 @@ def tsnegridsearch():
     learn_rates = [100, ]
 
     tsne_n_iters = [1_000, 1_500, 2_000, ]
+    tsne_n_iters = [1_000, ]
     percent_epm_train_files_to_cluster_on = 1.0
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
@@ -80,7 +81,7 @@ def tsnegridsearch():
     ### Diagnostics parameters (graphing) ###
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
     graph_dimensions = (10, 10)  # length x width.
-    max_cores_per_pipe = 3
+    max_cores_per_pipe = 7
     # Auto-generate the product between all possible parameters
     kwargs_product = [{
         'tsne_perplexity': perplexity_i,
@@ -101,7 +102,7 @@ def tsnegridsearch():
         tsne_n_iters,
     )]
     pipeline_names_by_index = [f'Pipeline_{i}' for i in range(len(kwargs_product))]
-    # print('Number of parameter permutations:', len(kwargs_product))
+    logger.info(f'Number of parameter permutations: {len(kwargs_product)}')
 
     # Queue up which data files will be added to each Pipeline
     all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
