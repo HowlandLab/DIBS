@@ -101,7 +101,7 @@ def tsnegridsearch():
         tsne_n_iters,
     )]
     pipeline_names_by_index = [f'Pipeline_{i}' for i in range(len(kwargs_product))]
-    # print('Number of parameter permutations:', len(kwargs_product))
+    print('Number of parameter permutations:', len(kwargs_product))
 
     # Queue up which data files will be added to each Pipeline
     all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
