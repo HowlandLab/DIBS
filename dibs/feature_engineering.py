@@ -774,7 +774,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
     # logger.debug(f'{inspect.stack()[0][3]}: Loop over data and do adaptive filtering.')
     idx_col = 0
     for idx_col_i in tqdm(range(data_likelihood.shape[1]),
-                          desc=f'{logging_enhanced.get_current_function()}(): Adaptively filtering DLC data...',
+                          desc=f'{logging_enhanced.get_current_function()}(): Adaptively filtering DLC columns',
                           disable=True if config.stdout_log_level.strip().upper() != 'DEBUG' else False):
         # Get histogram of likelihood data in col_i (ignoring first row since its just labels (e.g.: [x  x  x  x ...]))
         histogram, bin_edges = np.histogram(data_likelihood[:, idx_col_i].astype(np.float))
