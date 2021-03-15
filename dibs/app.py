@@ -81,7 +81,7 @@ def tsnegridsearch():
     ### Diagnostics parameters (graphing) ###
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
     graph_dimensions = (10, 10)  # length x width.
-    max_cores_per_pipe = 7
+    max_cores_per_pipe = 3
     # Auto-generate the product between all possible parameters
     kwargs_product = [{
         'tsne_perplexity': perplexity_i,
