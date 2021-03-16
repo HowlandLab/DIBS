@@ -74,8 +74,8 @@ def main():
     ### Parse args
     args = parse_args()
 
-    print(f'args: {args}')
-    print(f'args.command: {args.command}')
+    logger.debug(f'args: {args}')
+    logger.debug(f'args.command: {args.command}')
 
     ### Do command
     execute_command(args)
