@@ -776,7 +776,7 @@ class BasePipeline(object):
         if features is None:  # TODO: low: remove his if statement as a default feature?
             features = self.all_features
         features = list(features)
-        df_features_train = self.df_features_train.copy()
+        df_features_train = self.df_features_train.copy()  # TODO: high: evaluate use of .copy()
         df_features_train = df_features_train.loc[~df_features_train[features].isnull().any(axis=1)]
         # Check args
         check_arg.ensure_type(features, list)
