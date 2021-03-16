@@ -148,6 +148,10 @@ def tsnegridsearch():
     print(f'Done job at: {done_time}')
 
 
+def print_if_system_is_64_bit():
+    print(f'This system is detected to be 64-bit: {sys.maxsize > 2**32}')
+
+
 # Sample function
 
 def sample_runtime_function(sleep_secs=3, *args, **kwargs):
