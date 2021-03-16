@@ -4,9 +4,9 @@ Every function in this file is an entire runtime sequence (app) encapsulated. Ex
 from typing import List
 import inspect
 import itertools
-
 import os
 import time
+import sys
 
 from dibs import config, logging_enhanced, pipeline, streamlit_app
 
@@ -69,7 +69,8 @@ def tsnegridsearch():
     learn_rates = [100, ]
 
     tsne_n_iters = [1_000, 1_500, 2_000, ]
-    percent_epm_train_files_to_cluster_on = 0.80
+    tsne_n_iters = [1_000, ]
+    percent_epm_train_files_to_cluster_on = 1.0
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
 
@@ -101,7 +102,7 @@ def tsnegridsearch():
         tsne_n_iters,
     )]
     pipeline_names_by_index = [f'Pipeline_{i}' for i in range(len(kwargs_product))]
-    print('Number of parameter permutations:', len(kwargs_product))
+    logger.info(f'Number of parameter permutations: {len(kwargs_product)}')
 
     # Queue up which data files will be added to each Pipeline
     all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
@@ -119,7 +120,7 @@ def tsnegridsearch():
     start_time = time.perf_counter()
     for i, kwargs_i in enumerate(kwargs_product):
         results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
-        p_i = pipeline_implementation(f'{pipeline_names_by_index[i]}_{results_current_time}', **kwargs_i).add_train_data_source(*(train_data.copy()))
+        p_i: pipeline.BasePipeline = pipeline_implementation(f'{pipeline_names_by_index[i]}_{results_current_time}', **kwargs_i).add_train_data_source(*(train_data.copy()))
         print(f'Start build for pipeline idx {i} -- Frac={p_i._tsne_perplexity}')
         try:
             p_i = p_i.build(skip_accuracy_score=True)
@@ -145,6 +146,10 @@ def tsnegridsearch():
     print(f'Total jobs completed: {len(pipeline_names_by_index)}')
     done_time = time.strftime("%Y-%m-%d_%HH%MM")
     print(f'Done job at: {done_time}')
+
+
+def print_if_system_is_64_bit():
+    print(f'This system is detected to be 64-bit: {sys.maxsize > 2**32}')
 
 
 # Sample function
