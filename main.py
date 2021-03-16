@@ -20,7 +20,7 @@ logger = dibs.config.initialize_logger(__name__)
 dibs_runtime_description = 'DIBS command line utility. Do DIBS stuff. Expand on this later.'
 
 map_command_to_func = {
-
+    'bitcheck': dibs.app.print_if_system_is_64_bit,
     # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
     # 'cleanoutput': dibs.app.clear_output_folders,
     # 'buildandrunlegacy': dibs.main_LEGACY.test_function_to_build_then_run_py,
@@ -74,8 +74,8 @@ def main():
     ### Parse args
     args = parse_args()
 
-    print(f'args: {args}')
-    print(f'args.command: {args.command}')
+    logger.debug(f'args: {args}')
+    logger.debug(f'args.command: {args.command}')
 
     ### Do command
     execute_command(args)
