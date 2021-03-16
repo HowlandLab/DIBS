@@ -6,6 +6,7 @@ import inspect
 import itertools
 
 import os
+import sys
 import time
 
 from dibs import config, logging_enhanced, pipeline
