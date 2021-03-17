@@ -1489,7 +1489,8 @@ rf_n_jobs = rf_n_job{self.rf_n_jobs}
 rf_verbose = rf_verbos{self.rf_verbose}
 # Column names
 _all_features = {self._all_features}
-
+# Data
+df_features_train_scaled.dtypes = {self.df_features_train_scaled.dtypes}
 """.strip()
         return diag
 
