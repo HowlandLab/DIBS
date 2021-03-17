@@ -136,7 +136,7 @@ def tsnegridsearch():
 
             graph_title = f"Perp ratio: {round(perplexity_ratio_i, 5)} / " \
                           f"Perp: {perplexity_i} / EE: {early_exaggeration_i} / " \
-                          f"LearnRate: {learning_rate_i} / #data={p_i.num_training_data_points}"
+                          f"LearnRate: {learning_rate_i} / #data={p_i.num_training_data_points} / tsneNiter={p_i.tsne_n_iter}"
             # Save graph to file
             p_i.plot_clusters_by_assignments(
                 title=graph_title,
