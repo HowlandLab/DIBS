@@ -62,7 +62,7 @@ def streamlit(**kwargs) -> None:
 
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
-    max_cores_per_pipe = 3
+    max_cores_per_pipe = 8
     num_gmm_clusters_aka_num_colours = 7  # Sets the number of clusters that GMM will try to label
     pipeline_implementation = pipeline.PipelineHowland  # Another option includes dibs.pipeline.PipelineMimic
     graph_dimensions = (12, 12)  # length x width.
@@ -70,12 +70,12 @@ def tsnegridsearch():
 
     # perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
     perplexities = list(range(1200, 800, -25))
-    perplexities = [1200, ]
+    perplexities = [500, ]
     # exaggerations = list(range(22, 1100, 22))
     exaggerations = [200, ]
     learn_rates = list(range(100, 1_000, 200))
-    learn_rates = [100, ]
-    tsne_n_iters = [1_000, ]
+    learn_rates = [100, 800]
+    tsne_n_iters = [1_000, 1500]
     percent_epm_train_files_to_cluster_on = 0.5
 
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
@@ -114,7 +114,7 @@ def tsnegridsearch():
     # The heavy lifting/processing is done here
     logger.info(f'# of combinations: {len(pipeline_names_by_index)}')
     logger.debug(f'Start time: {time.strftime("%Y-%m-%d_%HH%MM")}')
-
+    successful_builds = 0
     start_time = time.perf_counter()
     for i, kwargs_i in enumerate(kwargs_product):
         start_build = time.perf_counter()
@@ -123,6 +123,7 @@ def tsnegridsearch():
         logger.debug(f'Start build for pipeline idx {i} ({i+1} of {len(kwargs_product)})  -- Frac={p_i._tsne_perplexity}')
         try:
             p_i = p_i.build(skip_accuracy_score=True)
+
         except Exception as e:
             info = f'PerpRaw={p_i._tsne_perplexity}/Perp={p_i.tsne_perplexity}/' \
                    f'EE={p_i.tsne_early_exaggeration}/LR={p_i.tsne_learning_rate}/GMM-N={p_i.gmm_n_components}'
@@ -131,6 +132,7 @@ def tsnegridsearch():
                   f'Info is as follows: {info}. Exception is: {repr(e)}. Diagnostics: {p_i.diagnostics()}'
             logger.error(err)
         else:
+
             # Save graph to file
             perplexity_ratio_i, perplexity_i, learning_rate_i, early_exaggeration_i = p_i.tsne_perplexity_relative_to_num_data_points, p_i.tsne_perplexity, p_i.tsne_learning_rate, p_i.tsne_early_exaggeration
 
@@ -146,12 +148,11 @@ def tsnegridsearch():
             )
         end_build = time.perf_counter()
         logger.info(f'Time to build: {round(end_build-start_build)} seconds (using {max_cores_per_pipe} cores)')
-        print('---------------------------------------------\n\n')
+        successful_builds += 1
+        logger.debug('---------------------------------------------\n\n')
     end_time = time.perf_counter()
-    print(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes.')
-    print(f'Total jobs completed: {len(pipeline_names_by_index)}')
-    done_time = time.strftime("%Y-%m-%d_%HH%MM")
-    print(f'Done job at: {done_time}')
+    logger.info(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes. Total successful jobs with results: {successful_builds}. Total jobs computed: {len(pipeline_names_by_index)}')
+    logger.debug(f'Done job at: {time.strftime("%Y-%m-%d_%HH%MM")}')
 
 
 def print_if_system_is_64_bit():
