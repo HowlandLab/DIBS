@@ -1451,6 +1451,45 @@ self.is_built: {self.is_built}
 unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].values))}
 unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.clf_assignment_col_name].values))}
 self._is_training_data_set_different_from_model_input: {self._is_training_data_set_different_from_model_input}
+
+# TSNE
+tsne_implementation:  = {self.tsne_implementation}
+tsne_n_components: int = {self.tsne_n_components}
+tsne_n_iter: int = {self.tsne_n_iter}
+tsne_early_exaggeration: float = {self.tsne_early_exaggeration}
+tsne_n_jobs: int = {self.tsne_n_jobs}
+tsne_verbose: int = {self.tsne_verbose}
+tsne_init: str = {self.tsne_init}
+_tsne_perplexity = {self._tsne_perplexity}
+tsne_perplexity = {self.tsne_perplexity}
+tsne_learning_rate = {self.tsne_learning_rate}
+# GMM
+gmm_n_components = {self.gmm_n_components}
+gmm_covariance_type = {self.gmm_covariance_type}
+gmm_tol = {self.gmm_tol}
+gmm_reg_covar = {self.gmm_reg_covar}
+
+gmm_max_iter = {self.gmm_max_iter}
+gmm_n_init = {self.gmm_n_init}
+gmm_init_params  = {self.gmm_init_params}
+gmm_verbose: int = {self.gmm_verbose}
+gmm_verbose_interval = {self.gmm_verbose_interval}
+# Classifier, general
+classifier_type = {self.classifier_type}
+classifier_verbose = {self.classifier_verbose}
+_classifier = Non{self._classifier}
+# Classifier: SVM
+svm_c = {self.gmm_init_params}
+svm_gamma = {self.svm_gamma}
+svm_probability = {self.svm_probability}
+svm_verbose = {self.svm_verbose}
+# Classifier: Random Forest
+rf_n_estimators = {self.rf_n_estimators}
+rf_n_jobs = rf_n_job{self.rf_n_jobs}
+rf_verbose = rf_verbos{self.rf_verbose}
+# Column names
+_all_features = {self._all_features}
+
 """.strip()
         return diag
 
