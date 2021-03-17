@@ -61,8 +61,8 @@ def streamlit(**kwargs) -> None:
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
     perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, ]
-    perplexity_fracs = [1e-2, ]
-    # perplexities = list(range(500, 750, 25))
+    # perplexity_fracs = [1e-2, ]
+    perplexities = list(range(1200, 800, -25))
     exaggerations = list(range(22, 1100, 22))
     exaggerations = [200, ]
     learn_rates = list(range(100, 1_000, 200))
@@ -70,7 +70,7 @@ def tsnegridsearch():
 
     tsne_n_iters = [1_000, 1_500, 2_000, ]
     tsne_n_iters = [1_000, ]
-    percent_epm_train_files_to_cluster_on = 1.0
+    percent_epm_train_files_to_cluster_on = 0.5
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
 
@@ -80,7 +80,7 @@ def tsnegridsearch():
     ### Diagnostics parameters (graphing) ###
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
     graph_dimensions = (10, 10)  # length x width.
-    max_cores_per_pipe = 3
+    max_cores_per_pipe = 7
     # Auto-generate the product between all possible parameters
     kwargs_product = [{
         'tsne_perplexity': perplexity_i,
@@ -97,8 +97,8 @@ def tsnegridsearch():
     } for learning_rate_k, early_exaggeration_j, perplexity_i, tsne_n_iter in itertools.product(
         learn_rates,
         exaggerations,
-        # perplexities,
-        [f'lambda self: self.num_training_data_points * {f}' for f in perplexity_fracs],
+        perplexities,
+        # [f'lambda self: self.num_training_data_points * {f}' for f in perplexity_fracs],
         tsne_n_iters,
     )]
     pipeline_names_by_index = [f'Pipeline_{i}' for i in range(len(kwargs_product))]
@@ -119,6 +119,7 @@ def tsnegridsearch():
 
     start_time = time.perf_counter()
     for i, kwargs_i in enumerate(kwargs_product):
+        start_build = time.perf_counter()
         results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
         p_i: pipeline.BasePipeline = pipeline_implementation(f'{pipeline_names_by_index[i]}_{results_current_time}', **kwargs_i).add_train_data_source(*(train_data.copy()))
         print(f'Start build for pipeline idx {i} -- Frac={p_i._tsne_perplexity}')
@@ -140,6 +141,8 @@ def tsnegridsearch():
                 show_now=False, save_to_file=True, figsize=graph_dimensions,
                 s=0.4 if show_cluster_graphs_in_a_popup_window else 1.5,
             )
+        end_build = time.perf_counter()
+        logger.info(f'Time to build: {round(end_build-start_build)} (using {max_cores_per_pipe} cores)')
         print('--------------------------\n\n')
     end_time = time.perf_counter()
     print(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes.')
