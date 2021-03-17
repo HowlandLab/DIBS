@@ -68,6 +68,7 @@ def tsnegridsearch():
 
     # perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
     perplexities = list(range(1200, 800, -25))
+    perplexities = [1200, ]
     # exaggerations = list(range(22, 1100, 22))
     exaggerations = [200, ]
     learn_rates = list(range(100, 1_000, 200))
@@ -133,7 +134,7 @@ def tsnegridsearch():
 
             graph_title = f"Perp ratio: {round(perplexity_ratio_i, 5)} / " \
                           f"Perp: {perplexity_i} / EE: {early_exaggeration_i} / " \
-                          f"LearnRate: {learning_rate_i} / #data={p_i.num_training_data_points}"
+                          f"LearnRate: {learning_rate_i} / #data={p_i.num_training_data_points} / tsneNiter={p_i.tsne_n_iter}"
             # Save graph to file
             p_i.plot_clusters_by_assignments(
                 title=graph_title,
