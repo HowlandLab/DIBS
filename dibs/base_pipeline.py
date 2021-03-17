@@ -833,9 +833,9 @@ class BasePipeline(object):
         # Check args
         check_arg.ensure_type(data, pd.DataFrame)
         check_arg.ensure_columns_in_DataFrame(data, self.all_features_list)
-        logger.info(f'Pre-TSNE info: Perplexity={self.tsne_perplexity} / Raw perplexity={self._tsne_perplexity} / num_training_data_points={self.num_training_data_points} / number of df_features_train={len(self.df_features_train)} / number of df_features_train_scaled={len(self.df_features_train_scaled)}')
+        logger.debug(f'Pre-TSNE info: Perplexity={self.tsne_perplexity} / Raw perplexity={self._tsne_perplexity} / num_training_data_points={self.num_training_data_points} / number of df_features_train={len(self.df_features_train)} / number of df_features_train_scaled={len(self.df_features_train_scaled)}')
         # Execute
-        start = time.perf_counter()
+        start_time = time.perf_counter()
         logger.debug(f'Now reducing data with {self.tsne_implementation} implementation...')
         if self.tsne_implementation == 'SKLEARN':
             arr_result = TSNE_sklearn(
@@ -896,7 +896,8 @@ class BasePipeline(object):
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logging_enhanced.log_then_raise(err, logger, RuntimeError)
-        logger.debug(f'Number of seconds it took to train TSNE: {round(time.perf_counter() - start, 1)} (# rows of data: {arr_result.shape[0]}).')
+        end_time = time.perf_counter()
+        logger.info(f'Number of seconds it took to train TSNE ({self.tsne_implementation}): {round(end_time- start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
         return arr_result
 
     def _tsne_reduce_training_data_features(self):
