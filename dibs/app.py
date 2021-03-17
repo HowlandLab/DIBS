@@ -70,6 +70,7 @@ def tsnegridsearch():
 
     # perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
     perplexities = list(range(1200, 800, -25))
+    perplexities = [1200, ]
     # exaggerations = list(range(22, 1100, 22))
     exaggerations = [200, ]
     learn_rates = list(range(100, 1_000, 200))
