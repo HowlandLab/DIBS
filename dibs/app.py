@@ -128,7 +128,7 @@ def tsnegridsearch():
                    f'EE={p_i.tsne_early_exaggeration}/LR={p_i.tsne_learning_rate}/GMM-N={p_i.gmm_n_components}'
             err = f'Unexpected exception::{__name__}.{logging_enhanced.get_current_function()}(): ' \
                   f'an unexpected exception occurred when building many pipelines to get good graphs. ' \
-                  f'Info is as follows: {info}. Exception is: {repr(e)}'
+                  f'Info is as follows: {info}. Exception is: {repr(e)}. Diagnostics: {p_i.diagnostics()}'
             logger.error(err)
         else:
             # Save graph to file
