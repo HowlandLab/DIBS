@@ -118,7 +118,7 @@ def tsnegridsearch():
         start_build = time.perf_counter()
         results_current_time = time.strftime("%Y-%m-%d_%HH%MM")
         p_i: pipeline.BasePipeline = pipeline_implementation(f'{pipeline_names_by_index[i]}_{results_current_time}', **kwargs_i).add_train_data_source(*(train_data.copy()))
-        logger.debug(f'Start build for pipeline idx {i} -- Frac={p_i._tsne_perplexity}')
+        logger.debug(f'Start build for pipeline idx {i} ({i+1} of {len(kwargs_product)})  -- Frac={p_i._tsne_perplexity}')
         try:
             p_i = p_i.build(skip_accuracy_score=True)
         except Exception as e:
@@ -143,7 +143,7 @@ def tsnegridsearch():
                 s=0.4 if show_cluster_graphs_in_a_popup_window else 1.5,
             )
         end_build = time.perf_counter()
-        logger.info(f'Time to build: {round(end_build-start_build)} (using {max_cores_per_pipe} cores)')
+        logger.info(f'Time to build: {round(end_build-start_build)} seconds (using {max_cores_per_pipe} cores)')
         print('---------------------------------------------\n\n')
     end_time = time.perf_counter()
     print(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes.')
