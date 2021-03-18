@@ -67,14 +67,14 @@ def tsnegridsearch():
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
 
     # perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
-    perplexities = list(range(1200, 800, -25))
-    perplexities = [1200, ]
-    # exaggerations = list(range(22, 1100, 22))
-    exaggerations = [200, ]
-    learn_rates = list(range(100, 1_000, 200))
-    learn_rates = [100, ]
-    tsne_n_iters = [1_000, ]
-    percent_epm_train_files_to_cluster_on = 0.5
+    perplexities = [200, 400, 600, 800, 1000]
+    # exaggerations = [200, 400, 600,800,1000]
+    exaggerations = [750]
+    # learn_rates = [100, 200, 400, ]
+    learn_rates = [750, ]
+    # tsne_n_iters = [1_000, 2000, 3000]
+    tsne_n_iters = [1000, ]
+    percent_epm_train_files_to_cluster_on = 1.0
 
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
