@@ -62,21 +62,22 @@ def streamlit(**kwargs) -> None:
 
 def tsnegridsearch():
     # Param section -- MAGIC VARIABLES GO HERE
-    max_cores_per_pipe = 8
+    max_cores_per_pipe = 3
     num_gmm_clusters_aka_num_colours = 7  # Sets the number of clusters that GMM will try to label
     pipeline_implementation = pipeline.PipelineHowland  # Another option includes dibs.pipeline.PipelineMimic
     graph_dimensions = (12, 12)  # length x width.
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
 
     # perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
-    perplexities = list(range(1200, 800, -25))
-    perplexities = [500, ]
-    # exaggerations = list(range(22, 1100, 22))
-    exaggerations = [200, ]
-    learn_rates = list(range(100, 1_000, 200))
-    learn_rates = [100, 800]
-    tsne_n_iters = [1_000, 1500]
-    percent_epm_train_files_to_cluster_on = 0.5
+    perplexities = [200, 400, 600, 800, 1000]
+    perplexities = [600, ]
+    # exaggerations = [200, 400, 600,800,1000]
+    exaggerations = [750]
+    # learn_rates = [100, 200, 400, ]
+    learn_rates = [750, ]
+    # tsne_n_iters = [1_000, 2000, 3000]
+    tsne_n_iters = [1000, ]
+    percent_epm_train_files_to_cluster_on = 1.0
 
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
@@ -123,7 +124,6 @@ def tsnegridsearch():
         logger.debug(f'Start build for pipeline idx {i} ({i+1} of {len(kwargs_product)})  -- Frac={p_i._tsne_perplexity}')
         try:
             p_i = p_i.build(skip_accuracy_score=True)
-
         except Exception as e:
             info = f'PerpRaw={p_i._tsne_perplexity}/Perp={p_i.tsne_perplexity}/' \
                    f'EE={p_i.tsne_early_exaggeration}/LR={p_i.tsne_learning_rate}/GMM-N={p_i.gmm_n_components}'
@@ -132,7 +132,6 @@ def tsnegridsearch():
                   f'Info is as follows: {info}. Exception is: {repr(e)}. Diagnostics: {p_i.diagnostics()}'
             logger.error(err)
         else:
-
             # Save graph to file
             perplexity_ratio_i, perplexity_i, learning_rate_i, early_exaggeration_i = p_i.tsne_perplexity_relative_to_num_data_points, p_i.tsne_perplexity, p_i.tsne_learning_rate, p_i.tsne_early_exaggeration
 
