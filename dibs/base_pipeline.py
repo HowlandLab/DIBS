@@ -178,13 +178,14 @@ class BasePipeline(object):
         return label
 
     def set_label(self, assignment: int, label: str):
-        """ Set behavioural label for a given model assignment number/value """
+        """ Set behavioural label for a given model assignment number """
         check_arg.ensure_type(label, str)
         assignment = int(assignment)
         setattr(self, f'label_{assignment}', label)
         return self
 
     def convert_types(self, df):
+        """ An attempt at standardizing data when called for use """
         return df.astype({'frame': float, }).astype({'frame': int, })
 
     ### Properties & Getters ###
@@ -242,31 +243,29 @@ class BasePipeline(object):
     @property
     def tsne_perplexity(self) -> float:
         """
+        Fetch t-SNE perplexity. Since perplexity has been reworked to not just be used as a nominal
+        number but also as a fraction of an existing property (notably # of training data points),
+        this property will sort that math out and return the actual perplexity number used in training.
         TODO:
         """
         perplexity = self._tsne_perplexity
-        # logger.debug(f'{get_current_function()}(): Perplexity starts as "{perplexity}"')
         if isinstance(perplexity, str):
             check_arg.ensure_valid_perplexity_lambda(perplexity)
             perplexity = eval(perplexity)(self)
-            # logger.debug(f'{get_current_function()}(): after perp eval, perplexity is: {perplexity}')
         check_arg.ensure_type(perplexity, float)
-        # logger.debug(f'@property.{get_current_function()} returns: {perplexity}')
         return perplexity
 
     @property
     def tsne_perplexity_relative_to_num_features(self) -> float:
         """
-        # TODO: med: evaluate
-        :return: (float) perplexity_value_used / number of features
+        Calculate the perplexity relative to the number of features.
         """
         return self.tsne_perplexity / len(self.all_features)
 
     @property
     def tsne_perplexity_relative_to_num_data_points(self) -> float:
         """
-        # TODO: med: evaluate
-        :return: perplexity / number of data points for training
+        Calculate the perplexity relative to the number of data points.
         """
         if self.num_training_data_points == 0:
             logger.warning(f'{logging_enhanced.get_caller_function()}() is calling to get perplexity, '
@@ -346,9 +345,9 @@ class BasePipeline(object):
         # Pipeline name
         check_arg.ensure_type(name, str)
         self.set_name(name)
-        #
+        # TODO: low: remove saving of kwargs. It likely doesn't get saved to pickle as a mutable characteristic and it isn't used elsewhere. Mostly a debugging tool.
         self.kwargs = kwargs
-        # Final setup
+        # Set parameters for Pipeline according to kwargs. If kwarg is missing, use default from config.ini.
         self.set_params(read_config_on_missing_param=True, **kwargs)
 
     # Setters
@@ -540,10 +539,14 @@ class BasePipeline(object):
         return self
 
     def set_tsne_perplexity_as_fraction_of_training_data(self, fraction: float):
+        """
+        Set the TSNE perplexity to be flexible to number of training data points
+        """
         check_arg.ensure_type(fraction, float)
         if not 0. < fraction <= 1.:
             err = f'TSNE perplexity fraction is not between 0 and 1, and thus is invalid. ' \
                   f'Fraction detected: {fraction} (type: {type(fraction)}).'
+            logger.error(err)
             raise ValueError(err)
         self._tsne_perplexity = f'lambda self: self.num_training_data_points * {fraction}'
         check_arg.ensure_valid_perplexity_lambda(self._tsne_perplexity)  # TODO: delete this line later. it's a sanity check.
@@ -551,6 +554,10 @@ class BasePipeline(object):
 
     # Important functions that should be overwritten by child classes
     def engineer_features(self, data: pd.DataFrame):
+        """
+        This function takes one data that is continuous in time and engineers all necessary features.
+        It *must* be overridden by all child classes for the respective child class to be considered valid.
+        """
         err = f'{get_current_function()}(): Not Implemented for base ' \
               f'Pipeline object {self.__name__}. You must implement this for all child objects.'
         logger.error(err)
@@ -635,6 +642,7 @@ class BasePipeline(object):
         """
         Remove a data source from the training data set.
         If the data source specified does not exist, then nothing changes.
+        :param data_source: (str) name of a data source (not necessary to include file type extension).
         """
         check_arg.ensure_type(data_source, str)
         self._df_features_train_raw = self.df_features_train_raw.loc[
@@ -649,7 +657,7 @@ class BasePipeline(object):
     def remove_predict_data_source(self, data_source: str):
         """
         Remove data from predicted data set.
-        :param data_source: (str) name of a data source
+        :param data_source: (str) name of a data source (not necessary to include file type extension).
         """
         # TODO: low: ensure function, add tests
         check_arg.ensure_type(data_source, str)
@@ -700,7 +708,8 @@ class BasePipeline(object):
         All functions that take the raw data (data retrieved from using dibs.read_csv()) and
         transforms it into classifier-ready data.
 
-        Post-conditions: sets
+        Splits data based on data_source, then sends the list of DataFrames by source to engineer_features().
+        Post-conditions: sets TODO: med
         Returns self.
         """
         # TODO: low: save feature engineering time for train data
@@ -722,7 +731,10 @@ class BasePipeline(object):
         return self
 
     def _engineer_features_predict(self):
-        """ Engineer features for the predicted data"""
+        """
+        Engineer features for the predicted data
+        Splits data based on data_source, then sends the list of DataFrames by source to engineer_features().
+        """
         # Queue data
         list_dfs_raw_data = [self.df_features_predict_raw.loc[self.df_features_predict_raw['data_source'] == src]
                                  .sort_values('frame').copy()
@@ -826,7 +838,7 @@ class BasePipeline(object):
     def _train_tsne_get_dimension_reduced_data(self, data: pd.DataFrame) -> np.ndarray:
         """
         TODO: elaborate
-        TODO: ensure that TSNE obj can be saved and used later for new data? *** Important ***
+
         :param data:
         :return:
         """
@@ -897,7 +909,8 @@ class BasePipeline(object):
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
             logging_enhanced.log_then_raise(err, logger, RuntimeError)
         end_time = time.perf_counter()
-        logger.info(f'Number of seconds it took to train TSNE ({self.tsne_implementation}): {round(end_time- start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
+        logger.info(f'Number of seconds it took to train TSNE ({self.tsne_implementation}): '
+                    f'{round(end_time- start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
         return arr_result
 
     def _tsne_reduce_training_data_features(self):
@@ -956,11 +969,19 @@ class BasePipeline(object):
         return self
 
     def clf_predict(self, arr: np.ndarray) -> np.ndarray:  # TODO: add type hinting once return type confirmed
+        """
+        An abstraction above using a raw classifier.predict() call in case invalid data is sent to the call.
+        In the case that invalid features are sent for prediction, in the future we can add a fill value
+        like "NaN" when a prediction is not possible.
+        :param arr:
+        :return:
+        """
         # TODO: low/med: add checks for NULL values in array
         # predict = self.clf.predict(arr)
         try:
             prediction = self.clf.predict(arr)
-        except AttributeError as ae:  # TODO: HIGHEST: change exception to correct one. AttributeError is a stand-in until we can confirm what a bad prediction error actually is
+        except AttributeError as ae:  # TODO: HIGH: change exception to correct one. AttributeError is a stand-in until we can confirm what a bad prediction error actually is. Likely a Value Error
+            # TODO: med: consider a fill value response instead of error when done debugging
             err = f'{get_current_function()}(): Unexpected error: CHECK CODE FOR COMMENTS. NOTE THE EXCEPTION TYPE!!! You\'ll need it to replace things here later'
             logger.error(err)
             raise ae
