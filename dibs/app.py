@@ -68,6 +68,7 @@ def tsnegridsearch():
 
     # perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
     perplexities = [200, 400, 600, 800, 1000]
+    perplexities = [600, ]
     # exaggerations = [200, 400, 600,800,1000]
     exaggerations = [750]
     # learn_rates = [100, 200, 400, ]
@@ -112,7 +113,7 @@ def tsnegridsearch():
     # The heavy lifting/processing is done here
     logger.info(f'# of combinations: {len(pipeline_names_by_index)}')
     logger.debug(f'Start time: {time.strftime("%Y-%m-%d_%HH%MM")}')
-
+    successful_builds = 0
     start_time = time.perf_counter()
     for i, kwargs_i in enumerate(kwargs_product):
         start_build = time.perf_counter()
@@ -144,12 +145,11 @@ def tsnegridsearch():
             )
         end_build = time.perf_counter()
         logger.info(f'Time to build: {round(end_build-start_build)} seconds (using {max_cores_per_pipe} cores)')
-        print('---------------------------------------------\n\n')
+        successful_builds += 1
+        logger.debug('---------------------------------------------\n\n')
     end_time = time.perf_counter()
-    print(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes.')
-    print(f'Total jobs completed: {len(pipeline_names_by_index)}')
-    done_time = time.strftime("%Y-%m-%d_%HH%MM")
-    print(f'Done job at: {done_time}')
+    logger.info(f'Total compute time: {round((end_time - start_time) / 60, 2)} minutes. Total successful jobs with results: {successful_builds}. Total jobs computed: {len(pipeline_names_by_index)}')
+    logger.debug(f'Done job at: {time.strftime("%Y-%m-%d_%HH%MM")}')
 
 
 def print_if_system_is_64_bit():
