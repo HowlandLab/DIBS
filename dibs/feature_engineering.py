@@ -224,7 +224,7 @@ def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results
     logger.debug(f"{logging_enhanced.get_current_function()}(): "
                  f"Final test/train split is calculated to be: {actual_split_pct}")
 
-    return df
+    return df_shuffled
 
 
 ### Numpy array feature creation functions

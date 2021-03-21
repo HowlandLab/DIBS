@@ -29,6 +29,7 @@ map_command_to_func = {
     'test': lambda *args, **kwargs: print(args, kwargs),
     'checktiming': dibs.streamlit_app.checking_file_session_timings,
     'gridsearch': dibs.app.tsnegridsearch,
+    'trybuild': dibs.app.trybuild,
 }
 
 
@@ -64,8 +65,11 @@ def execute_command(args: argparse.Namespace) -> None:
         kwargs['pipeline_path'] = args.p
 
         logger.debug(f'main.py: arg.p parsed as: {args.p}')
-
-    return map_command_to_func[args.command](**kwargs)
+    try:
+        # Execute command
+        map_command_to_func[args.command](**kwargs)
+    except BaseException as e:
+        logger.error(repr(e))
 
 
 ### Main execution #####################################################################################################
