@@ -202,29 +202,34 @@ def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results
     :return:
     """
     # Arg checking
+    # TODO: med/high: check the arg checking here
     if sort_results_by is not None:
         check_arg.ensure_type(sort_results_by, list)
-    if len(sort_results_by) <= 0:
-        err = f'{logging_enhanced.get_current_function()}(): List cannot be empty TODO: elaborate'
-        logging_enhanced.log_then_raise(err, logger, ValueError)
-    for col_name in sort_results_by:
-        check_arg.ensure_type(col_name, str)
+        if len(sort_results_by) <= 0:
+            err = f'{logging_enhanced.get_current_function()}(): List cannot be empty TODO: elaborate'
+            logging_enhanced.log_then_raise(err, logger, ValueError)
+        for col_name in sort_results_by:
+            check_arg.ensure_type(col_name, str)
 
     # Execute
     df = df.copy() if copy else df
-    df[test_col] = False
+    df[test_col] = 0
     df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
     # TODO: med: fix setting with copy warning
-    df_shuffled.iloc[:round(len(df_shuffled) * test_pct), :][test_col] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
+    df_shuffled.iloc[:round(len(df_shuffled) * test_pct), :][test_col] = 1  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
+    df_shuffled[test_col] = df_shuffled[test_col].astype(bool)
+
+    df_shuffled = df_shuffled.reset_index()
 
     if sort_results_by is not None:
         df_shuffled = df_shuffled.sort_values(sort_results_by)
 
     actual_split_pct = round(len(df_shuffled.loc[df_shuffled[test_col]]) / len(df_shuffled), 3)
+
     logger.debug(f"{logging_enhanced.get_current_function()}(): "
                  f"Final test/train split is calculated to be: {actual_split_pct}")
 
-    return df_shuffled
+    return df_shuffled  # TODO: HIGH PRIORITY: FIX THIS!
 
 
 ### Numpy array feature creation functions
