@@ -28,6 +28,23 @@ single_test_file_location = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DAT
 
 class TestFeatureEngineering(TestCase):
 
+    # Train/test splitting
+    def test__attach_train_test_split_col__shouldAttachedAppropriateAmountOfTestColumns__whenUsedNormally(self):
+        # Arrange
+        test_col = 'is_test'
+        expected_test_pct = test_pct = 0.25
+        df = pd.DataFrame([(a, -a) for a in range(100)], columns=['a', 'negative_a'])
+        # Act
+        df_with_test_col = dibs.feature_engineering.attach_train_test_split_col(df, test_col=test_col, test_pct=test_pct)
+        actual_test_pct = len(df_with_test_col.loc[df_with_test_col[test_col]]) / len(df_with_test_col)
+        # Assert
+        err = f"""
+{df_with_test_col.head().to_string()}
+
+{df_with_test_col.dtypes}
+"""
+        self.assertEqual(expected_test_pct, actual_test_pct, err)
+
     @skip  # TODO: Temporary skip due to performance issues
     def test__adaptively_filter_dlc_output__shouldReturnSameNumberOfRowsAsInput__always(self):
         # Arrange
