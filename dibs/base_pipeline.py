@@ -99,6 +99,7 @@ class BasePipeline(object):
     _df_features_predict_raw = pd.DataFrame(columns=default_cols)
     _df_features_predict = pd.DataFrame(columns=default_cols)
     _df_features_predict_scaled = pd.DataFrame(columns=default_cols)
+    null_classifier_label = null_gmm_label = 999
 
     # Other model vars (Rename this)
     video_fps: float = config.VIDEO_FPS
@@ -968,6 +969,7 @@ class BasePipeline(object):
         """"""
         if n_clusters is not None:
             self.set_params(gmm_n_components=n_clusters)
+
         # Train GMM, get assignments
         logger.debug(f'Training GMM now...')
         # data = self.df_features_train_scaled_train_split_only[self.dims_cols_names].values  # Old way
@@ -991,20 +993,18 @@ class BasePipeline(object):
         self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.dims_cols_names].apply(lambda series: self.gmm_predict(series.values.reshape(1, len(self.dims_cols_names))), axis=1)
         # Change to float, map NAN to fill value, change gmm type to int finally
         self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].astype(float)
-        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].map(lambda x: 999 if x != x else x)
+        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].map(lambda x: self.null_gmm_label if x != x else x)
         self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].astype(int)
 
-        # Test-train split  # TODO: HIGH: move this to the scaling section
-        self._add_test_data_column_to_scaled_train_data()
+        # # Test-train split  # TODO: HIGH: move this to the scaling section
+        # self._add_test_data_column_to_scaled_train_data()
 
         # # Train Classifier
         self._train_classifier()
 
         # Set classifier predictions
-        # self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.dims_cols_names].apply(lambda ser: self.gmm_predict(ser.values.reshape(1, len(self.dims_cols_names))), axis=1)
-
         self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_features_list].apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: 999 if x != x else x)
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: self.null_classifier_label if x != x else x)
         self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
 
         return self
@@ -1021,11 +1021,15 @@ class BasePipeline(object):
         variable
         """
         df = self.df_features_train_scaled_train_split_only
+        df[self.test_col_name] = df[self.test_col_name].astype(bool)
+        # Select only
         df = df.loc[
-            (~df[list(self.all_features)].isnull().any(axis=1))
-            &
-            (~df[self.gmm_assignment_col_name].isnull())
+            (~df[list(self.all_features)].isnull().any(axis=1)) &
+            (~df[self.gmm_assignment_col_name].isnull()) &
+            (df[self.gmm_assignment_col_name] != self.null_gmm_label) &
+            (~df[self.test_col_name])
         ]
+
         if self.classifier_type == 'SVM':
             clf = SVC(
                 C=self.svm_c,
