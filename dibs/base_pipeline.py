@@ -342,12 +342,14 @@ class BasePipeline(object):
         return list(np.unique(self.df_features_predict_raw['data_source'].values))
 
     @property
-    def raw_assignments(self): return self.raw_assignments
+    def raw_assignments(self):
+        raise NotImplementedError(f'Not implemented and not used anywhere')
+        return self.raw_assignments
 
     @property
     def unique_assignments(self) -> List[any]:
         if len(self._df_features_train_scaled) > 0:
-            return list(np.unique(self._df_features_train_scaled[self.svm_col].values))
+            return list(np.unique(self._df_features_train_scaled.loc[self._df_features_train_scaled[self.clf_assignment_col_name] != self.null_classifier_label][self.svm_col].values))
         return []
 
     @property
@@ -365,7 +367,7 @@ class BasePipeline(object):
         Automatically creates a list of consistent column names, relative to the number of
         TSNE components, that labels the columns of reduced data after the TSNE operation.
         """
-        return [f'dim_{d+1}' for d in range(self.tsne_n_components)]
+        return [f'dim_{d}' for d in range(1, self.tsne_n_components+1)]
 
     # Init
     def __init__(self, name: str, **kwargs):
