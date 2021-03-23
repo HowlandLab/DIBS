@@ -1002,11 +1002,6 @@ class BasePipeline(object):
         # # Train Classifier
         self._train_classifier()
 
-        # Set classifier predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_features_list].apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: self.null_classifier_label if x != x else x)
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
-
         return self
 
     def recolor_gmm_and_retrain_classifier(self, n_components: int):
@@ -1134,8 +1129,11 @@ class BasePipeline(object):
 
         :return:
         """
-        # self._df_features_train_scaled[self.clf_assignment_col_name] = self.clf_predict(self._df_features_train_scaled[list(self.all_features)].values)  # Get predictions
-        # self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
+        # Set classifier predictions
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_features_list].apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: self.null_classifier_label if x != x else x)
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
+
         return self
 
     # Pipeline building
