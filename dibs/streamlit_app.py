@@ -43,12 +43,12 @@ start_new_project_option_text, load_existing_project_option_text = 'Create new',
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
 text_half_dibs_data_pipeline = 'DEBUG OPT: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
 pipeline_options = {  # Key=Pipeline name + optional description. Value=Pipeline class
-    'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
-    'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
+    # 'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
+    # 'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
     'PipelineHowland: a pipeline aimed at generalized behaviour recognition': pipeline.PipelineHowland,
-    'PipelinePrime': pipeline.PipelinePrime,
+    # 'PipelinePrime': pipeline.PipelinePrime,
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
-    'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
+    # 'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
     'PipelineKitchenSink: a debug pipeline for too many features': pipeline.PipelineKitchenSink,
 }
 valid_layouts = {'centered', 'wide'}
