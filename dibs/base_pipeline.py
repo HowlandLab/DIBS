@@ -283,6 +283,25 @@ class BasePipeline(object):
             prediction = np.NaN
         return prediction
 
+    def clf_predict(self, x: np.ndarray) -> np.ndarray:  # TODO: low: add type hinting once return type confirmed
+        """
+        An abstraction above using a raw classifier.predict() call in case invalid data is sent to the call.
+        In the case that invalid features are sent for prediction, in the future we can add a fill value
+        like "NaN" when a prediction is not possible.
+        :param x:
+        :return:
+        """
+        # TODO: low/med: add checks for NULL values in array
+        # predict = self.clf.predict(arr)
+        try:
+            prediction = self.clf.predict(x)
+        except ValueError:  # TODO: HIGH: change exception to correct one. AttributeError is a stand-in until we can confirm what a bad prediction error actually is. Likely a Value Error
+            # # TODO: med: consider a fill value response instead of error when done debugging
+            # err = f'{get_current_function()}(): Unexpected error: CHECK CODE FOR COMMENTS. NOTE THE EXCEPTION TYPE!!! You\'ll need it to replace things here later'
+            # logger.error(err)
+            # raise ae
+            prediction = np.NaN
+        return prediction
     @property
     def clf(self): return self._classifier
 
@@ -969,7 +988,7 @@ class BasePipeline(object):
         ).fit(data_values)
         # self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self.gmm_predict(self.df_features_train_scaled_train_split_only[self.dims_cols_names].values)
         # Get predictions
-        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.dims_cols_names].apply(lambda ser: self.gmm_predict(ser.values.reshape(1, len(self.dims_cols_names))), axis=1)
+        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.dims_cols_names].apply(lambda series: self.gmm_predict(series.values.reshape(1, len(self.dims_cols_names))), axis=1)
         # Change to float, map NAN to fill value, change gmm type to int finally
         self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].astype(float)
         self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].map(lambda x: 999 if x != x else x)
@@ -981,30 +1000,14 @@ class BasePipeline(object):
         # # Train Classifier
         self._train_classifier()
 
-        # Set predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        # Set classifier predictions
+        # self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.dims_cols_names].apply(lambda ser: self.gmm_predict(ser.values.reshape(1, len(self.dims_cols_names))), axis=1)
+
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_features_list].apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: 999 if x != x else x)
         self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
 
         return self
-
-    def clf_predict(self, arr: np.ndarray) -> np.ndarray:  # TODO: low: add type hinting once return type confirmed
-        """
-        An abstraction above using a raw classifier.predict() call in case invalid data is sent to the call.
-        In the case that invalid features are sent for prediction, in the future we can add a fill value
-        like "NaN" when a prediction is not possible.
-        :param arr:
-        :return:
-        """
-        # TODO: low/med: add checks for NULL values in array
-        # predict = self.clf.predict(arr)
-        try:
-            prediction = self.clf.predict(arr)
-        except AttributeError as ae:  # TODO: HIGH: change exception to correct one. AttributeError is a stand-in until we can confirm what a bad prediction error actually is. Likely a Value Error
-            # TODO: med: consider a fill value response instead of error when done debugging
-            err = f'{get_current_function()}(): Unexpected error: CHECK CODE FOR COMMENTS. NOTE THE EXCEPTION TYPE!!! You\'ll need it to replace things here later'
-            logger.error(err)
-            raise ae
-        return prediction
 
     def recolor_gmm_and_retrain_classifier(self, n_components: int):
         self._train_gmm_and_classifier(n_components)
