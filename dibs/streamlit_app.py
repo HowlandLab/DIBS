@@ -768,7 +768,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                 session[key_button_rebuild_model_confirmation] = not session[key_button_rebuild_model_confirmation]
             if session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
                 try:
-                    with st.spinner('Building model...'):
+                    with st.spinner('Building model. This could take a couple minutes...'):
                         model_vars = {
                             # General opts
                             'classifier_type': select_classifier,
