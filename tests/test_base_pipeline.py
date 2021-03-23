@@ -11,6 +11,8 @@ import random
 from dibs.logging_enhanced import get_current_function, get_caller_function
 import dibs
 
+# logger = dibs.config.initialize_logger(__name__)
+
 
 csv__train_data__file_path__TRAINING_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__TRAIN_DATA_FILE_PATH
 csv__train_data__file_path__PREDICT_DATA = dibs.config.TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH
@@ -29,6 +31,12 @@ def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
     data_source_file_path = csv__train_data__file_path__TRAINING_DATA
     p = p.add_train_data_source(data_source_file_path)
     p = p.add_predict_data_source(csv__train_data__file_path__PREDICT_DATA)
+    p = p.set_params(
+        tsne_perplexity=30,
+        tsne_early_exaggeration=100,
+        tsne_learning_rate=50,
+
+    )
 
     return p
 
@@ -37,30 +45,24 @@ def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
 
 class TestPipeline(TestCase):
 
-    ### Scaling data ###
-    @skip('Test needs to be reevaluated')  # TODO: med/high
-    def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
-        # Note: this function takes a while to run
+    ### Checking in on data during build process
+    def test__build__shouldNotHaveNullFrameNumbers__whenOperatingNormally(self):
         # Arrange
-        p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv__train_data__file_path__TRAINING_DATA).build(True)
-
+        expected_num_of_rows_with_null_frame_values = 0
+        p = get_unique_pipeline_loaded_with_data()
+        p = p.set_params(tsne_perplexity=30).build()
         # Act
-        p = p._scale_training_data_and_add_train_test_split()
-
-        unscaled_features_cols: Set[str] = set(p.df_features_train.columns)
-        scaled_features_cols: Set[str] = set(p.df_features_train_scaled.columns)
-
+        df = p.df_features_train_scaled
+        df_null_frame_values = df.loc[df['frame'].isnull()]
+        actual_num_of_rows_with_null_frame_values = len(df_null_frame_values)
         # Assert
-        err_message = f"""
-    Cols were found in one but not the other.
+        err = f"""
 
-    unscaled_features_cols = {unscaled_features_cols}
-    scaled_features_cols = {scaled_features_cols}
+{df_null_frame_values[['frame', 'data_source']].head(20)}
 
-    Symmetric diff = {unscaled_features_cols.symmetric_difference(scaled_features_cols)}
+"""
 
-    """.strip()
-        self.assertEqual(unscaled_features_cols, scaled_features_cols, err_message)
+        self.assertEqual(expected_num_of_rows_with_null_frame_values, actual_num_of_rows_with_null_frame_values, err)
 
     ### Adding new training data sources ###
     def test__pipeline_adding_train_data_file_source__should____(self):
@@ -296,6 +298,31 @@ class TestPipeline(TestCase):
     Expected {property_of_note} value: {expected_value}
     Actual   {property_of_note} value: {actual_value}"""
         self.assertEqual(expected_value, actual_value, err)
+
+    ### Scaling data ###
+    @skip('Test needs to be reevaluated')  # TODO: med/high
+    def test__scale_data__shouldReturnDataFrameWithSameColumnNames__afterScalingData(self):
+        # Note: this function takes a while to run
+        # Arrange
+        p = default_pipeline_class(get_unique_pipe_name()).add_train_data_source(csv__train_data__file_path__TRAINING_DATA).build(True)
+
+        # Act
+        p = p._scale_training_data_and_add_train_test_split()
+
+        unscaled_features_cols: Set[str] = set(p.df_features_train.columns)
+        scaled_features_cols: Set[str] = set(p.df_features_train_scaled.columns)
+
+        # Assert
+        err_message = f"""
+    Cols were found in one but not the other.
+
+    unscaled_features_cols = {unscaled_features_cols}
+    scaled_features_cols = {scaled_features_cols}
+
+    Symmetric diff = {unscaled_features_cols.symmetric_difference(scaled_features_cols)}
+
+    """.strip()
+        self.assertEqual(unscaled_features_cols, scaled_features_cols, err_message)
 
     # GMM
     def test__set_params__gmm_n_components(self):

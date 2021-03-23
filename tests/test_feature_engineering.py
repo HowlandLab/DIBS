@@ -45,6 +45,26 @@ class TestFeatureEngineering(TestCase):
 """
         self.assertEqual(expected_test_pct, actual_test_pct, err)
 
+    def test__attach_train_test_split_col__shouldAttachedAppropriateAmountOfTestColumns__whenUsedNormally2(self):
+        # TODO: change function name to be more descriptive
+        # Arrange
+        test_col = 'is_test'
+        expected_null_values = 0
+        test_pct = 0.25
+        df = pd.DataFrame([(a, -a) for a in range(100)], columns=['a', 'negative_a'])
+        # Act
+        df_with_test_col = dibs.feature_engineering.attach_train_test_split_col(df, test_col=test_col, test_pct=test_pct)
+        df = df.loc[df[test_col].isnull()]
+        actual_null_values = len(df)
+
+        # Assert
+        err = f"""
+{df_with_test_col.head().to_string()}
+
+{df_with_test_col.dtypes}
+"""
+        self.assertEqual(expected_null_values, actual_null_values, err)
+
     @skip  # TODO: Temporary skip due to performance issues
     def test__adaptively_filter_dlc_output__shouldReturnSameNumberOfRowsAsInput__always(self):
         # Arrange
