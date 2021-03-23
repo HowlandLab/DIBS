@@ -859,8 +859,6 @@ def see_model_diagnostics(p, pipeline_file_path):
             # st.pyplot(fig)
             # matplotlib.use('TkAgg')
 
-
-
             df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts()
             st.bar_chart(df_assignment_histogram)
             st.markdown('')
@@ -872,26 +870,22 @@ def see_model_diagnostics(p, pipeline_file_path):
 
         st.markdown('')
     ###
-    # View 3d Plot
+    # View GMM/clustering plot
     st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
     gmm_button = st.button('Toggle: graph of cluster/assignment distribution')  # TODO: low: phrase this button better?
-    if gmm_button:
-        session[key_button_view_assignments_clusters] = not session[key_button_view_assignments_clusters]
+    if gmm_button: session[key_button_view_assignments_clusters] = not session[key_button_view_assignments_clusters]
     if session[key_button_view_assignments_clusters]:
         if p.is_built:
-            # if p.tsne_n_components == 2:
             azim, elevation = 15, 110
             if p.tsne_n_components == 3:
                 azim = st.slider('azimuth slider', value=azim, min_value=-90, max_value=90)
                 elevation = st.slider('elevation slider', value=elevation, min_value=1, max_value=180)
             try:  # Debugging try/catch. Remove when both 3-d and 2-d graphs show and don't crash the app.
-                # p.plot_assignments_in_3d(show_now=True)
                 fig, ax = p.plot_clusters_by_assignments(show_now=False, azim_elev=(azim, elevation))
                 # st.graphviz_chart(fig)
                 # x = plotly.tools.mpl_to_plotly(fig)
                 # st.plotly_chart(x)
                 st.write(fig)
-                pass
             except ValueError as ve:
                 st.error(f'Cannot plot cluster distribution since the model is not currently built. ({repr(ve)}')
         else:
