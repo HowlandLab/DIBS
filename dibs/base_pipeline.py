@@ -928,7 +928,10 @@ class BasePipeline(object):
         """
         # TODO: HIGHEST PRIORITY: make sure that grabbing the data for training is standardized <----------------------------
         # Grab train (non-test) data
-        df_train_data_for_tsne = self.df_features_train_scaled.loc[~self.df_features_train_scaled[self.test_col_name]].copy()
+        df_train_data_for_tsne = self.df_features_train_scaled.loc[
+            (~self.df_features_train_scaled[self.test_col_name]) &
+            (~self.df_features_train_scaled[self.all_features_list].isnull().any(axis=1))
+        ].copy()
 
         arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)
         # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train_scaled)
