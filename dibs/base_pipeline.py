@@ -1463,9 +1463,11 @@ class BasePipeline(object):
         # Resolve kwargs
         # fig_file_prefix = kwargs.get('fig_file_prefix', f'{self.name}__train_assignments_and_clustering__')
         # Execute
+        data = self.df_features_train_scaled_train_split_only
+        data = data.loc[data[self.gmm_assignment_col_name] != self.null_gmm_label]
         fig, ax = visuals.plot_clusters_by_assignment(
-            self.df_features_train_scaled_train_split_only[self.dims_cols_names].values,
-            self.df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].values,
+            data[self.dims_cols_names].values,
+            data[self.gmm_assignment_col_name].values,
             # fig_file_prefix=fig_file_prefix,
             save_fig_to_file=save_to_file,
             show_now=show_now,
