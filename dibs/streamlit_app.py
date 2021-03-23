@@ -243,7 +243,7 @@ def header(pipeline_file_path):
                     st.info(pipe_info)
                 st.markdown('')
                 # Input parameters for new Pipeline
-                radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, ])
+                radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
                 st.markdown('*Note: the above decision is not final. Data can be added and removed at any time in a project.*')
                 # st.markdown('')
                 text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
@@ -374,9 +374,9 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
     ### SIDEBAR ###
 
     ### MAIN PAGE ###
-    st.markdown(f'## Raw perplexity value: {p._tsne_perplexity}')  # TODO: high: remove this
-    st.markdown(f'## Number of data points: {p.num_training_data_points}')
-    st.markdown(f'')
+    # st.markdown(f'## Raw perplexity value: {p._tsne_perplexity}')  # TODO: high: remove this after debugging
+    # st.markdown(f'## Number of data points: {p.num_training_data_points}')  # TODO: high: remove this after debugging
+    # st.markdown(f'')
 
     st.markdown(f'## Pipeline basic information')
     st.markdown(f'- Name: **{p.name}**')
@@ -385,7 +385,7 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
     # st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
     # st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
     st.markdown(f'- Is the model built: **{p.is_built}**')
-    st.markdown(f'- Build time: ' + (f'{p.seconds_to_build} seconds' if p.is_built else f'N/A'))  # TODO: low: remove this line after debugging
+    # st.markdown(f'- Build time: ' + (f'{p.seconds_to_build} seconds' if p.is_built else f'N/A'))  # TODO: low: remove this line after debugging
 
     ### Menu button: show more info
     button_show_advanced_pipeline_information = st.button(f'Toggle: show advanced info', key=key_button_show_adv_pipeline_information)
@@ -443,7 +443,7 @@ We recommend that you rebuild the model to avoid future problems. """.strip())
     # # TODO: for below commented-out: add a CONFIRM button to confirm model re-build, then re-instate
 
     st.markdown('------------------------------------------------------------------------------------------------')
-    # logger.debug(f'{logging_enhanced.get_current_function()}(): ending. pipeline_path = {pipeline_path}')
+
     return show_actions(p, pipeline_path)
 
 
