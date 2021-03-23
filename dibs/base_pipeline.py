@@ -279,7 +279,7 @@ class BasePipeline(object):
     def gmm_predict(self, x):
         try:
             prediction = self.clf_gmm.predict(x)
-        except ValueError as ae:
+        except ValueError:
             prediction = np.NaN
         return prediction
 
@@ -1071,6 +1071,7 @@ class BasePipeline(object):
         :return:
         """
         df = self.df_features_train_scaled
+        df = df.loc[~df[list(self.all_features)+[self.clf_assignment_col_name]].isnull().any(axis=1)]
         logger.debug(f'Generating cross-validation scores...')
         # # Get cross-val accuracy scores
         self._cross_val_scores = cross_val_score(
