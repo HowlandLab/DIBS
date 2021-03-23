@@ -28,6 +28,7 @@ import joblib
 import numpy as np
 import os
 import pandas as pd
+import sys
 import time
 from types import FunctionType
 
@@ -35,7 +36,6 @@ from types import FunctionType
 # from pandas.core.common import SettingWithCopyWarning
 # from tqdm import tqdm
 # import openTSNE  # openTSNE only supports n_components 2 or less
-import sys
 
 from dibs.logging_enhanced import get_current_function
 from dibs import check_arg, config, feature_engineering, io, logging_enhanced, statistics, videoprocessing, visuals
@@ -91,7 +91,7 @@ class BasePipeline(object):
 
     # Data
     test_col_name = 'is_test_data'
-    default_cols = ['frame', 'data_source', 'file_source', ]  # ,  clf_assignment_col_name, gmm_assignment_col_name]
+    default_cols = ['frame', 'data_source', 'file_source', gmm_assignment_col_name]  # ,  clf_assignment_col_name, gmm_assignment_col_name]
     _df_features_train_raw = pd.DataFrame(columns=default_cols)
     _df_features_train = pd.DataFrame(columns=default_cols)
     _df_features_train_scaled_train_split_only = pd.DataFrame(columns=default_cols)
@@ -202,7 +202,7 @@ class BasePipeline(object):
     @property
     def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
     @property
-    def df_features_train_scaled_train_split_only(self): return self.convert_types(self._df_features_train_scaled_train_split_only)
+    def df_features_train_scaled_train_split_only(self): return self._df_features_train_scaled_train_split_only
 
     @property
     def name(self):
@@ -275,6 +275,13 @@ class BasePipeline(object):
 
     @property
     def clf_gmm(self): return self._clf_gmm
+
+    def gmm_predict(self, x):
+        try:
+            prediction = self.clf_gmm.predict(x)
+        except ValueError as ae:
+            prediction = np.NaN
+        return prediction
 
     @property
     def clf(self): return self._classifier
@@ -759,11 +766,13 @@ class BasePipeline(object):
         # Check args
         check_arg.ensure_type(features, list, tuple)
         check_arg.ensure_columns_in_DataFrame(df_data, features)
+
         # Execute
         if create_new_scaler:
+            check_arg.ensure_columns_in_DataFrame(df_data, (self.test_col_name, ))
             # self._scaler = StandardScaler()
             self._scaler = MinMaxScaler()
-            self._scaler.fit(df_data[features])
+            self._scaler.fit(df_data.loc[~df_data[self.test_col_name]][features])
         arr_data_scaled: np.ndarray = self.scaler.transform(df_data[features])
         df_scaled_data = pd.DataFrame(arr_data_scaled, columns=features)
 
@@ -774,7 +783,7 @@ class BasePipeline(object):
 
         return df_scaled_data
 
-    def _scale_training_data_and_add_train_test_split(self, features: Collection[str] = None, create_new_scaler=True):
+    def _scale_training_data_and_add_train_test_split(self, features: Collection[str] = None, create_new_scaler: bool = True):
         """
         Scales training data. By default, creates new scaler according to train
         data and stores it in pipeline
@@ -785,25 +794,23 @@ class BasePipeline(object):
         :return: self
         """
         # Queue up data to use
-        if features is None:  # TODO: low: remove his if statement as a default feature?
+        if features is None:
             features = self.all_features
         features = list(features)
         df_features_train = self.df_features_train.copy()
-        df_features_train = df_features_train.loc[~df_features_train[features].isnull().any(axis=1)]
-        # Check args
-        check_arg.ensure_type(features, list)
-        check_arg.ensure_columns_in_DataFrame(df_features_train, features)
-        # Get scaled data
-        df_features_train_scaled = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
-        # check_arg.ensure_type(df_features_train_scaled, pd.DataFrame)  # TODO: low: Remove later. Debugging effort.
 
         # Add train/test assignment col
-        df_features_train_scaled = feature_engineering.attach_train_test_split_col(
-            df_features_train_scaled,
+        df_features_train = feature_engineering.attach_train_test_split_col(
+            df_features_train,
             test_col=self.test_col_name,
             test_pct=self.test_train_split_pct,
             sort_results_by=['data_source', 'frame'],
         )
+
+        # df_features_train_scaled = df_features_train_scaled.loc[~df_features_train_scaled[features].isnull().any(axis=1)]
+
+        # Get scaled data
+        df_features_train_scaled = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
 
         # Save data. Return.
         self._df_features_train_scaled = df_features_train_scaled
@@ -919,7 +926,8 @@ class BasePipeline(object):
         Post-condition: creates
         :return: self
         """
-        # TODO: HIGHEST PRIORITY: make sure that grabbing the data for training is standardized
+        # TODO: HIGHEST PRIORITY: make sure that grabbing the data for training is standardized <----------------------------
+        # Grab train (non-test) data
         df_train_data_for_tsne = self.df_features_train_scaled.loc[~self.df_features_train_scaled[self.test_col_name]].copy()
 
         arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)
@@ -935,13 +943,15 @@ class BasePipeline(object):
 
     # GMM
     def _train_gmm_and_classifier(self, n_clusters: int = None):
-        """ """
+        """"""
         if n_clusters is not None:
             self.set_params(gmm_n_components=n_clusters)
-
         # Train GMM, get assignments
         logger.debug(f'Training GMM now...')
-        data = self.df_features_train_scaled_train_split_only[self.dims_cols_names].values
+        # data = self.df_features_train_scaled_train_split_only[self.dims_cols_names].values  # Old way
+        data = self.df_features_train_scaled_train_split_only
+        data = data.loc[~data[self.dims_cols_names].isnull().any(axis=1)][self.dims_cols_names]
+        data_values = data.values
         self._clf_gmm = GaussianMixture(
             n_components=self.gmm_n_components,
             covariance_type=self.gmm_covariance_type,
@@ -953,8 +963,14 @@ class BasePipeline(object):
             verbose=self.gmm_verbose,
             verbose_interval=self.gmm_verbose_interval,
             random_state=self.random_state,
-        ).fit(data)
-        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self.clf_gmm.predict(self.df_features_train_scaled_train_split_only[self.dims_cols_names].values)
+        ).fit(data_values)
+        # self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self.gmm_predict(self.df_features_train_scaled_train_split_only[self.dims_cols_names].values)
+        # Get predictions
+        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.dims_cols_names].apply(lambda ser: self.gmm_predict(ser.values.reshape(1, len(self.dims_cols_names))), axis=1)
+        # Change to float, map NAN to fill value, change gmm type to int finally
+        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].astype(float)
+        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].map(lambda x: 999 if x != x else x)
+        self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] = self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].astype(int)
 
         # Test-train split  # TODO: HIGH: move this to the scaling section
         self._add_test_data_column_to_scaled_train_data()
@@ -968,7 +984,7 @@ class BasePipeline(object):
 
         return self
 
-    def clf_predict(self, arr: np.ndarray) -> np.ndarray:  # TODO: add type hinting once return type confirmed
+    def clf_predict(self, arr: np.ndarray) -> np.ndarray:  # TODO: low: add type hinting once return type confirmed
         """
         An abstraction above using a raw classifier.predict() call in case invalid data is sent to the call.
         In the case that invalid features are sent for prediction, in the future we can add a fill value
@@ -1156,6 +1172,7 @@ class BasePipeline(object):
         """
         Encapsulate entire build process from front to back.
         This included transforming training data, predict data, training classifiers, and getting all results.
+        Dev note: the skipping of accuracy scoring is mainly meant for debug purposes.
         """
         start = time.perf_counter()
         # Build model
@@ -1470,8 +1487,8 @@ class BasePipeline(object):
         """
         diag = f"""
 self.is_built: {self.is_built}
-unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].values))}
-unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.clf_assignment_col_name].values))}
+unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.gmm_assignment_col_name].values)) if self.clf_assignment_col_name in set(self.df_features_train_scaled_train_split_only.columns) else "NA"}
+unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.clf_assignment_col_name].values)) if self.clf_assignment_col_name in set(self.df_features_train_scaled_train_split_only.columns) else "NA"}
 self._is_training_data_set_different_from_model_input: {self._is_training_data_set_different_from_model_input}
 
 # TSNE
@@ -1523,20 +1540,20 @@ _all_features = {self._all_features}
         # TODO: low: flesh out how these are usually built. Add a last updated info?
         return f'{self.name}'
 
-    def _add_test_train_split_col(self, df: pd.DataFrame, copy=False) -> pd.DataFrame:
-        raise DeprecationWarning('Deprecated. Now a feature engineering problem since solution not Pipeline dependent. ')
-        df = df.copy() if copy else df
-        df[self.test_col_name] = False
-        df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
-        # TODO: med: fix setting with copy warning
-        df_shuffled.iloc[:round(len(df_shuffled) * self.test_train_split_pct), :][self.test_col_name] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
-
-        df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
-
-        actual_split_pct = round(len(df_shuffled.loc[df_shuffled[self.test_col_name]]) / len(df_shuffled), 3)
-        logger.debug(f"Final test/train split is calculated to be: {actual_split_pct}")
-
-        return df
+    # def _add_test_train_split_col(self, df: pd.DataFrame, copy=False) -> pd.DataFrame:
+    #     raise DeprecationWarning('Deprecated. Now a feature engineering problem since solution not Pipeline dependent. ')
+    #     df = df.copy() if copy else df
+    #     df[self.test_col_name] = False
+    #     df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
+    #     # TODO: med: fix setting with copy warning
+    #     df_shuffled.iloc[:round(len(df_shuffled) * self.test_train_split_pct), :][self.test_col_name] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
+    #
+    #     df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
+    #
+    #     actual_split_pct = round(len(df_shuffled.loc[df_shuffled[self.test_col_name]]) / len(df_shuffled), 3)
+    #     logger.debug(f"Final test/train split is calculated to be: {actual_split_pct}")
+    #
+    #     return df
 
 
 def generate_pipeline_filename(name: str):
@@ -1547,3 +1564,8 @@ def generate_pipeline_filename(name: str):
     """
     file_name = f'{name}.pipeline'
     return file_name
+
+ # DistanceForepawLeftToNosetip  DistanceForepawRightToNosetip  DistanceForepawLeftToHindpawLeft  DistanceForepawRightToHindpawRight  DistanceAvgHindpawToNosetip  DistanceAvgForepawToNosetip  VelocityAvgForepaw  index          NoseTip_x           NoseTip_y       ForepawLeft_x      ForepawLeft_y      ForepawRight_x      ForepawRight_y       HindpawLeft_x     HindpawLeft_y      HindpawRight_x     HindpawRight_y        TailBase_x         TailBase_y                                         scorer                                                                                                    file_source                                              data_source  frame        AvgForepaw_x       AvgForepaw_y        AvgHindpaw_x       AvgHindpaw_y is_test_data      dim_1      dim_2    g
+# 0                      0.053019                       0.039239                          0.866732                            1.000000                     0.125995                     0.037744            0.000000    0.0                nan                 nan                 nan                nan                 nan                 nan                 nan               nan                 nan                nan               nan                nan  DLC_resnet50_Maternal_EPMDec28shuffle1_700000  C:\Users\killian\projects\DIBS\epm_data_csv_train\EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000.csv  EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000    0.0                 nan                nan                 nan                nan        False -27.276716  32.215048  [2]
+# 1                      0.051575                       0.037303                          0.910765                            0.974973                     0.123089                     0.036062            0.091718    1.0  970.2467651367188  484.22308349609375    1009.06005859375  523.5932006835938  1016.3133544921875  495.00445556640625   1090.837158203125  542.942626953125    1107.18212890625   507.996337890625      1125.5078125  549.2086791992188  DLC_resnet50_Maternal_EPMDec28shuffle1_700000  C:\Users\killian\projects\DIBS\epm_data_csv_train\EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000.csv  EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000    3.0  1012.6867065429688      509.298828125  1099.0096435546875   525.469482421875        False -28.093036  31.893019  [2]
+# 2                      0.047051                       0.032191                          0.899345                            0.780525                     0.102889                     0.031147            0.049857    2.0  976.1922607421875   475.8522033691406  1002.5944213867188    520.92822265625   1015.576904296875   495.1080017089844  1089.6236572265625   543.29150390625  1100.7110595703125  504.5792541503906  1123.61376953125  550.8467407226562  DLC_resnet50_Maternal_EPMDec28shuffle1_700000  C:\Users\killian\projects\DIBS\epm_data_csv_train\EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000.csv  EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000    6.0  1009.0856628417969  508.0181121826172  1095.1673583984375  523.9353790283203        False -27.697763  29.016086  [2]
