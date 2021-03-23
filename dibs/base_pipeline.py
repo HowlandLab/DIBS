@@ -1213,8 +1213,7 @@ class BasePipeline(object):
         Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
         :param output_path_dir: (str) an absolute path to a DIRECTORY where the pipeline will be saved.
         """
-        logger.debug(
-            f'{inspect.stack()[0][3]}(): Attempting to save pipeline to the following folder: {output_path_dir}.')
+        # logger.debug(f'{inspect.stack()[0][3]}(): Attempting to save pipeline to the following folder: {output_path_dir}.')
 
         # Check if valid directory
         check_arg.ensure_is_dir(output_path_dir)
