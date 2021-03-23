@@ -26,7 +26,12 @@ def get_unique_pipeline_loaded_with_data() -> dibs.base_pipeline.BasePipeline:
     data_source_file_path = csv__train_data__file_path__TRAINING_DATA
     p = p.add_train_data_source(data_source_file_path)
     p = p.add_predict_data_source(csv__train_data__file_path__PREDICT_DATA)
+    p = p.set_params(
+        tsne_perplexity=30,
+        tsne_early_exaggeration=100,
+        tsne_learning_rate=50,
 
+    )
     return p
 
 
@@ -49,10 +54,8 @@ class TestPipelineMimic(TestCase):
     def test__build__shouldBuildFine__whenBhtsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 2  # Set gmm clusters low so that it can still work with 10 rows of data
-        p = default_pipeline_class(get_unique_pipe_name(),
-                                   cross_validation_k=cv,
-                                   gmm_n_components=gmm_n_components,
-                                   )
+        p = get_unique_pipeline_loaded_with_data().set_params(cross_validation_k=cv, gmm_n_components=gmm_n_components)
+
         err = f"""Sanity Check: Something bad happened and cross val is not right"""
         self.assertEqual(cv, p.cross_validation_k, err)
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
