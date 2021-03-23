@@ -41,13 +41,13 @@ valid_video_extensions = {'avi', 'mp4', }
 # Variables for buttons, drop-down menus, and other things
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
-text_half_dibs_data_pipeline = 'DEBUG OPT: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
+text_half_dibs_data_pipeline = 'DEBUG OPTION: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
 pipeline_options = {  # Key=Pipeline name + optional description. Value=Pipeline class
     # 'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
     # 'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
     'PipelineHowland: a pipeline aimed at generalized behaviour recognition': pipeline.PipelineHowland,
     # 'PipelinePrime': pipeline.PipelinePrime,
-    'PipelineMimic: a pipeline that mimics the B-SOiD implementation for EPM': pipeline.PipelineMimic,
+    'PipelineMimic: a pipeline that mimics the B-SOiD implementation for Open Field': pipeline.PipelineMimic,
     # 'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
     'PipelineKitchenSink: a debug pipeline for too many features': pipeline.PipelineKitchenSink,
 }
@@ -166,7 +166,7 @@ def start_app(**kwargs):
             pipeline_file_path = session[key_pipeline_path]
 
     ### SIDEBAR ###
-    st.sidebar.markdown(f'## App Settings')
+    # st.sidebar.markdown(f'## App Settings')
     # st.sidebar.markdown(f'----------------')
     # st.sidebar.markdown(f'### Iteration: {session[key_iteration_page_refresh_count]}')  # Debugging effort
     # st.sidebar.markdown('------')
@@ -179,7 +179,6 @@ def start_app(**kwargs):
         st.experimental_rerun()
 
     ### MAIN ###
-
     header(pipeline_file_path)
 
 
@@ -244,8 +243,8 @@ def header(pipeline_file_path):
                     st.info(pipe_info)
                 st.markdown('')
                 # Input parameters for new Pipeline
-                radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
-                st.markdown('*Note: this decision is not final. Data can be added and removed at any time in a project.*')
+                radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, ])
+                st.markdown('*Note: the above decision is not final. Data can be added and removed at any time in a project.*')
                 # st.markdown('')
                 text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
                 input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.OUTPUT_PATH)
@@ -297,6 +296,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
                         st.experimental_rerun()
                     else:
                         err = f'Something unexpected happened on instantiating new Pipeline. Selected pipeline = {select_pipe_type}'
+                        logger.error(err, exc_info=True)
                         st.error(RuntimeError(err))
                         st.info(f'traceback: {traceback.format_exc()}')
                         st.stop()
