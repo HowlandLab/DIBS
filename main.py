@@ -8,6 +8,7 @@ TODO: Commands to implement:
 """
 
 import argparse
+import streamlit as st  # Do not remove this
 
 import dibs
 from dibs.pipeline import *  # This line is required for Streamlit to load Pipeline objects. Do not delete. For a more robust solution, consider: https://rebeccabilbro.github.io/module-main-has-no-attribute/
@@ -21,14 +22,14 @@ dibs_runtime_description = 'DIBS command line utility. Do DIBS stuff. Expand on 
 
 map_command_to_func = {
     'bitcheck': dibs.app.print_if_system_is_64_bit,
+    'checktiming': dibs.streamlit_app.checking_file_session_timings,
     # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
     # 'cleanoutput': dibs.app.clear_output_folders,
     # 'buildandrunlegacy': dibs.main_LEGACY.test_function_to_build_then_run_py,
-    # 'newbuild': dibs.app.build_classifier_new_pipeline,
-    'streamlit': dibs.streamlit_app.start_app,
-    'test': lambda *args, **kwargs: print(args, kwargs),
-    'checktiming': dibs.streamlit_app.checking_file_session_timings,
     'gridsearch': dibs.app.tsnegridsearch,
+    # 'newbuild': dibs.app.build_classifier_new_pipeline,
+    'streamlit': dibs.app.streamlit,
+    'test': lambda *args, **kwargs: print(args, kwargs),
     'trybuild': dibs.app.trybuild,
 }
 
@@ -68,8 +69,9 @@ def execute_command(args: argparse.Namespace) -> None:
     try:
         # Execute command
         map_command_to_func[args.command](**kwargs)
-    except BaseException as e:
-        logger.error(repr(e))
+    except Exception as e:
+        logger.error(repr(e), exc_info=True)
+        raise e
 
 
 ### Main execution #####################################################################################################
