@@ -22,7 +22,7 @@ default_pipeline_class = dibs.pipeline.PipelineMimic
 ########################################################################################################################
 
 def get_unique_pipe_name() -> str:
-    name = f'Pipeline__{get_caller_function()}__{random.randint(0, 100_000_000)}__{dibs.config.runtime_timestr}'
+    name = f'Pipeline__{get_caller_function()}__{random.randint(0, 100_000_000_000)}__{dibs.config.runtime_timestr}'
     return name
 
 
@@ -729,6 +729,7 @@ Total TEST data rows: {test_rows}
             built_ok = True
         except BaseException as e:
             err += repr(e)
+            raise e
         # Assert
         self.assertTrue(built_ok, err)
 
