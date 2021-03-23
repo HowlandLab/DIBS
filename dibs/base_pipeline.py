@@ -1134,8 +1134,8 @@ class BasePipeline(object):
 
         :return:
         """
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
+        # self._df_features_train_scaled[self.clf_assignment_col_name] = self.clf_predict(self._df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        # self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
         return self
 
     # Pipeline building
