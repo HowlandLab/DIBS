@@ -1384,7 +1384,7 @@ class BasePipeline(object):
             if additional_length >= min_rows_of_behaviour - 1:
                 rle_by_assignment[label].append([frame_idx, additional_length])
         # Sort from longest additional length (ostensibly the duration of behaviour) to least
-        for assignment_val in rle_by_assignment.keys():
+        for assignment_val in (key for key in rle_by_assignment.keys() if key != self.null_classifier_label):
             rle_by_assignment[assignment_val] = sorted(rle_by_assignment[assignment_val],
                                                        key=lambda x: x[1],
                                                        reverse=True  # True means sort largest to smallest
