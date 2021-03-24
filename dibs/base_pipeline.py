@@ -1411,14 +1411,16 @@ class BasePipeline(object):
 
                 list_of_all_assignments: List[int] = list(df_frames_selection[self.clf_assignment_col_name].values)
                 unique_assignments = np.unique(self.df_features_train_scaled[self.clf_assignment_col_name].values)
-                unique_assignments_index_dict = {assignment: i for i, assignment in enumerate(unique_assignments)}
+                logger.debug(f'*** {unique_assignments} *** UNIQUE ASSIGNMENTS HERE')
+                unique_assignments_index_dict = {assignment: i for i, assignment in enumerate(set(unique_assignments))}
 
                 list_of_all_labels: List[str] = [self.get_assignment_label(a) for a in list_of_all_assignments]
                 list_of_frames = list(df_frames_selection['frame'].astype(int).values)
                 color_map_array: np.ndarray = visuals.generate_color_map(len(unique_assignments))
+
+                # # Iterate over all assignments, get their respective index, get the colour (3-tuple) for that index, normalize for 255 and set at same index position so that length of colours is same as length of assignments
                 # Multiply the 3 values by 255 since existing values are on a 0 to 1 scale
                 # Takes only the first 3 elements since the 4th appears to be brightness value (?)
-
                 text_colors_list: List[Tuple[float]] = [
                     tuple(float(min(255. * x, 255.)) for x in tuple(color_map_array[unique_assignments_index_dict[a]][:3]))
                     for a in list_of_all_assignments]
