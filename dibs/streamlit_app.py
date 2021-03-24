@@ -408,7 +408,7 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
                     f'**{len(p.df_features_train_raw)//p.average_over_n_frames if not p.is_built else len(p.df_features_train_scaled)}**')
         # if p.is_built:
         st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
-
+        st.markdown(f'- DEBUG: unique behaviours assignments: {p.unique_assignments}')
         cross_val_decimals_round = 2
         cross_val_score_text = f'- Median cross validation score: **{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + \
                                f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
@@ -956,7 +956,7 @@ def review_behaviours(p, pipeline_file_path):
         number_input_output_fps = st.number_input(f'Output FPS for example videos', value=8., min_value=1., step=1., format='%.2f')
         number_input_max_examples_of_each_behaviour = st.number_input(f'Maximum number of videos created for each behaviour', value=5, min_value=1)
         number_input_min_rows = st.number_input(f'Number of rows of data required for a detection to occur', value=1, min_value=1, max_value=100, step=1)
-        number_input_frames_leadup = st.number_input(f'Number of rows of data that lead up to/follow target behaviour', value=3, min_value=0)
+        number_input_frames_leadup = st.number_input(f'Number of rows of data that precede and succeed target behaviour', value=5, min_value=0)
 
         st.markdown('')
 
@@ -1044,8 +1044,7 @@ def results_section(p, pipeline_file_path):
     st.markdown(f'## Create results')
     ### Label an entire video ###
     button_menu_label_entire_video = st.button('Toggle: Use pipeline model to label to entire video', key=key_button_menu_label_entire_video)
-    if button_menu_label_entire_video:
-        session[key_button_menu_label_entire_video] = not session[key_button_menu_label_entire_video]
+    if button_menu_label_entire_video: session[key_button_menu_label_entire_video] = not session[key_button_menu_label_entire_video]
     if session[key_button_menu_label_entire_video]:
         st.markdown('')
         selected_data_source = st.selectbox('Select a data source to use as the labels set for specified video:', options=['']+p.training_data_sources+p.predict_data_sources)
@@ -1067,7 +1066,9 @@ def results_section(p, pipeline_file_path):
             if check_arg.has_invalid_chars_in_name_for_a_file(input_new_video_name):
                 error_detected = True
                 st.error(f'Invalid characters for new video name detected. Please review name: {input_new_video_name}')
-            if not error_detected:
+            if error_detected:
+                st.stop()
+            else:
                 with st.spinner('(WIP) Creating labeled video now. This could take a few minutes...'):
                     p.make_video(video_to_be_labeled_path=input_video_to_label,
                                  data_source=selected_data_source,
