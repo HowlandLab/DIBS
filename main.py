@@ -23,14 +23,14 @@ dibs_runtime_description = 'DIBS command line utility. Do DIBS stuff. Expand on 
 map_command_to_func = {
     'bitcheck': dibs.app.print_if_system_is_64_bit,
     'checktiming': dibs.streamlit_app.checking_file_session_timings,
-    # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
-    # 'cleanoutput': dibs.app.clear_output_folders,
-    # 'buildandrunlegacy': dibs.main_LEGACY.test_function_to_build_then_run_py,
     'gridsearch': dibs.app.tsnegridsearch,
-    # 'newbuild': dibs.app.build_classifier_new_pipeline,
     'streamlit': dibs.app.streamlit,
     'test': lambda *args, **kwargs: print(args, kwargs),
     'trybuild': dibs.app.trybuild,
+    # 'buildandrunlegacy': dibs.main_LEGACY.test_function_to_build_then_run_py,
+    # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
+    # 'cleanoutput': dibs.app.clear_output_folders,
+    # 'newbuild': dibs.app.build_classifier_new_pipeline,
 }
 
 
