@@ -1048,7 +1048,7 @@ def results_section(p, pipeline_file_path):
     if session[key_button_menu_label_entire_video]:
         st.markdown('')
         selected_data_source = st.selectbox('Select a data source to use as the labels set for specified video:', options=['']+p.training_data_sources+p.predict_data_sources)
-        input_video_to_label = st.text_input('Input path to corresponding video which will be labeled:', value=f'{config.DIBS_BASE_PROJECT_PATH}')
+        input_video_to_label = st.text_input('Input path to corresponding video which will be labeled:', value=f'{config.STREAMLIT_DEFAULT_VIDEOS_FOLDER}')
         st.markdown('')
         st.markdown('')
         input_new_video_name = st.text_input('Enter a file name for the labeled video output:')
