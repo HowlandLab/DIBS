@@ -749,7 +749,8 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                     st.info('TODO: explain SVM "gamma" parameter')  # TODO: low
             elif select_classifier == 'RANDOMFOREST':
                 select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p.rf_n_estimators, min_value=1, max_value=1_000, format='%i')
-                st.info('TODO: explain RF # of trees and roughly optimal #')
+                if session[checkbox_show_extra_text]:
+                    st.info('TODO: explain RF # of trees and roughly optimal #')
         ### End of Show Advanced Params Section
 
         st.markdown('')
