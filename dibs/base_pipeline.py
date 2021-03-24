@@ -1327,7 +1327,7 @@ class BasePipeline(object):
 
         return self
 
-    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, file_name_prefix=None, min_rows_of_behaviour=1, max_examples=3, num_frames_buffer=0, output_fps=15):
+    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, file_name_prefix=None, min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15):
         """
         Create video clips of behaviours
 
@@ -1392,15 +1392,15 @@ class BasePipeline(object):
 
         ### Finally: make video clips
         # Loop over assignments
-        for assignment_val, values_list in rle_by_assignment.items():
+        for assignment_val, values_list in ((k, v) for (k, v) in rle_by_assignment.items() if k != self.null_classifier_label):
             # Loop over examples
             num_examples = min(max_examples, len(values_list))
-            for i in range(num_examples):  # TODO: HIGH: this part dumbly loops over first n examples...In the future, it would be better to ensure that at least one of the examples has a long runtime for analysis
+            for example_i in range(num_examples):  # TODO: HIGH: this part dumbly loops over first n examples...In the future, it would be better to ensure that at least one of the examples has a long runtime for analysis
                 output_file_name = f'{file_name_prefix}{time.strftime("%y-%m-%d_%Hh%Mm")}_' \
-                                   f'BehaviourExample__assignment_{assignment_val}__example_{i + 1}_of_{num_examples}'
+                                   f'BehaviourExample__assignment_{assignment_val}__example_{example_i + 1}_of_{num_examples}'
                 frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
 
-                frame_idx, additional_length_i = values_list[i]  # Recall: first elem is frame idx, second elem is additional length
+                frame_idx, additional_length_i = values_list[example_i]  # Recall: first elem is frame idx, second elem is additional length
 
                 lower_bound_row_idx: int = max(0, int(frame_idx) - num_frames_buffer)
                 upper_bound_row_idx: int = min(len(df) - 1, frame_idx + additional_length_i - 1 + num_frames_buffer)
@@ -1408,21 +1408,25 @@ class BasePipeline(object):
 
                 # Compile labels list via SVM assignment for now...Later, we should get the actual behavioural labels instead of the numerical assignments
                 logger.debug(f'df_frames_selection["frame"].dypes.dtypes: {df_frames_selection["frame"].dtypes}')
-                assignments_list = list(df_frames_selection[self.clf_assignment_col_name].values)
-                current_behaviour_list: List[str] = [self.get_assignment_label(a) for a in assignments_list]
-                frames_indices_list = list(df_frames_selection['frame'].astype(int).values)
-                color_map_array = visuals.generate_color_map(len(self.unique_assignments))
-                text_colors_list: List[Tuple[float]] = [tuple(float(min(255. * x, 255.))  # Multiply the 3 values by 255 since existing values are on a 0 to 1 scale
-                                                              for x in tuple(color_map_array[a][:3]))  # Takes only the first 3 elements since the 4th appears to be brightness value (?)
-                                                        for a in assignments_list]
+                list_of_all_assignments: List[int] = list(df_frames_selection[self.clf_assignment_col_name].values)
+                unique_assignments = np.unique(self.df_features_train_scaled[self.clf_assignment_col_name].values)
+                unique_assignments_index_dict = {assignment: i for i, assignment in enumerate(unique_assignments)}
+                list_of_all_labels: List[str] = [self.get_assignment_label(a) for a in list_of_all_assignments]
+                list_of_frames = list(df_frames_selection['frame'].astype(int).values)
+                color_map_array: np.ndarray = visuals.generate_color_map(len(unique_assignments))
+                # Multiply the 3 values by 255 since existing values are on a 0 to 1 scale
+                # Takes only the first 3 elements since the 4th appears to be brightness value (?)
 
-                #
+                text_colors_list: List[Tuple[float]] = [
+                    tuple(float(min(255. * x, 255.)) for x in tuple(color_map_array[unique_assignments_index_dict[a]][:3]))
+                    for a in list_of_all_assignments]
+
                 videoprocessing.make_labeled_video_according_to_frame(
-                    assignments_list,
-                    frames_indices_list,
+                    list_of_all_assignments,
+                    list_of_frames,
                     output_file_name,
                     video_file_path,
-                    current_behaviour_list=current_behaviour_list,
+                    current_behaviour_list=list_of_all_labels,
                     text_prefix=frame_text_prefix,
                     output_fps=output_fps,
                     output_dir=config.EXAMPLE_VIDEOS_OUTPUT_PATH,
