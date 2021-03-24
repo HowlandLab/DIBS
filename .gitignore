@@ -1,4 +1,9 @@
 
+
+# Logs
+logs/
+
+#
 .idea
 
 # Byte-compiled / optimized / DLL files
