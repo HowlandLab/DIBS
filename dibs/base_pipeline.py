@@ -1408,9 +1408,11 @@ class BasePipeline(object):
 
                 # Compile labels list via SVM assignment for now...Later, we should get the actual behavioural labels instead of the numerical assignments
                 logger.debug(f'df_frames_selection["frame"].dypes.dtypes: {df_frames_selection["frame"].dtypes}')
+
                 list_of_all_assignments: List[int] = list(df_frames_selection[self.clf_assignment_col_name].values)
                 unique_assignments = np.unique(self.df_features_train_scaled[self.clf_assignment_col_name].values)
                 unique_assignments_index_dict = {assignment: i for i, assignment in enumerate(unique_assignments)}
+
                 list_of_all_labels: List[str] = [self.get_assignment_label(a) for a in list_of_all_assignments]
                 list_of_frames = list(df_frames_selection['frame'].astype(int).values)
                 color_map_array: np.ndarray = visuals.generate_color_map(len(unique_assignments))
