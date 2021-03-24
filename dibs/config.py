@@ -106,11 +106,14 @@ assert isinstance(PERCENT_FRAMES_TO_LABEL, float) and 0. < PERCENT_FRAMES_TO_LAB
 
 ### STREAMLIT ############################################################
 default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location', fallback='')
+DEFAULT_VIDEOS_FOLDER = configuration.get('STREAMLIT', 'DEFAULT_VIDEOS_FOLDER')
 
 ### STREAMLIT asserts
 if default_pipeline_file_path:
     assert os.path.isfile(default_pipeline_file_path), f'Pipeline location could not be found: {default_pipeline_file_path}'
-
+if DEFAULT_VIDEOS_FOLDER:
+    assert os.path.isdir(DEFAULT_VIDEOS_FOLDER), f'Streamlit config `DEFAULT_VIDEOS_FOLDER` Folder missing: {DEFAULT_VIDEOS_FOLDER}'
+    assert os.path.isabs(DEFAULT_VIDEOS_FOLDER), f'Streamlit config `DEFAULT_VIDEOS_FOLDER` Path is not absolute: {DEFAULT_VIDEOS_FOLDER}'
 
 ### MODEL ###############################################################
 CROSSVALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
