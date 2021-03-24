@@ -1377,8 +1377,7 @@ class BasePipeline(object):
             rle_zipped_by_entry.append(list(row__assignment_idx_addedLength))
 
         # Roll up assignments into a dict. Keys are labels, values are lists of [index, additional length]
-        rle_by_assignment: Dict[Any: List[
-            int, int]] = {}  # Dict[Any: List[int, int]] // First element in list is the frame index, second element is the additional length duration of behaviour
+        rle_by_assignment: Dict[Any: List[int, int]] = {}  # Dict[Any: List[int, int]] // First element in list is the frame index, second element is the additional length duration of behaviour
         for label, frame_idx, additional_length in rle_zipped_by_entry:
             if label not in rle_by_assignment:
                 rle_by_assignment[label] = []
