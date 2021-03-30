@@ -8,7 +8,7 @@ import os
 import time
 import sys
 
-from dibs import config, logging_enhanced, pipeline, streamlit_app
+from dibs import check_arg, config, logging_enhanced, pipeline, streamlit_app
 
 
 logger = config.initialize_logger(__name__)
@@ -264,15 +264,25 @@ def trybuild(*args, **kwargs):
     logger.debug(f'Done job at: {time.strftime("%Y-%m-%d_%HH%MM")}')
 
 
-def buildone(pipeline_name, **kwargs):
+def buildone(**kwargs):
+    """
+    Build just one pipeline, save to file.
+    :param pipeline_name:
+    :param kwargs:
+    :return:
+    """
+    pipeline_name = kwargs.get('name')
+    if pipeline_name is None:
+        err_type = f'Name was expected to be a string but instead found None (likely due to missing command-line parameter). Try using the -n option.'
+        logger.error(err_type)
+        raise TypeError(err_type)
     # Param section -- MAGIC VARIABLES GO HERE
     # vid_data_source = 'EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000'
     # vid_file_path = "C:\\Users\\killian\\projects\\DIBS\\epm-mce-vids-f\\EPM-MCE-10.mp4"
     # assert os.path.isfile(vid_file_path), f'Video file not found. Path = {vid_file_path}'
 
-    max_cores_per_pipe = 4
-    percent_epm_train_files_to_cluster_on = 1.0
-    num_gmm_clusters_aka_num_colours = 7  # Sets the number of clusters that GMM will try to label
+    max_cores_per_pipe = 5
+    percent_epm_train_files_to_cluster_on = 0.12
     pipeline_implementation = pipeline.PipelineHowland  # Another option includes dibs.pipeline.PipelineMimic
     graph_dimensions = (12, 12)  # length x width.
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
@@ -285,7 +295,7 @@ def buildone(pipeline_name, **kwargs):
         'tsne_learning_rate': kwargs.get('learning_rate', config.TSNE_LEARNING_RATE),
         'gmm_n_components': kwargs.get('gmm_n_components', config.gmm_n_components),
         'tsne_n_components': 2,  # n-D dimensionality reduction
-        'tsne_n_iter': kwargs.get('tsne_n_iter', ),
+        'tsne_n_iter': kwargs.get('tsne_n_iter', config.TSNE_N_ITER),
         'cross_validation_k': max_cores_per_pipe,
         'cross_validation_n_jobs': max_cores_per_pipe,
         'rf_n_jobs': max_cores_per_pipe,
@@ -335,3 +345,9 @@ def buildone(pipeline_name, **kwargs):
     build_time_secs = round((end_build-start_build), 2)
     logger.info(f'Time to build: {build_time_secs} seconds (using {max_cores_per_pipe} cores)')
     logger.debug(f'Done job at: {time.strftime("%Y-%m-%d_%HH%MM")}')
+
+
+def sample(*args, **kwargs):
+    print(f'Args: {args}')
+    print(f'kwargs: {kwargs}')
+
