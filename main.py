@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Command-line interface for B-SOiD
+Command-line interface for DIBS
 
 TODO: Commands to implement:
     - clear logs
