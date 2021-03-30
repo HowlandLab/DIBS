@@ -6,7 +6,7 @@ TODO: Commands to implement:
     - clear logs
     - clear output folder (+ prompt for confirm)
 """
-
+from typing import Union
 import argparse
 import streamlit as st  # Do not remove this
 
@@ -22,6 +22,7 @@ dibs_runtime_description = 'DIBS command line utility. Do DIBS stuff. Expand on 
 
 map_command_to_func = {
     'bitcheck': dibs.app.print_if_system_is_64_bit,
+    'buildone': dibs.app.buildone,
     'checktiming': dibs.streamlit_app.checking_file_session_timings,
     'gridsearch': dibs.app.tsnegridsearch,
     'streamlit': dibs.app.streamlit,
@@ -31,6 +32,7 @@ map_command_to_func = {
     # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
     # 'cleanoutput': dibs.app.clear_output_folders,
     # 'newbuild': dibs.app.build_classifier_new_pipeline,
+    'sample': dibs.app.sample,
 }
 
 
@@ -45,32 +47,53 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=dibs_runtime_description)
     parser.add_argument(f'command', help=f'HELP: TODO: command. Valid commands: '
                                          f'{[""+x for x in list(map_command_to_func.keys())]}')  # TODO: easy: does it need to coerce into a list at all?
-    parser.add_argument('-p', help=f'HELP: TODO: PIPELINE LOC')
+    parser.add_argument('-p', name='pipeline_path', help=f'HELP: TODO: PIPELINE LOC', default=None)
+    parser.add_argument('-n', help=f'Name of pipeline', default="OneTwoThree")
     # TODO: add commands, sub-commands as necessary
 
     # Parse args, return
     args: argparse.Namespace = parser.parse_args()
 
     # TODO: uncomment below later
+
     logger.debug(f'ARGS: {args}')
     logger.debug(f'args.command = {args.command}')
-    logger.debug(f'args.p = {args.p}')
+    # logger.debug(f'args.p = {args.p}')
 
     return args
 
 
-def execute_command(args: argparse.Namespace) -> None:
-    kwargs = {}
+def parse_args_return_kwargs() -> dict:
+    # Instantiate parser, add arguments as expected on command-line
+    parser = argparse.ArgumentParser(description=dibs_runtime_description)
+    parser.add_argument(f'command', help=f'HELP: TODO: command. Valid commands: '
+                                         f'{[""+x for x in list(map_command_to_func.keys())]}')  # TODO: easy: does it need to coerce into a list at all?
 
-    if args.p:
-        kwargs['pipeline_path'] = args.p
+    parser.add_argument('-n', '--name', help=f'Name of pipeline', default=None)
+    parser.add_argument('-p', '--pipeline_path', help=f'Path to an existing Pipeline', default=None)
 
-        logger.debug(f'main.py: arg.p parsed as: {args.p}')
+    # Parse args, return
+    args: argparse.Namespace = parser.parse_args()
+
+    logger.debug(f'ARGS: {args}')
+    logger.debug(f'args.command = {args.command}')
+
+    kwargs = {
+        'command': args.command,
+        'pipeline_path': args.pipeline_path,
+        'name': args.name,
+    }
+
+    return kwargs
+
+
+def execute_command(**kwargs) -> None:
     try:
         # Execute command
-        map_command_to_func[args.command](**kwargs)
-    except Exception as e:
-        logger.error(repr(e), exc_info=True)
+        map_command_to_func[kwargs['command']](**kwargs)
+    except BaseException as e:
+        err_text = f'An exception occurred during runtime. See the following exception: {repr(e)}'
+        logger.error(err_text, exc_info=True)
         raise e
 
 
@@ -78,16 +101,11 @@ def execute_command(args: argparse.Namespace) -> None:
 
 def main():
     ### Parse args
-    args = parse_args()
-
-    logger.debug(f'args: {args}')
-    logger.debug(f'args.command: {args.command}')
-
+    args: dict = parse_args_return_kwargs()
+    # logger.debug(f'args: {args}')
+    # logger.debug(f'args.command: {args.command}')
     ### Do command
-    execute_command(args)
-
-    ### End
-    pass
+    execute_command(**args)
 
 
 if __name__ == '__main__':
