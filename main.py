@@ -18,13 +18,14 @@ logger = dibs.config.initialize_logger(__name__)
 
 ########################################################################################################################
 
-dibs_runtime_description = 'DIBS command line utility. Do DIBS stuff. Expand on this later.'
+dibs_runtime_description = 'DIBS command line utility.'
 
 map_command_to_func = {
     'bitcheck': dibs.app.print_if_system_is_64_bit,
     'buildone': dibs.app.buildone,
     'checktiming': dibs.streamlit_app.checking_file_session_timings,
     'gridsearch': dibs.app.tsnegridsearch,
+    'sample': dibs.app.sample,
     'streamlit': dibs.app.streamlit,
     'test': lambda *args, **kwargs: print(args, kwargs),
     'trybuild': dibs.app.trybuild,
@@ -32,7 +33,6 @@ map_command_to_func = {
     # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
     # 'cleanoutput': dibs.app.clear_output_folders,
     # 'newbuild': dibs.app.build_classifier_new_pipeline,
-    'sample': dibs.app.sample,
 }
 
 
@@ -46,8 +46,8 @@ def parse_args() -> argparse.Namespace:
     # Instantiate parser, add arguments as expected on command-line
     parser = argparse.ArgumentParser(description=dibs_runtime_description)
     parser.add_argument(f'command', help=f'HELP: TODO: command. Valid commands: '
-                                         f'{[""+x for x in list(map_command_to_func.keys())]}')  # TODO: easy: does it need to coerce into a list at all?
-    parser.add_argument('-p', name='pipeline_path', help=f'HELP: TODO: PIPELINE LOC', default=None)
+                                         f'{[""+x for x in list(map_command_to_func.keys())]}')  # TODO: easy: find better way to express all commands
+    parser.add_argument('-p', name='pipeline_path', help=f'HELP: TODO: PIPELINE LOC', default=None)  # TODO: low: improve help message
     parser.add_argument('-n', help=f'Name of pipeline', default="OneTwoThree")
     # TODO: add commands, sub-commands as necessary
 
