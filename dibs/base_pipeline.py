@@ -44,7 +44,6 @@ logger = config.initialize_logger(__name__)
 
 
 # Base pipeline objects that outline the Pipeline API
-
 class BasePipeline(object):
     """
     BasePipeline:
@@ -883,7 +882,7 @@ class BasePipeline(object):
                 n_components=self.tsne_n_components,
                 perplexity=self.tsne_perplexity,
                 early_exaggeration=self.tsne_early_exaggeration,
-                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: low: encapsulate this later                     !!!
+                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: low: follow up with this
                 n_iter=self.tsne_n_iter,
                 # n_iter_without_progress=300,
                 # min_grad_norm=1e-7,
@@ -894,7 +893,7 @@ class BasePipeline(object):
                 # method='barnes_hut',
                 # angle=0.5,
                 n_jobs=self.tsne_n_jobs,
-            ).fit_transform(data[list(self.all_features)])
+            ).fit_transform(data[list(self.all_features)].values)
         elif self.tsne_implementation == 'BHTSNE':
             arr_result = TSNE_bhtsne(
                 data[list(self.all_features)],
@@ -948,15 +947,14 @@ class BasePipeline(object):
         Post-condition: creates
         :return: self
         """
-        # TODO: HIGHEST PRIORITY: make sure that grabbing the data for training is standardized <----------------------------
-        # Grab train (non-test) data
+        # TODO: HIGH: make sure that grabbing the data for training is standardized <----------------------------
+        # Grab train data
         df_train_data_for_tsne = self.df_features_train_scaled.loc[
-            (~self.df_features_train_scaled[self.test_col_name]) &
-            (~self.df_features_train_scaled[self.all_features_list].isnull().any(axis=1))
+            (~self.df_features_train_scaled[self.test_col_name])  # Train only
+            & (~self.df_features_train_scaled[self.all_features_list].isnull().any(axis=1))  # Non-null features only
         ].copy()
 
         arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)
-        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(self.df_features_train_scaled)
 
         # Attach dimensionally reduced data, save
         self._df_features_train_scaled_train_split_only = pd.concat([
