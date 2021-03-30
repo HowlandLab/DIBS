@@ -132,7 +132,7 @@ def start_app(**kwargs):
     """
     The designated home page/entry point when Streamlit is used.
     -------------
-    kwargs
+    kwargs:
 
         pipeline_path : str
         A path to an existing pipeline file which will be loaded by default
@@ -147,7 +147,7 @@ def start_app(**kwargs):
     global session
     session = streamlit_session_state.get(**streamlit_persistence_variables)
     # matplotlib.use('TkAgg')  # For allowing graphs to pop out as separate windows. Dev note: Streamlit does not play nice with multithreaded instances like the Tkinter window pop-up. Sometimes crashes Streamlit.
-    matplotlib.use('Agg')  # For allowing graphs to pop out as separate windows
+    matplotlib.use('Agg')  # For allowing graphs to render onto page
     session[key_iteration_page_refresh_count] = session[key_iteration_page_refresh_count] + 1
 
     # Set page config
@@ -158,7 +158,9 @@ def start_app(**kwargs):
 
     # Load up pipeline if specified on command line or specified in config.ini
     pipeline_file_path: str = kwargs.get('pipeline_path', '')
-    if not pipeline_file_path:
+    if pipeline_file_path:
+        check_arg.ensure_is_file(pipeline_file_path)
+    else:
         # If not specified on command line, check config.ini path and use as default if possible
         if config.default_pipeline_file_path and os.path.isfile(config.default_pipeline_file_path):
             pipeline_file_path = config.default_pipeline_file_path
