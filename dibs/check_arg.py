@@ -66,7 +66,7 @@ def ensure_has_valid_chars_for_path(path):
 
 def ensure_is_file(path):
     if not os.path.isfile(path):
-        err = f"Caller: {get_caller_function()}(): file path '{path}' was expected to be a file path but was not."
+        err = f"Caller: {get_caller_function()}(): file path '{path}' was expected to be a file path but was not found."
         logger.error(err)
         raise FileNotFoundError(err)
 
