@@ -44,37 +44,7 @@ logger = config.initialize_logger(__name__)
 
 
 # Base pipeline objects that outline the Pipeline API
-class BasePipeline(object):
-    """
-    BasePipeline:
-    This class enumerates the basic functions by which each pipeline should adhere.
-
-
-    Parameters
-    ----------
-    name : str
-        Name of pipeline. Also is the name of the saved pipeline file.
-
-
-    kwargs
-        Kwargs default to pulling in data from config.ini file unless overtly specified to override. See below.
-        Nearly every single parameter property is settable by the user with set_params().
-    ----------
-
-    tsne_source : { 'SKLEARN', 'BHTSNE', 'OPENTSNE' }
-        Specify a TSNE implementation to use for dimensionality reduction.
-        Note: the SKLEARN implementation seems to be quite slow despite it's widespread use. If
-        time is a limiting factor, try using an alternative.
-
-    classifier_type : {'SVM', 'RANDOMFOREST' }
-        Specify a classifier to use.
-        Default is 'svm'.
-        - 'svm' : Support Vector Machine
-        - 'rf' : Random Forest
-
-
-        # TODO: med: expand on further kwargs
-    """
+class BasePipelineAttributeHolder(object):
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
 
@@ -368,6 +338,38 @@ class BasePipeline(object):
         """
         return [f'dim_{d}' for d in range(1, self.tsne_n_components+1)]
 
+
+class BasePipeline(BasePipelineAttributeHolder):
+    """
+    BasePipeline:
+    This class enumerates the basic functions by which each pipeline should adhere.
+
+
+    Parameters
+    ----------
+    name : str
+        Name of pipeline. Also is the name of the saved pipeline file.
+
+
+    kwargs
+        Kwargs default to pulling in data from config.ini file unless overtly specified to override. See below.
+        Nearly every single parameter property is settable by the user with set_params().
+    ----------
+
+    tsne_source : { 'SKLEARN', 'BHTSNE', 'OPENTSNE' }
+        Specify a TSNE implementation to use for dimensionality reduction.
+        Note: the SKLEARN implementation seems to be quite slow despite it's widespread use. If
+        time is a limiting factor, try using an alternative.
+
+    classifier_type : {'SVM', 'RANDOMFOREST' }
+        Specify a classifier to use.
+        Default is 'svm'.
+        - 'svm' : Support Vector Machine
+        - 'rf' : Random Forest
+
+
+        # TODO: med: expand on further kwargs
+    """
     # Init
     def __init__(self, name: str, **kwargs):
         # Pipeline name
