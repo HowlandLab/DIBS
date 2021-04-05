@@ -84,6 +84,7 @@ assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
 
 
 ### APP #######################################################
+
 FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')  # E.g. png, jpg, svg, etc.
 N_JOBS = configuration.getint('APP', 'N_JOBS')  # TODO: low: currently not being used
 MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
@@ -116,6 +117,7 @@ if STREAMLIT_DEFAULT_VIDEOS_FOLDER:
     assert os.path.isabs(STREAMLIT_DEFAULT_VIDEOS_FOLDER), f'Streamlit config `DEFAULT_VIDEOS_FOLDER` Path is not absolute: {STREAMLIT_DEFAULT_VIDEOS_FOLDER}'
 
 ### MODEL ###############################################################
+AVERAGE_OVER_N_FRAMES: int = configuration.getint('MODEL', 'AVERAGE_OVER_N_FRAMES')
 CROSSVALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
 CROSSVALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
 HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
