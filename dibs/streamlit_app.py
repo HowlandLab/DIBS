@@ -634,7 +634,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
         st.markdown(f'### General parameters')
         input_video_fps = st.number_input(f'Video FPS of input data', value=float(p.video_fps), min_value=0., max_value=500., step=1.0, format='%.2f')
         input_average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10, step=1)
-        st.markdown(f'By averaging features over **{input_average_over_n_frames}** frame at a time, it is effectively averaging features over **{round(input_average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** windows')
+        st.markdown(f'By averaging features over **{input_average_over_n_frames}** frame at a time, it is effectively averaging features using a **{round(input_average_over_n_frames / config.VIDEO_FPS * 1_000)}ms** window.')
         st.markdown(f'*By averaging over larger windows, the model can provide better generalizability, but using smaller windows is more likely to find more minute actions*')
 
         if session[checkbox_show_extra_text]:
@@ -862,9 +862,13 @@ def see_model_diagnostics(p, pipeline_file_path):
             # st.pyplot(fig)
             # matplotlib.use('TkAgg')
 
+            ### Show bar chart of counts of behaviours
+            st.markdown(f'** Graph below: behaviour counts **')
             df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts()
             st.bar_chart(df_assignment_histogram)
             st.markdown('')
+            ### Show bar chart of % behaviour occurrence
+            st.markdown(f'** Graph below: behaviour counts histogram **')
             df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts(normalize=True)
             st.bar_chart(df_assignment_histogram)
         else:
