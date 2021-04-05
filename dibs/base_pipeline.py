@@ -13,9 +13,10 @@ If there is a need in future to add it as a variable config variable, it can be
 implemented as such later.
 """
 from bhtsne import tsne as TSNE_bhtsne
+# from cvae import cvae
 from openTSNE import TSNE as OpenTsneObj
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.manifold import TSNE as TSNE_sklearn
+from sklearn.manifold import LocallyLinearEmbedding, Isomap, TSNE as TSNE_sklearn
 from sklearn.metrics import accuracy_score
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import cross_val_score
@@ -48,7 +49,7 @@ class BasePipelineAttributeHolder(object):
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
 
-    # Column names
+    # Column names7
     gmm_assignment_col_name, clf_assignment_col_name, = 'gmm_assignment', 'classifier_assignment'
     behaviour_col_name = 'behaviour'
 
@@ -75,7 +76,7 @@ class BasePipelineAttributeHolder(object):
     cross_validation_k: int = config.CROSSVALIDATION_K
     cross_validation_n_jobs: int = config.CROSSVALIDATION_N_JOBS
     _random_state: int = None
-    average_over_n_frames: int = 3
+    average_over_n_frames: int = config.AVERAGE_OVER_N_FRAMES
     test_train_split_pct: float = config.HOLDOUT_PERCENT
 
     # Model objects
@@ -130,7 +131,13 @@ class BasePipelineAttributeHolder(object):
 
     seconds_to_engineer_train_features: float = None
     seconds_to_build: float = -1.
-
+    # Experimental params
+    umap_n_neighbors: int = 5
+    umap_learning_rate: float = 1.0
+    LLE_method: str = 'standard'
+    LLE_n_neighbors: int = 5
+    cvae_num_steps: int = 1000  # TODO: low: arbitrary default
+    isomap_n_neighbors: int = 7  # TODO: low: "
     # TODO: low: create tests for this func below
     def get_assignment_label(self, assignment: int) -> str:
         """
@@ -564,6 +571,16 @@ class BasePipeline(BasePipelineAttributeHolder):
         check_arg.ensure_type(cross_validation_n_jobs, int)
         self.cross_validation_n_jobs = cross_validation_n_jobs
 
+        # Experimental params that need to be properly implemented in this function later (type chekcing , config.ini implementation, etc)
+        self.umap_n_neighbors = kwargs.get('umap_n_neighbors', 5)
+        self.umap_learning_rate = kwargs.get('umap_learning_rate', 1.0)
+        self.LLE_method = kwargs.get('LLE_method', 'standard')
+        self.LLE_n_neighbors = kwargs.get('LLE_n_neighbors', 5)
+        self.cvae_num_steps: int = kwargs.get('cvae_num_steps')
+        self.isomap_n_neighbors: int = kwargs.get('isomap_n_neighbors')
+        self.LLE_n_neighbors: int = kwargs.get('LLE_n_neighbors')
+
+        # Fin
         self._has_modified_model_variables = True
 
         return self
@@ -793,8 +810,8 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Execute
         if create_new_scaler:
             check_arg.ensure_columns_in_DataFrame(df_data, (self.test_col_name, ))
-            # self._scaler = StandardScaler()
-            self._scaler = MinMaxScaler()
+            self._scaler = StandardScaler()
+            # self._scaler = MinMaxScaler()
             self._scaler.fit(df_data.loc[~df_data[self.test_col_name]][features])
         arr_data_scaled: np.ndarray = self.scaler.transform(df_data[features])
         df_scaled_data = pd.DataFrame(arr_data_scaled, columns=features)
@@ -819,6 +836,8 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Queue up data to use
         if features is None:
             features = self.all_features
+        if self._is_training_data_set_different_from_model_input:
+            self._engineer_features_train()
         features = list(features)
         df_features_train = self.df_features_train.copy()
 
@@ -863,6 +882,78 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Save data. Return.
         self._df_features_predict_scaled = df_scaled_data
         return self
+
+    # Dimensionality reductions
+    def _train_cvae(self, data: pd.DataFrame):
+        logger.debug(f'Reducing dims using CVAE now...')
+        data_array = data[self.all_features_list].values
+        embedder = cvae.CompressionVAE(
+            data_array,
+            train_valid_split=0.75,
+            dim_latent=2,
+            iaf_flow_length=5,
+            cells_encoder=None,
+            initializer='orthogonal',
+            batch_size=64,
+            batch_size_test=64,
+            logdir='temp',
+            feature_normalization=True,
+            tb_logging=False
+        )
+        embedder.train(
+            learning_rate=0.001,
+            num_steps=self.cvae_num_steps,
+            dropout_keep_prob=0.75,
+            overwrite=True,
+            test_every=100,
+            lr_scheduling=True,
+            lr_scheduling_steps=5,
+            lr_scheduling_factor=5,
+            lr_scheduling_min=1e-05,
+            checkpoint_every=2000,
+        )
+
+        arr_result = embedder.embed(data_array)
+
+        return arr_result
+
+    def _train_isomap(self, data: pd.DataFrame):
+        logger.debug(f'Reducing dimensions using ISOMAP now...')
+        isomap = Isomap(
+            n_neighbors=self.isomap_n_neighbors,
+            n_components=self.tsne_n_components,
+            eigen_solver='auto',
+            tol=0,
+            max_iter=5000,
+            path_method='auto',
+            neighbors_algorithm='auto',
+            n_jobs=self.tsne_n_jobs,
+            metric='minkowski',
+            p=2,
+            metric_params=None)
+        arr_result = isomap.fit_transform(data[self.all_features_list].values)
+        return arr_result
+
+    def _locally_linear_dim_reduc(self, data: pd.DataFrame) -> np.ndarray:
+        logger.debug(f'Reducing dims using LocallyLinearEmbedding now...')
+        data_arr = data[list(self.all_features)].values
+        local_line = LocallyLinearEmbedding(
+            n_neighbors=self.LLE_n_neighbors,
+            n_components=self.tsne_n_components,
+            n_jobs=self.tsne_n_jobs,
+            random_state=self.random_state,
+            reg=1E-3,
+            eigen_solver='auto',
+            tol=1E-6,
+            max_iter=100,
+            method='standard',
+            hessian_tol=1E-4,
+            modified_tol=1E-12,
+            neighbors_algorithm='auto',
+        )
+
+        arr_result = local_line.fit_transform(data_arr)
+        return arr_result
 
     # TSNE Transformations
     def _train_tsne_get_dimension_reduced_data(self, data: pd.DataFrame) -> np.ndarray:
@@ -943,12 +1034,13 @@ class BasePipeline(BasePipelineAttributeHolder):
                     f'{round(end_time- start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
         return arr_result
 
-    def _tsne_reduce_training_data_features(self):
+    def _reduce_training_data_features_dimensions(self):
         """
         Attach new reduced dimension columns to existing (scaled) features DataFrame
         Post-condition: creates
         :return: self
         """
+        logger.debug(f'Reducing feature dimensions now now...')
         # TODO: HIGH: make sure that grabbing the data for training is standardized <----------------------------
         # Grab train data
         df_train_data_for_tsne = self.df_features_train_scaled.loc[
@@ -956,7 +1048,12 @@ class BasePipeline(BasePipelineAttributeHolder):
             & (~self.df_features_train_scaled[self.all_features_list].isnull().any(axis=1))  # Non-null features only
         ].copy()
 
-        arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)
+        # TODO: new implementation for dim reduc
+        arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)  # Original
+        # arr_tsne_result = self._train_cvae(df_train_data_for_tsne)  # CVAE
+        # arr_tsne_result = self._train_isomap(df_train_data_for_tsne)  # ISOMAP
+        # arr_tsne_result = self._locally_linear_dim_reduc(df_train_data_for_tsne)  # local lienar
+        check_arg.ensure_type(arr_tsne_result, np.ndarray)  # TODO: low: remove, debuggin effort for dim reduc approaches
 
         # Attach dimensionally reduced data, save
         self._df_features_train_scaled_train_split_only = pd.concat([
@@ -1034,7 +1131,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                 probability=self.svm_probability,
                 verbose=bool(self.classifier_verbose),
                 random_state=self.random_state,
-                cache_size=200,  # TODO: LOW: add variable to CONFIG.INI later? Measured in MB.
+                cache_size=500,  # TODO: LOW: add variable to CONFIG.INI later? Measured in MB.
                 max_iter=-1,
             )
         elif self.classifier_type == 'RANDOMFOREST':
@@ -1078,19 +1175,27 @@ class BasePipeline(BasePipelineAttributeHolder):
         :return:
         """
         df = self.df_features_train_scaled
-        df = df.loc[~df[list(self.all_features)+[self.clf_assignment_col_name]].isnull().any(axis=1)]
+        df = df.loc[
+            (~df[list(self.all_features)+[self.clf_assignment_col_name]].isnull().any(axis=1))
+            # & (df[] != self.label_999)
+        ]
         logger.debug(f'Generating cross-validation scores...')
         # # Get cross-val accuracy scores
-        self._cross_val_scores = cross_val_score(
-            self.clf,
-            df[self.all_features_list].values,
-            df[self.clf_assignment_col_name].values,
-            cv=self.cross_validation_k,
-            n_jobs=self.cross_validation_n_jobs,
-            pre_dispatch=self.cross_validation_n_jobs,
-        )
+        try:
+            self._cross_val_scores = cross_val_score(
+                self.clf,
+                df[self.all_features_list].values,
+                df[self.clf_assignment_col_name].values,
+                cv=self.cross_validation_k,
+                n_jobs=self.cross_validation_n_jobs,
+                pre_dispatch=self.cross_validation_n_jobs,
+            )
+        except ValueError as ve:
+            cross_val_failure_warning = f'Cross-validation could not be computed. See the following error: {repr(ve)}'
+            logger.warning(cross_val_failure_warning)
 
         df_features_train_scaled_test_data = df.loc[df[self.test_col_name]]
+
         self._acc_score = accuracy_score(
             y_pred=self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)]),
             y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
@@ -1155,8 +1260,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         self._scale_training_data_and_add_train_test_split(create_new_scaler=True)
 
         # TSNE -- create new dimensionally reduced data
-        logger.debug(f'TSNE reducing features now...')
-        self._tsne_reduce_training_data_features()
+        self._reduce_training_data_features_dimensions()
 
         # GMM + Classifier
         self._train_gmm_and_classifier()
