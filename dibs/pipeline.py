@@ -19,7 +19,7 @@ Add attrib checking for engineer_features? https://duckduckgo.com/?t=ffab&q=get+
 
 """
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.manifold import TSNE as TSNE_sklearn
+from sklearn.manifold import LocallyLinearEmbedding, TSNE as TSNE_sklearn
 from sklearn.metrics import accuracy_score
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import cross_val_score
@@ -33,6 +33,7 @@ import numpy as np
 import os
 import pandas as pd
 import time
+# import umap
 
 from bhtsne import tsne as TSNE_bhtsne
 from pandas.core.common import SettingWithCopyWarning
@@ -656,6 +657,45 @@ class PipelineHowland(BasePipeline):
 
         logger.debug(f'Done engineering features.')
         return df
+
+
+class PipelineHowlandUMAP(PipelineHowland):
+
+    def _train_tsne_get_dimension_reduced_data(self, data):
+        logger.debug(f'Now logging with PIPELINESTANDIN with UMAP')
+        reducer = umap.UMAP(
+
+            n_neighbors=self.umap_n_neighbors,
+            n_components=self.tsne_n_components,
+            learning_rate=self.umap_learning_rate,
+            n_jobs=self.tsne_n_jobs,
+            low_memory=False,
+        )
+
+        arr_result = reducer.fit_transform(data[list(self.all_features)].values)
+        return arr_result
+
+
+class PipelineHowlandLLE(PipelineHowland):
+    def _train_tsne_get_dimension_reduced_data(self, data):
+        logger.debug(f'Now logging with PIPELINESTANDIN with LLE')
+
+        reducer = LocallyLinearEmbedding(
+            method=self.LLE_method,
+
+            n_neighbors=self.LLE_n_neighbors,
+            n_components=self.tsne_n_components,
+            reg=1E-3,
+            eigen_solver='auto', tol=1E-6, max_iter=100,
+            hessian_tol=1E-4, modified_tol=1E-12,
+            neighbors_algorithm='auto',
+
+            random_state=self.random_state,
+            n_jobs=self.tsne_n_jobs,
+        )
+
+        arr_result = reducer.fit_transform(data[list(self.all_features)].values)
+        return arr_result
 
 
 class PipelineKitchenSink(BasePipeline):
