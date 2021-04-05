@@ -151,8 +151,23 @@ class TestPipeline(TestCase):
         # Assert
         self.assertEqual(expected_num_sources, num_sources_after)
 
-    ### Label assignments ###
+    ### Test/train splitting
+    def test___scale_training_data_and_add_train_test_split__shouldOnlyProduceValuesTrueOrFalse__whenUsedNormally(self):
+        # Arrange
+        expected = valid_values_for_testtrain_col = {True, False}
+        p = get_unique_pipeline_loaded_with_data()
 
+        # Act
+        p = p._scale_training_data_and_add_train_test_split()
+        actual = unique_testrain_values = set(p.df_features_train_scaled[p.test_col_name].values)
+
+        # Assert
+        err = f"""
+
+"""
+        self.assertEqual(expected, actual, err)
+
+    ### Label assignments ###
     def test__get_assignment_label__shouldReturnEmptyString__whenLabelNotSet(self):
         """
         Test to see if output is None if no assignment label found
