@@ -715,8 +715,8 @@ TODO: {get_current_function()}
 Expected = {expected}
 Actual   = {actual}
 --- DEBUG DATA ------------------------------
-Total data rows: {total_rows}
 Total TEST data rows: {test_rows}
+Total ALL  data rows: {total_rows}
 ---------------------------------------------
 """
         # Assert
