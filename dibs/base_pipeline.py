@@ -1191,7 +1191,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                 pre_dispatch=self.cross_validation_n_jobs,
             )
         except ValueError as ve:
-            cross_val_failure_warning = f'Cross-validation could not be computed. See the following error: {repr(ve)}'
+            cross_val_failure_warning = f'Cross-validation could not be computed in {self.name}. See the following error: {repr(ve)}'
             logger.warning(cross_val_failure_warning)
 
         df_features_train_scaled_test_data = df.loc[df[self.test_col_name]]
