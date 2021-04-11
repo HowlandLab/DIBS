@@ -33,7 +33,7 @@ from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_se
 # Module settings
 logger = config.initialize_logger(__name__)
 matplotlib_axes_logger.setLevel('ERROR')
-raw, engineered, scaled = 'raw', 'engineered', 'scaled'
+raw, engineered, scaled = 'Raw', 'Engineered', 'Classifier-fed'
 
 ##### Instantiate names for buttons, options that can be changed on the fly but logic below stays the same #####
 webpage_head_title = 'DIBS'
@@ -152,7 +152,7 @@ def start_app(**kwargs):
 
     # Set page config
     st.set_page_config(page_title=webpage_head_title,
-                       page_icon=':shark:',  # TODO: settle on an emoji later
+                       page_icon=':shark:',  # TODO: low: settle on an emoji later
                        layout=session[key_selected_layout],
                        initial_sidebar_state='collapsed')
 
@@ -172,7 +172,7 @@ def start_app(**kwargs):
     # st.sidebar.markdown(f'----------------')
     # st.sidebar.markdown(f'### Iteration: {session[key_iteration_page_refresh_count]}')  # Debugging effort
     # st.sidebar.markdown('------')
-    is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=False)  # TODO: low: remove value=True after debugging is done.
+    is_checked = st.sidebar.checkbox(checkbox_show_extra_text, value=True)  # TODO: low: remove value=True after debugging is done.
     session[checkbox_show_extra_text] = is_checked
 
     selected_layout = st.sidebar.selectbox('Select a page layout', options=[session[key_selected_layout].title()] + [x.title() for x in ["Wide", "Centered"] if x != session[key_selected_layout].title()])
@@ -1141,7 +1141,7 @@ def export_data(p, pipeline_file_path):
         st.markdown('----------------------------------------------')
 
     ### Export predict data
-    button_export_predict_data = st.button(f'Toggle: export training data', key=key_button_export_predict_data)
+    button_export_predict_data = st.button(f'Toggle: export predicted data', key=key_button_export_predict_data)
     if button_export_predict_data:
         session[key_button_export_predict_data] = not session[key_button_export_predict_data]
     if session[key_button_export_predict_data]:
