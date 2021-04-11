@@ -33,7 +33,7 @@ from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_se
 # Module settings
 logger = config.initialize_logger(__name__)
 matplotlib_axes_logger.setLevel('ERROR')
-
+raw, engineered, scaled = 'raw', 'engineered', 'scaled'
 
 ##### Instantiate names for buttons, options that can be changed on the fly but logic below stays the same #####
 webpage_head_title = 'DIBS'
@@ -79,7 +79,7 @@ key_button_show_example_videos_options = 'key_button_show_example_videos_options
 key_button_create_new_example_videos = 'key_button_create_new_example_videos'
 key_button_menu_label_entire_video = 'key_button_menu_label_entire_video'
 key_button_export_training_data = 'key_button_export_training_data'
-key_button_export_train_data_raw = 'key_button_export_data_raw'
+# key_button_export_train_data_raw = 'key_button_export_data_raw'
 key_button_export_train_data_engineered = 'key_button_export_data_engineered'
 key_button_export_train_data_engineered_scaled = 'key_button_export_data_engineered_scaled'
 key_button_export_predict_data = 'key_button_export_predict_data'
@@ -114,7 +114,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_button_create_new_example_videos: False,
     key_button_menu_label_entire_video: False,
     key_button_export_training_data: False,
-    key_button_export_train_data_raw: False,
+    # key_button_export_train_data_raw: False,
     key_button_export_train_data_engineered: False,
     key_button_export_train_data_engineered_scaled: False,
     key_button_export_predict_data: False,
@@ -1095,138 +1095,242 @@ def export_data(p, pipeline_file_path):
     st.markdown(f'## Exporting data')
 
     # Export training data
-    button_export_training_data = st.button(f'Toggle: export training data menu', key=key_button_export_training_data)
+    button_export_training_data = st.button(f'Toggle: export training data', key=key_button_export_training_data)
     if button_export_training_data:
         session[key_button_export_training_data] = not session[key_button_export_training_data]
     if session[key_button_export_training_data]:
-        st.markdown(f'### Export training data section')
-        # 1/3: Export training data: raw
-        button_export_data_raw = st.button('Toggle: export raw train data', key=key_button_export_train_data_raw)
-        if button_export_data_raw:
-            session[key_button_export_train_data_raw] = not session[key_button_export_train_data_raw]
-        if session[key_button_export_train_data_raw]:
-            st.markdown(f'#### Export raw training data')
-            if len(p.df_features_train_raw) == 0:
-                st.info(f'No raw training data available. Load up data first, then exporting that data will be available.')
-            else:
-                raw_data_save_location = st.text_input('Input a file into which the data will be saved. Example: "/usr/home/my_raw_data.csv" (without the quotation marks)', value=config.OUTPUT_PATH)
-                error_detected_raw = False
-                if raw_data_save_location:
-                    if os.path.isdir(raw_data_save_location):
-                        st.error(f'File path submitted was of a folder. Submit a final path to a file.')
-                        error_detected_raw = True
-                    if not os.path.isabs(raw_data_save_location):
-                        st.error(f'File path is not absolute. ')
-                        error_detected_raw = True
-                    if not check_arg.is_pathname_valid(raw_data_save_location):
-                        st.error(f'Bad path input. Check again. Path detected: "{raw_data_save_location}"')
-                        error_detected_raw = True
 
-                button_export_data_raw_confirmed = st.button('Export') if not error_detected_raw else False
-                if button_export_data_raw_confirmed:
-                    st.info(f'Saving file to "{raw_data_save_location}"...')
-                    logger.info(f'Trying to save training (raw) data to: {raw_data_save_location}...')
-                    p.df_features_train_raw.to_csv(raw_data_save_location, index=None)
-                    session[key_button_export_training_data] = False
-                    session[key_button_export_train_data_raw] = False
-                    time.sleep(session[default_n_seconds_sleep])
-                    st.experimental_rerun()
-            st.markdown('')
-            st.markdown('')
+        training_data_selec = st.selectbox('Select data set to save', ('', raw, engineered, scaled))
+        if training_data_selec:
 
-        # 2/3: Export training data: engineered
-        button_export_train_data_engineered = st.button('Toggle: export engineered training data', key=key_button_export_train_data_engineered)  # TODO: low: ensure button string well formed
-        if button_export_train_data_engineered:
-            session[key_button_export_train_data_engineered] = not session[key_button_export_train_data_engineered]
-        if session[key_button_export_train_data_engineered]:
-            st.markdown(f'#### Export engineered training data')
-            data_save_location = st.text_input('Input a full file path into which the data will be saved', value=config.OUTPUT_PATH)  # TODO: low: improve message string
-            err_detected = False
-            if data_save_location:
-                if not os.path.isabs(data_save_location):
-                    warning_msg_is_abs = f''
-                    st.info(warning_msg_is_abs)
-                    logger.warning(warning_msg_is_abs)
+            raw_data_save_location = st.text_input('Input a file into which the data will be saved. Example: "/usr/home/my_raw_data.csv" (without the quotation marks)', value=config.OUTPUT_PATH)
+            error_detected_raw = False
+            if raw_data_save_location:
+                if os.path.isdir(raw_data_save_location):
+                    st.warning(f'File path submitted was of a folder. Submit a final path to a file.')
+                    error_detected_raw = True
                     st.stop()
-                    err_detected = True
-                if os.path.isdir(data_save_location):
-                    warning_msg_dir = f''
-                    st.info(warning_msg_dir)
-                    err_detected = True
-                button_export_data_confirmed = st.button('Export' if not err_detected else False)
-                if button_export_data_confirmed:
-                    st.info(f'Saving file to "{data_save_location}"')
-                    p.df_features_train.to_csv(data_save_location, index=None)
-                    session[key_button_export_train_data_engineered] = False
-                    session[key_button_export_training_data] = False
-                    st.success(f'Data saved to "{data_save_location}"')
-                    time.sleep(session[default_n_seconds_sleep])
-                    st.experimental_rerun()
-            st.markdown('')
-            st.markdown('')
+                if not os.path.isabs(raw_data_save_location):
+                    st.warning(f'File path is not absolute. ')
+                    error_detected_raw = True
+                    st.stop()
+                if not check_arg.is_pathname_valid(raw_data_save_location):
+                    st.error(f'Bad path input. Check again. Path detected: "{raw_data_save_location}"')
+                    error_detected_raw = True
+                    st.stop()
 
-        # 3/3: Export training data: engineered, scaled, and directly used for model training
-        button_export_train_data_engineered_scaled = st.button('Toggle: export classifier-fed data', key=key_button_export_train_data_engineered_scaled)  # TODO: low: ensure button string well formed
-        if button_export_train_data_engineered_scaled:
-            session[key_button_export_train_data_engineered_scaled] = not session[key_button_export_train_data_engineered_scaled]
-        if session[key_button_export_train_data_engineered_scaled]:
-            st.markdown(f'#### Export classifier-fed data')
-            # TODO: check implementation
-            data_scaled_save_location = st.text_input(f'Input a full file path into which the classifier-fed data will be saved', value=config.OUTPUT_PATH)
-            err_scaled_data_save = False
-            if data_scaled_save_location:
-                if not os.path.isabs(data_scaled_save_location):
-                    err_scaled_data_save = True
-                    warning_msg_is_abs_scaled = f''
-                    st.info(warning_msg_is_abs_scaled)
-                if os.path.isdir(data_scaled_save_location):
-                    err_scaled_data_save = True
-                button_export_data_scaled_confirm = st.button('Export' if not err_scaled_data_save else False)
-                if button_export_data_scaled_confirm:
-                    st.info(f'Saving file to "{data_scaled_save_location}"')
-                    p.df_features_train_scaled.to_csv(data_scaled_save_location, index=None)
-                    session[key_button_export_training_data] = False
-                    session[key_button_export_train_data_engineered_scaled] = False
-                    st.success(f'Data saved to "{data_scaled_save_location}"')
-                    time.sleep(session[default_n_seconds_sleep])
-                    st.experimental_rerun()
-            st.markdown('')
-            st.markdown('')
-
+            button_export_data_raw_confirmed = st.button('Export') if not error_detected_raw else False
+            if button_export_data_raw_confirmed:
+                if training_data_selec == raw:
+                    df_train = p.df_features_train_raw
+                elif training_data_selec == engineered:
+                    df_train = p.df_features_train
+                elif training_data_selec == scaled:
+                    df_train = p.df_features_train_scaled
+                else:
+                    logging_enhanced.log_then_raise(f'Invalid data selected ({training_data_selec}).', logger, ValueError)
+                st.info(f'Saving file to "{raw_data_save_location}"...')
+                with st.spinner(f'Trying to save training (raw) data to: {raw_data_save_location}...'):
+                    df_train.to_csv(raw_data_save_location, index=None)
+                st.success(f'Data file saved successfully to {raw_data_save_location}')
+                st.info(f'This page will refresh automatically in {session[default_n_seconds_sleep]} seconds.')
+                session[key_button_export_training_data] = False
+                time.sleep(session[default_n_seconds_sleep])
+                st.experimental_rerun()
         st.markdown('')
+        st.markdown('----------------------------------------------')
+
+    ### Export predict data
+    button_export_predict_data = st.button(f'Toggle: export training data', key=key_button_export_predict_data)
+    if button_export_predict_data:
+        session[key_button_export_predict_data] = not session[key_button_export_predict_data]
+    if session[key_button_export_predict_data]:
+
+        predic_data_type_selec = st.selectbox('Select data set to save', ('', raw, engineered, scaled))
+        if predic_data_type_selec:
+
+            predic_data_save_location = st.text_input('Input a file path into which the data will be saved. Example: "/usr/home/my_raw_data.csv" (without the quotation marks)', value=config.OUTPUT_PATH)
+            error_detected = False
+            if predic_data_save_location:
+                if os.path.isdir(predic_data_save_location):
+                    st.warning(f'File path submitted was of a folder. Submit a final path to a file.')
+                    error_detected = True
+                    st.stop()
+                if not os.path.isabs(predic_data_save_location):
+                    st.warning(f'File path is not absolute. ')
+                    error_detected = True
+                    st.stop()
+                if not check_arg.is_pathname_valid(predic_data_save_location):
+                    st.error(f'Bad path input. Check again. Path detected: "{predic_data_save_location}"')
+                    error_detected = True
+                    st.stop()
+
+            button_export_data_raw_confirmed = st.button('Export') if not error_detected else False
+            if button_export_data_raw_confirmed:
+                if predic_data_type_selec == raw:
+                    df_predict = p.df_features_predict_raw
+                elif predic_data_type_selec == engineered:
+                    df_predict = p.df_features_predict
+                elif predic_data_type_selec == scaled:
+                    df_predict = p.df_features_predict_scaled
+                else:
+                    logging_enhanced.log_then_raise(f'Invalid data selected ({predic_data_type_selec}).', logger, ValueError)
+                # st.info(f'Saving file to "{predic_data_save_location}"...')
+                with st.spinner(f'Saving predict ({predic_data_type_selec}) data to: {predic_data_save_location}...'):
+                    df_predict.to_csv(predic_data_save_location, index=None)
+                st.success(f'Data file saved successfully to {predic_data_save_location}')
+                st.info(f'This page will refresh automatically in {session[default_n_seconds_sleep]} seconds.')
+                session[key_button_export_predict_data] = False
+                time.sleep(session[default_n_seconds_sleep])
+                st.experimental_rerun()
+        st.markdown('')
+        st.markdown('----------------------------------------------')
+
+
+        # st.markdown('')
+
+    ### End of menu for exporting predict data
+
+        # # st.markdown('')
+        # st.markdown(f'### Export training data section')
+        # # 1/3: Export training data: raw
+        # button_export_data_raw = st.button('Toggle: export raw train data', key=key_button_export_train_data_raw)
+        # if button_export_data_raw:
+        #     session[key_button_export_train_data_raw] = not session[key_button_export_train_data_raw]
+        # if session[key_button_export_train_data_raw]:
+        #     st.markdown('----------------------------------------------------------------------------------')
+        #     st.markdown(f'#### Export raw training data')
+        #     if len(p.df_features_train_raw) == 0:
+        #         st.info(f'No raw training data available. Load up data first, then exporting that data will be available.')
+        #     else:
+        #         raw_data_save_location = st.text_input('Input a file into which the data will be saved. Example: "/usr/home/my_raw_data.csv" (without the quotation marks)', value=config.OUTPUT_PATH)
+        #         error_detected_raw = False
+        #         if raw_data_save_location:
+        #             if os.path.isdir(raw_data_save_location):
+        #                 st.error(f'File path submitted was of a folder. Submit a final path to a file.')
+        #                 error_detected_raw = True
+        #             if not os.path.isabs(raw_data_save_location):
+        #                 st.error(f'File path is not absolute. ')
+        #                 error_detected_raw = True
+        #             if not check_arg.is_pathname_valid(raw_data_save_location):
+        #                 st.error(f'Bad path input. Check again. Path detected: "{raw_data_save_location}"')
+        #                 error_detected_raw = True
+        #
+        #         button_export_data_raw_confirmed = st.button('Export') if not error_detected_raw else False
+        #         if button_export_data_raw_confirmed:
+        #             st.info(f'Saving file to "{raw_data_save_location}"...')
+        #             logger.info(f'Trying to save training (raw) data to: {raw_data_save_location}...')
+        #             p.df_features_train_raw.to_csv(raw_data_save_location, index=None)
+        #             session[key_button_export_training_data] = False
+        #             session[key_button_export_train_data_raw] = False
+        #             time.sleep(session[default_n_seconds_sleep])
+        #             st.experimental_rerun()
+        #     st.markdown('--------------------------------------------------------------------------------')
+        #     st.markdown('')
+        #     st.markdown('')
+        #
+        # # 2/3: Export training data: engineered
+        # button_export_train_data_engineered = st.button('Toggle: export engineered training data', key=key_button_export_train_data_engineered)  # TODO: low: ensure button string well formed
+        # if button_export_train_data_engineered:
+        #     session[key_button_export_train_data_engineered] = not session[key_button_export_train_data_engineered]
+        # if session[key_button_export_train_data_engineered]:
+        #     st.markdown('--------------------------------------------------------------------------------')
+        #     st.markdown(f'#### Export engineered training data')
+        #     data_save_location = st.text_input('Input a full file path into which the data will be saved', value=config.OUTPUT_PATH)  # TODO: low: improve message string
+        #     err_detected = False
+        #     if data_save_location:
+        #         if not os.path.isabs(data_save_location):
+        #             warning_msg_is_abs = f'Save location ({data_save_location}) was not an absolute path.'
+        #             st.warning(warning_msg_is_abs)
+        #             logger.warning(warning_msg_is_abs)
+        #             st.stop()
+        #             err_detected = True
+        #         if os.path.isdir(data_save_location):
+        #             warning_msg_dir = f'Save location ({data_save_location}) is a directory and should not be. Specify an output file instead.'
+        #             st.warning(warning_msg_dir)
+        #             err_detected = True
+        #         # If no errors, present save confirmation button
+        #         button_export_data_confirmed = st.button('Export') if not err_detected else False
+        #         if button_export_data_confirmed:
+        #             st.info(f'Saving file to "{data_save_location}"')
+        #             p.df_features_train.to_csv(data_save_location, index=None)
+        #             session[key_button_export_train_data_engineered] = False
+        #             session[key_button_export_training_data] = False
+        #             st.success(f'Data saved to "{data_save_location}"')
+        #             time.sleep(session[default_n_seconds_sleep])
+        #             st.experimental_rerun()
+        #     st.markdown('--------------------------------------------------------------------------------')
+        #     st.markdown('')
+        #     st.markdown('')
+        #
+        # # 3/3: Export training data: engineered, scaled, and directly used for model training
+        # button_export_train_data_engineered_scaled = st.button('Toggle: export classifier-fed data', key=key_button_export_train_data_engineered_scaled)  # TODO: low: ensure button string well formed
+        # if button_export_train_data_engineered_scaled:
+        #     session[key_button_export_train_data_engineered_scaled] = not session[key_button_export_train_data_engineered_scaled]
+        # if session[key_button_export_train_data_engineered_scaled]:
+        #     st.markdown('--------------------------------------------------------------------------------')
+        #     st.markdown(f'#### Export classifier-fed data')
+        #     # TODO: check implementation
+        #     data_scaled_save_location = st.text_input(f'Input a full file path into which the classifier-fed data will be saved', value=config.OUTPUT_PATH)
+        #     err_scaled_data_save = False
+        #     if data_scaled_save_location:
+        #         if not os.path.isabs(data_scaled_save_location):
+        #             err_scaled_data_save = True
+        #             warning_msg_is_abs_scaled = f''
+        #             st.info(warning_msg_is_abs_scaled)
+        #         if os.path.isdir(data_scaled_save_location):
+        #             err_scaled_data_save = True
+        #         button_export_data_scaled_confirm = st.button('Export' if not err_scaled_data_save else False)
+        #         if button_export_data_scaled_confirm:
+        #             st.info(f'Saving file to "{data_scaled_save_location}"')
+        #             p.df_features_train_scaled.to_csv(data_scaled_save_location, index=None)
+        #             session[key_button_export_training_data] = False
+        #             session[key_button_export_train_data_engineered_scaled] = False
+        #             st.success(f'Data saved to "{data_scaled_save_location}"')
+        #             time.sleep(session[default_n_seconds_sleep])
+        #             st.experimental_rerun()
+        #     st.markdown('--------------------------------------------------------------------------------')
+        #     st.markdown('')
+        #     st.markdown('')
+
 
     ### End of menu for exporting training data
 
     # st.markdown('')
 
     ### Menu: Export predict data
-    button_export_predict_data = st.button('Toggle: export predict data menu', key=key_button_export_predict_data)
-    if button_export_predict_data:
-        session[key_button_export_predict_data] = not session[key_button_export_predict_data]
-    if session[key_button_export_predict_data]:
-        st.markdown(f'### Export predict data')
-        # 1/2: export raw data
-        button_export_data_raw = st.button('Toggle: export raw predict data', key=key_button_export_predict_data_raw)
-        if button_export_data_raw:
-            session[key_button_export_predict_data_raw] = not session[key_button_export_predict_data_raw]
-        if session[key_button_export_predict_data_raw]:
-            st.markdown(f'')
-        # TODO: add a button
-        # 2/2: Export engineered feature data but with labels
-        button_export_predict_data_engineered = st.button('Toggle: export engineered, predicted predict data', key=key_button_export_predict_data_engineered)
-        if button_export_predict_data_engineered:
-            session[key_button_export_predict_data_engineered] = not session[key_button_export_predict_data_engineered]
-        if session[key_button_export_predict_data_engineered]:
-            st.markdown(f'')
 
-        # # Export engineered, scaled feature data
-        # button_export_predict_data_engineered_scaled = st.button('Toggle: export `classifier-fed` data', key=key_button_export_predict_data_engineered_scaled)
-        # if button_export_predict_data_engineered_scaled:
-        #     session[key_button_export_predict_data_engineered_scaled] = not session[key_button_export_predict_data_engineered_scaled]
-        # if session[key_button_export_predict_data_engineered_scaled]:
-        #     st.markdown(f'')
 
-    ### End of menu for exporting predict data
+
+    # button_export_predict_data = st.button('Toggle: export predict data', key=key_button_export_predict_data)
+    # if button_export_predict_data:
+    #     session[key_button_export_predict_data] = not session[key_button_export_predict_data]
+    # if session[key_button_export_predict_data]:
+    #     st.markdown(f'### Export predict data')
+    #
+    #     selected_data = st.selectbox('labelgoeshere', (raw, engineered, scaled))
+    #
+    #
+    #     # 1/2: export raw data
+    #     button_export_data_raw = st.button('Toggle: export raw predict data', key=key_button_export_predict_data_raw)
+    #     if button_export_data_raw:
+    #         session[key_button_export_predict_data_raw] = not session[key_button_export_predict_data_raw]
+    #     if session[key_button_export_predict_data_raw]:
+    #         st.markdown(f'')
+    #     # TODO: add a button
+    #     # 2/2: Export engineered feature data but with labels
+    #     button_export_predict_data_engineered = st.button('Toggle: export engineered, predicted predict data', key=key_button_export_predict_data_engineered)
+    #     if button_export_predict_data_engineered:
+    #         session[key_button_export_predict_data_engineered] = not session[key_button_export_predict_data_engineered]
+    #     if session[key_button_export_predict_data_engineered]:
+    #         st.markdown(f'')
+    #
+    #     # Export engineered, scaled feature data
+    #     button_export_predict_data_engineered_scaled = st.button('Toggle: export `classifier-fed` data', key=key_button_export_predict_data_engineered_scaled)
+    #     if button_export_predict_data_engineered_scaled:
+    #         session[key_button_export_predict_data_engineered_scaled] = not session[key_button_export_predict_data_engineered_scaled]
+    #     if session[key_button_export_predict_data_engineered_scaled]:
+    #         st.markdown(f'')
 
     return display_footer(p, pipeline_file_path)
 
