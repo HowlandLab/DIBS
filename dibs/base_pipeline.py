@@ -75,7 +75,7 @@ class BasePipelineAttributeHolder(object):
     video_fps: float = config.VIDEO_FPS
     cross_validation_k: int = config.CROSSVALIDATION_K
     cross_validation_n_jobs: int = config.CROSSVALIDATION_N_JOBS
-    _random_state: int = None
+    _random_state: int = config.RANDOM_STATE
     average_over_n_frames: int = config.AVERAGE_OVER_N_FRAMES
     test_train_split_pct: float = config.HOLDOUT_PERCENT
 
@@ -137,7 +137,8 @@ class BasePipelineAttributeHolder(object):
     LLE_method: str = 'standard'
     LLE_n_neighbors: int = 5
     cvae_num_steps: int = 1000  # TODO: low: arbitrary default
-    isomap_n_neighbors: int = 7  # TODO: low: "
+    isomap_n_neighbors: int = 7  # TODO: low:
+
     # TODO: low: create tests for this func below
     def get_assignment_label(self, assignment: int) -> str:
         """
@@ -283,7 +284,7 @@ class BasePipelineAttributeHolder(object):
     def clf(self): return self._classifier
 
     @property
-    def random_state(self): return self._random_state
+    def random_state(self) -> int: return self._random_state
 
     @property
     def is_built(self): return self._is_built
@@ -847,6 +848,7 @@ class BasePipeline(BasePipelineAttributeHolder):
             test_col=self.test_col_name,
             test_pct=self.test_train_split_pct,
             sort_results_by=['data_source', 'frame'],
+            random_state=self.random_state,
         )
 
         # df_features_train_scaled = df_features_train_scaled.loc[~df_features_train_scaled[features].isnull().any(axis=1)]
