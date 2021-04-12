@@ -145,7 +145,7 @@ def get_caller_function() -> str:
     return inspect.stack()[2][3]
 
 
-def log_then_raise(err_msg, logger, exception):
+def log_then_raise(err_msg: str, logger: logging.Logger, exception):
     """
     Log an error then raise corresponding exception. Helps save space since this pattern is seen often.
     :param err_msg: (str) Error message
