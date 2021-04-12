@@ -955,9 +955,9 @@ def review_behaviours(p, pipeline_file_path):
         select_data_source = st.selectbox('Select a data source', options=['']+p.training_data_sources)
         input_video = st.text_input(f'Input path to corresponding video relative to selected data source', value=config.DIBS_BASE_PROJECT_PATH)
         if input_video and not os.path.isfile(input_video):
-            err = f'Video source File not found: {input_video}'
-            logger.error(err)
-            st.error(FileNotFoundError(err))
+            err = f'Video source file not found: {input_video}'
+            logger.warning(err)
+            st.warning(FileNotFoundError(err))
         file_name_prefix = st.text_input(f'File name prefix. This prefix will help differentiate between example video sets.')
         number_input_output_fps = st.number_input(f'Output FPS for example videos', value=8., min_value=1., step=1., format='%.2f')
         number_input_max_examples_of_each_behaviour = st.number_input(f'Maximum number of videos created for each behaviour', value=5, min_value=1)
