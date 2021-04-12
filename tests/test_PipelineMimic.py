@@ -36,6 +36,7 @@ class TestPipelineMimic(TestCase):
         # Assert
         self.assertTrue(True)
 
+    @skip('Temporary skip')
     def test__build__shouldBuildFine__whenBhtsneIsSpecified(self):
         # Arrange
         gmm_n_components, cv = 2, 3  # Set gmm clusters low so that it can still work with 10 rows of data
