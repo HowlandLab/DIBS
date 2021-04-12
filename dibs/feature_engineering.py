@@ -191,13 +191,14 @@ def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_
     return df
 
 
-def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
+def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results_by: Optional[List[str]] = None, random_state=config.RANDOM_STATE, copy: bool = False) -> pd.DataFrame:
     """
 
     :param df:
     :param test_col:
     :param test_pct:
     :param sort_results_by: (Optional[List[str]])
+    :param random_state:
     :param copy:
     :return:
     """
@@ -214,7 +215,7 @@ def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results
     # Execute
     df = df.copy() if copy else df
     df[test_col] = 0
-    df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
+    df_shuffled = sklearn_shuffle_dataframe(df, random_state=random_state)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
     # TODO: med: fix setting with copy warning
     df_shuffled.iloc[:round(len(df_shuffled) * test_pct), :][test_col] = 1  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
     df_shuffled[test_col] = df_shuffled[test_col].astype(bool)
