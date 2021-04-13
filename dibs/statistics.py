@@ -6,6 +6,7 @@ import functools
 import numpy as np
 import pandas as pd
 import re
+import sklearn as sk
 
 from dibs import check_arg, config
 
@@ -136,4 +137,5 @@ def confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
 
     # Execute
     # TODO: HIGH: finish this function
-    return np.array()
+    x = sk.metrics.confusion_matrix(y_true, y_pred)
+    return x
