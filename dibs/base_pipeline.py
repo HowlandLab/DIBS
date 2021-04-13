@@ -1599,9 +1599,23 @@ class BasePipeline(BasePipelineAttributeHolder):
         return visuals.plot_cross_validation_scores(self._cross_val_scores)
 
     def generate_confusion_matrix(self) -> np.ndarray:
-        df_features_train_scaled_test_data = self.df_features_train_scaled_train_split_only.loc[self.df_features_train_scaled_train_split_only[self.test_col_name]]
-        y_pred = self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)])
-        y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
+        """
+        Generate confusion matrix for test data
+        """
+        # Select test data, filter out NULLs
+        df_data = self.df_features_train_scaled
+        df_data = df_data.loc[
+            (df_data[self.test_col_name]) &
+            (df_data[self.clf_assignment_col_name] != self.null_classifier_label)
+        ]
+
+        y_true = df_data[self.clf_assignment_col_name].values
+        y_pred = self.clf_predict(df_data[self.all_features_list].values)
+
+        # Generate confusion matrix
+        # df_features_train_scaled_test_data = self.df_features_train_scaled_train_split_only.loc[self.df_features_train_scaled_train_split_only[self.test_col_name]]
+        # y_pred = self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)])
+        # y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
         cnf_matrix = statistics.confusion_matrix(y_true, y_pred)
         return cnf_matrix
 
