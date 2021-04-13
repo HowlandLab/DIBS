@@ -7,6 +7,7 @@ More on formatting: https://pyformat.info/
 
 Developer's note: ignore 120 char limit during development
 """
+from matplotlib import pyplot as plt
 from matplotlib.axes._axes import _log as matplotlib_axes_logger
 from mpl_toolkits.mplot3d import Axes3D  # Despite being "unused", this import MUST stay in for 3d plotting to work.
 from traceback import format_exc as get_traceback_string
@@ -17,6 +18,7 @@ import numpy as np
 import os
 import pandas as pd
 import random
+import seaborn as sns
 import streamlit as st
 import sys
 import time
@@ -71,6 +73,7 @@ key_button_menu_remove_data = 'key_button_menu_remove_data'
 key_button_update_description = 'key_button_update_description'
 key_button_add_train_data_source = 'key_button_add_train_data_source'
 key_button_add_predict_data_source = 'key_button_add_predict_data_source'
+key_button_view_confusion_matrix = 'key_button_view_confusion_matrix'
 key_button_review_assignments = 'key_button_update_assignments'
 key_button_view_assignments_distribution = 'key_button_view_assignments_distribution'
 key_button_view_assignments_clusters = 'key_button_view_assignments_clusters'
@@ -106,6 +109,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_button_add_predict_data_source: False,
     key_button_menu_remove_data: False,
     key_button_update_description: False,
+    key_button_view_confusion_matrix: False,
     key_button_review_assignments: False,
     key_button_view_assignments_distribution: False,
     key_button_view_assignments_clusters: False,
@@ -845,8 +849,21 @@ def see_model_diagnostics(p, pipeline_file_path):
     ###
 
     ### View confusion matrix for test-data
-    # TODO: med/high
+    button_view_confusion_matrix = st.button(f'Toggle: View confusion matrix')
+    if button_view_confusion_matrix:
+        session[key_button_view_confusion_matrix] = not session[key_button_view_confusion_matrix]
+    if session[key_button_view_confusion_matrix]:
 
+        # TODO: med/high
+        if p.is_built:
+            confusion_matrix_array = p.generate_confusion_matrix()
+            # mapp = sns.heatmap(cnf)
+            st.pyplot(sns.heatmap(confusion_matrix_array).get_figure())
+            # plt.show()
+        else:
+            st.info(f'Confusion matrix not available since model has not been built.')
+        if p.is_in_inconsistent_state:
+            st.warning(f'The model was detected to be in an inconsistent state, so the current confusion matrix may not reflect changes in the model done AFTER build.')
     ###
 
     ### View Histogram for assignment distribution
