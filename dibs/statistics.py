@@ -134,8 +134,6 @@ def confusion_matrix(y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
     check_arg.ensure_type(y_true, np.ndarray)
     check_arg.ensure_type(y_pred, np.ndarray)
     check_arg.ensure_numpy_arrays_are_same_shape(y_true, y_pred)
-
     # Execute
-    # TODO: HIGH: finish this function
     x = sk.metrics.confusion_matrix(y_true, y_pred)
     return x
