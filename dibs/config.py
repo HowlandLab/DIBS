@@ -262,13 +262,6 @@ svm_c = configuration.getfloat('SVM', 'C')
 svm_gamma = configuration.getfloat('SVM', 'gamma')
 svm_probability = configuration.getboolean('SVM', 'probability')
 svm_verbose = configuration.getint('SVM', 'verbose')
-SVM_PARAMS = {
-    'C': svm_c,
-    'gamma': svm_gamma,
-    'probability': svm_probability,
-    'verbose': svm_verbose,
-    'random_state': RANDOM_STATE,
-}
 
 
 ### TSNE ################################################################################
