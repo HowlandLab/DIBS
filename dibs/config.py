@@ -404,7 +404,10 @@ def get_config_str() -> str:
 
 def get_data_source_from_file_path(file_path: str):
     file_folder, file_name = os.path.split(file_path)
-    file_name_without_extension, extension = file_name.split('.')
+    # file_name_without_extension, extension = file_name.split('.')  # Old way of doing things
+    ext_common_idx = file_name.rfind('.')
+    file_name_without_extension, extension = file_name[:ext_common_idx], file_name[ext_common_idx + 1:]
+
     return file_name_without_extension
 
 
