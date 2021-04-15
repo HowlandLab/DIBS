@@ -835,7 +835,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
     return see_model_diagnostics(p, pipeline_file_path)
 
 
-def see_model_diagnostics(p, pipeline_file_path):
+def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
     ######################################### MODEL DIAGNOSTICS ########################################################
 
     ### SIDEBAR
@@ -932,7 +932,7 @@ def see_model_diagnostics(p, pipeline_file_path):
     return review_behaviours(p, pipeline_file_path)
 
 
-def review_behaviours(p, pipeline_file_path):
+def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
     """"""
     # Debugging effort
     if not os.path.isfile(pipeline_file_path):
@@ -1059,7 +1059,7 @@ def review_behaviours(p, pipeline_file_path):
     return results_section(p, pipeline_file_path)
 
 
-def results_section(p, pipeline_file_path):
+def results_section(p: pipeline.BasePipeline, pipeline_file_path):
     if not os.path.isfile(pipeline_file_path):
         st.error(f'An unexpected error occurred. Your pipeline file path was lost along the way. '
                  f'Currently, your pipeline file path reads as: "{pipeline_file_path}"')
@@ -1104,7 +1104,7 @@ def results_section(p, pipeline_file_path):
     return export_data(p, pipeline_file_path)
 
 
-def export_data(p, pipeline_file_path):
+def export_data(p: pipeline.BasePipeline, pipeline_file_path):
     ### Sidebar
     # TODO: HIGH: ensure that all export buttons work! Test them!
     ### Main
@@ -1352,7 +1352,7 @@ def export_data(p, pipeline_file_path):
     return display_footer(p, pipeline_file_path)
 
 
-def display_footer(p, pipeline_file_path, *args, **kwargs):
+def display_footer(p: pipeline.BasePipeline, pipeline_file_path, *args, **kwargs):
     """ Footer of Streamlit page """
     # TODO: low: consider: add link to GitHub page and/or credits?
     st.markdown('')
