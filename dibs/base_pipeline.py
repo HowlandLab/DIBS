@@ -23,7 +23,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils import shuffle as sklearn_shuffle_dataframe
-from typing import Any, Collection, Dict, List, Optional, Tuple, Union  # TODO: med: review all uses of Optional
+from typing import Any, Collection, Dict, List, Tuple, Union  # TODO: med: review all uses of Optional
 import inspect
 import joblib
 import numpy as np
@@ -106,8 +106,8 @@ class BasePipelineAttributeHolder(object):
     svm_c, svm_gamma = config.svm_c, config.svm_gamma
     svm_probability, svm_verbose = config.svm_probability, config.svm_verbose
     # Classifier: Random Forest
-    rf_n_estimators = config.rf_n_estimators
-    rf_n_jobs = config.rf_n_jobs
+    rf_n_estimators: int = config.rf_n_estimators
+    rf_n_jobs: int = config.rf_n_jobs
     rf_verbose = config.rf_verbose
     # Column names
     features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength', 'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
@@ -1433,7 +1433,7 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         return self
 
-    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, file_name_prefix=None, min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15):
+    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, file_name_prefix=None, min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15, max_frames_per_video=500):
         """
         Create video clips of behaviours
 
@@ -1531,6 +1531,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                     tuple(float(min(255. * x, 255.)) for x in tuple(color_map_array[unique_assignments_index_dict[a]][:3]))
                     for a in list_of_all_assignments]
 
+                assert len(list_of_all_assignments) == len(list_of_frames) == len(list_of_all_labels)
                 videoprocessing.make_labeled_video_according_to_frame(
                     list_of_all_assignments,
                     list_of_frames,
@@ -1613,9 +1614,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         y_pred = self.clf_predict(df_data[self.all_features_list].values)
 
         # Generate confusion matrix
-        # df_features_train_scaled_test_data = self.df_features_train_scaled_train_split_only.loc[self.df_features_train_scaled_train_split_only[self.test_col_name]]
-        # y_pred = self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)])
-        # y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
+        # df_features_train_scaled_test_data = self.df_features_train_scaled_train_split_only.loc[self.df_features_train_scaled_train_split_only[self.test_col_name]];y_pred = self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)]);y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
         cnf_matrix = statistics.confusion_matrix(y_true, y_pred)
         return cnf_matrix
 
