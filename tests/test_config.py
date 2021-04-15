@@ -33,3 +33,13 @@ class TestConfig(TestCase):
         # Assert
         self.assertEqual(expected_output, actual_output)
 
+    def test__get_data_source_from_file_path__shouldWorkAsExpected__whenGivenAWindowsPathWithAPeriodInFileName(self):
+        # Arrange
+        expected_output = 'MyFileSeparatedBy.Period'
+        input_path = f'C:\\Users\\MyUser\\DIBS\\{expected_output}.someExtension'
+
+        # Act
+        actual_output = dibs.config.get_data_source_from_file_path(input_path)
+
+        # Assert
+        self.assertEqual(expected_output, actual_output)
