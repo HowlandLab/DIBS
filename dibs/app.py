@@ -31,26 +31,28 @@ def tsnegridsearch(**kwargs):
     percent_epm_train_files_to_cluster_on = 1.0
     max_cores_per_pipe = 8
     num_gmm_clusters_aka_num_colours = 8  # Sets the number of clusters that GMM will try to label
-    pipeline_implementation = pipeline.PipelineHowlandLLE  # Another option includes dibs.pipeline.PipelineMimic
+    pipeline_implementation = pipeline.PipelineHowland  # Another option includes dibs.pipeline.PipelineMimic
     graph_dimensions = (15, 15)  # length x width.
     show_cluster_graphs_in_a_popup_window = False  # Set to False to display graphs inline
 
-    # perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
-    perplexities = [200, 400, 600, 800]
-    perplexities = [400, ]
+    perplexity_fracs = [1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1]
+    perplexities = [200, 400, 600, 800, 1000]
+    perplexities = [600, 600, 600]
     # perplexities = [200, ]
-    exaggerations = [200, 400, 600, 800, 1000]
-    exaggerations = [800, ]
+    exaggerations = [400, 400, 600, 600]
+    # exaggerations = [800, 800, 800]
     # learn_rates = [100, 200, 400, ]
-    learn_rates = [500, 1000, 1500]
-    learn_rates = [1000, ]
+    learn_rates = [500]
+    # learn_rates = [1500, ]
     # tsne_n_iters = [1_000, 2000, 3000]
     tsne_n_iters = [1000, ]
     # umap_neighbors = [5, 50, 100, ]
     umap_neighbors = [5, ]
 
     lle_methods = ['standard', 'hessian', 'modified', 'ltsa']
+    lle_methods = ['standard']
     LLE_n_neighbors = [5, 50, 100, ][::-1]
+    LLE_n_neighbors = [5]
 
     assert 0 < percent_epm_train_files_to_cluster_on <= 1.0
 
@@ -123,10 +125,11 @@ def tsnegridsearch(**kwargs):
             else:
                 err += f'Diagnostics: {diag}'
 
-            logger.error(err)
+            logger.error(err, exc_info=True)
             logger.debug(f'Failed to build iteration {(i+1)/len(kwargs_product)}')
         else:
-            graph_filename_prefix = f'{p_i.name}__LLE_GRIDTEST1__method_{p_i.LLE_method}__LLENEIGHBORS_{p_i.LLE_n_neighbors}__{start_time_str_start}__'
+            # graph_filename_prefix = f'{p_i.name}__LLE_GRIDTEST1__method_{p_i.LLE_method}__LLENEIGHBORS_{p_i.LLE_n_neighbors}__{start_time_str_start}__'
+            graph_filename_prefix = f'{p_i.name}__Wednesday600Perp__{start_time_str_start}__'
             successful_builds += 1
             # Save graph to file
             perplexity_ratio_i, perplexity_i, learning_rate_i, early_exaggeration_i = p_i.tsne_perplexity_relative_to_num_data_points, p_i.tsne_perplexity, p_i.tsne_learning_rate, p_i.tsne_early_exaggeration
@@ -141,7 +144,7 @@ def tsnegridsearch(**kwargs):
                 show_now=False, save_to_file=True, figsize=graph_dimensions,
                 s=0.4 if show_cluster_graphs_in_a_popup_window else 1.5,
             )
-            logger.debug(f'Finished successfully building iteration: {(i+1)/len(kwargs_product)}')
+            logger.debug(f'Finished successfully building iteration: {(i+1)} of {len(kwargs_product)}')
         end_build = time.perf_counter()
         logger.info(f'Time to build: {round(end_build-start_build)} seconds (using {max_cores_per_pipe} cores)')
         logger.debug('---------------------------------------------\n\n')
