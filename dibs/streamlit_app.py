@@ -380,10 +380,6 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
     ### SIDEBAR ###
 
     ### MAIN PAGE ###
-    # st.markdown(f'## Raw perplexity value: {p._tsne_perplexity}')  # TODO: high: remove this after debugging
-    # st.markdown(f'## Number of data points: {p.num_training_data_points}')  # TODO: high: remove this after debugging
-    # st.markdown(f'')
-
     st.markdown(f'## Pipeline basic information')
     st.markdown(f'- Name: **{p.name}**')
     st.markdown(f'- Description: **{p.description}**')
@@ -391,7 +387,6 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
     # st.markdown(f'- Total number of training data sources: **{len(p.training_data_sources)}**')
     # st.markdown(f'- Total number of predict data sources: **{len(p.predict_data_sources)}**')
     st.markdown(f'- Is the model built: **{p.is_built}**')
-    # st.markdown(f'- Build time: ' + (f'{p.seconds_to_build} seconds' if p.is_built else f'N/A'))  # TODO: low: remove this line after debugging
 
     ### Menu button: show more info
     button_show_advanced_pipeline_information = st.button(f'Toggle: show advanced info', key=key_button_show_adv_pipeline_information)
@@ -412,26 +407,24 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
 
         st.markdown(f'- Number of data points in training data set: '
                     f'**{len(p.df_features_train_raw)//p.average_over_n_frames if not p.is_built else len(p.df_features_train_scaled)}**')
-        # if p.is_built:
-        st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
-        st.markdown(f'- DEBUG: unique behaviours assignments: {p.unique_assignments}')
-        cross_val_decimals_round = 2
-        cross_val_score_text = f'- Median cross validation score: **{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + \
-                               f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
-        # else:
-        #     cross_val_score_text = f'- **[Cross validation score not available]**'
-        st.markdown(f'{cross_val_score_text}')
-        acc_pct = f'{p.accuracy_score*100.}%' if p.accuracy_score >= 0. else 'N/A'
-        st.markdown(f'- Accuracy (with test % of {p.test_train_split_pct*100.}%): **{acc_pct}**')
+        st.markdown(f'Params')
+        st.markdown(f'- Perplexity: {p.tsne_perplexity}')
+        st.markdown(f'- Perplexity % of training data (perp / data): {round(p.tsne_perplexity_relative_to_num_data_points, 5)*100}%')
+        acc_pct = f'{p.accuracy_score * 100.}%' if p.accuracy_score >= 0. else 'N/A'
+        st.markdown(f'- Accuracy (with test fraction at {p.test_train_split_pct*100.}% of total training data): **{acc_pct}**')
         st.markdown(f'Model Feature Names:')
         for feat in p.all_features:
             st.markdown(f'- - {feat}')
-
+        st.markdown(f'Results')
+        st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
+        st.markdown(f'- Unique behaviours assignments: {p.unique_assignments}')
+        cross_val_decimals_round = 2
+        cross_val_score_text = f'- Median cross validation score: **{round(float(np.median(p.cross_val_scores)), cross_val_decimals_round) if p.is_built else None}**' + \
+                               f' (literal scores: {sorted([round(x, cross_val_decimals_round) for x in list(p.cross_val_scores)])})' if p.is_built else ''
+        st.markdown(f'{cross_val_score_text}')
         if p.is_built:
             st.markdown('')
             st.markdown(f'- Build time: {p.seconds_to_build} seconds')
-        st.markdown(f'Perplexity: {p.tsne_perplexity}')
-        st.markdown(f'Perplexity % of training data (perp / data): {round(p.tsne_perplexity_relative_to_num_data_points, 5)*100}%')
 
     ###
 
@@ -546,7 +539,6 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                     time.sleep(n)
                     st.experimental_rerun()
             st.markdown('')
-        # C:\Users\killian\projects\DIBS\epm_data_csv_test
 
         # 2/2: Button for adding data to prediction set
         button_add_predict_data_source = st.button('-> Add data to be evaluated by the model', key=key_button_add_predict_data_source)
@@ -578,7 +570,6 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
         st.markdown('')
         st.markdown('')
         st.markdown('')
-
     ### End of menu for adding data ###
 
     ### Menu button: removing data ###
@@ -843,7 +834,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
     ### MAIN
     st.markdown(f'## Model Diagnostics')
 
-    ### View PCA plot for selected features (hopefully explaining some feature viability)
+    ### View PCA plot for selected features (hopefully explaining some feature viability?)
     # TODO: med/high
 
     ###
@@ -853,8 +844,6 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
     if button_view_confusion_matrix:
         session[key_button_view_confusion_matrix] = not session[key_button_view_confusion_matrix]
     if session[key_button_view_confusion_matrix]:
-
-        # TODO: med/high
         if p.is_built:
             confusion_matrix_array = p.generate_confusion_matrix()
             # mapp = sns.heatmap(cnf)
@@ -864,7 +853,6 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
             st.info(f'Confusion matrix not available since model has not been built.')
         if p.is_in_inconsistent_state:
             st.warning(f'The model was detected to be in an inconsistent state, so the current confusion matrix may not reflect changes in the model done AFTER build.')
-    ###
 
     ### View Histogram for assignment distribution
     st.markdown(f'*This section is a work-in-progress. Opening a graph in this section is very volatile and there is high chance that by opening a graph then streamlit will crash. A fix is actively being worked-on!*')
@@ -891,9 +879,8 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
         else:
             st.info('There are no assignment distributions available for display because '
                     'the model is not currently built.')
-
         st.markdown('')
-    ###
+
     # View GMM/clustering plot
     st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
     gmm_button = st.button('Toggle: graph of cluster/assignment distribution')  # TODO: low: phrase this button better?
