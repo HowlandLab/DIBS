@@ -60,7 +60,9 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     nrows = kwargs.get('nrows', sys.maxsize)  # TODO: address case where nrows is <= 3 (no data parsed then)
     # file_path = csv_file_path  # os.path.split(csv_file_path)[-1]
     file_folder, file_name = os.path.split(csv_file_path)
-    file_name_without_extension, extension = file_name.split('.')
+    # file_name_without_extension, extension = file_name.split('.')  # Old way of doing things. remove this line later.
+    ext_common_idx = file_name.rfind('.')
+    file_name_without_extension, extension = file_name[:ext_common_idx], file_name[ext_common_idx+1:]
     assert file_name_without_extension == config.get_data_source_from_file_path(csv_file_path)  # TODO: low: delete this line only after a test has been implemented
 
     # # # # # # #
