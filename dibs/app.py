@@ -1,5 +1,6 @@
 """
 Every function in this file is an entire runtime sequence (app) encapsulated. Expect nothing to be returned.
+These functions are called by main.py.
 """
 from typing import List
 import inspect
@@ -18,7 +19,7 @@ logger = config.initialize_logger(__name__)
 
 def streamlit(*args, **kwargs) -> None:
     """
-    Entry point for the Streamlit companion app.
+    Entry point for the Streamlit companion app which uses DIBS.
     """
     # streamlit_app.header(**kwargs)
     streamlit_app.start_app(**kwargs)
@@ -27,9 +28,12 @@ def streamlit(*args, **kwargs) -> None:
 ### Command-line runnables
 
 def tsnegridsearch(**kwargs):
+    """
+    Primitive way to grid search
+    """
     # Param section -- MAGIC VARIABLES GO HERE
-    percent_epm_train_files_to_cluster_on = 1.0
-    max_cores_per_pipe = 8
+    percent_epm_train_files_to_cluster_on: float = 1.0
+    max_cores_per_pipe = 7  # Number of cores to use per pipeline build
     num_gmm_clusters_aka_num_colours = 8  # Sets the number of clusters that GMM will try to label
     pipeline_implementation = pipeline.PipelineHowland  # Another option includes dibs.pipeline.PipelineMimic
     graph_dimensions = (15, 15)  # length x width.
@@ -156,9 +160,6 @@ def tsnegridsearch(**kwargs):
 def buildone(**kwargs):
     """
     Build just one pipeline, save to file.
-    :param pipeline_name:
-    :param kwargs:
-    :return:
     """
     # Param section -- MAGIC VARIABLES GO HERE
 
@@ -265,44 +266,14 @@ def buildone(**kwargs):
 
 ### Utilities
 
-def clear_output_folders(*args, **kwargs) -> None:
+def print_if_system_is_64_bit(**kwargs) -> None:
     """
-    For each folder specified below (magic variables be damned),
-    delete everything in that folder except for the .placeholder file and any sub-folders there-in.
+    Print to stdout True if the system is 64-bit and False otherwise.
     """
-    raise NotImplementedError(f'TODO: review this function since folder layouts have changed')  # TODO: review this function since folder layouts have changed
-    # Choose folders to clear (currently set as magic variables in function below)
-    folders_to_clear: List[str] = [config.OUTPUT_PATH,
-                                   config.GRAPH_OUTPUT_PATH,
-                                   config.VIDEO_OUTPUT_FOLDER_PATH,
-                                   config.FRAMES_OUTPUT_PATH, ]
-    # Loop over all folders to empty
-    for folder_path in folders_to_clear:
-        # Parse all files in current folder_path, but exclusive placeholders, folders
-        valid_files_to_delete = [file_name for file_name in os.listdir(folder_path)
-                                 if file_name != '.placeholder'
-                                 and not os.path.isdir(os.path.join(folder_path, file_name))]
-        # Loop over remaining files (within current folder iter) that are to be deleted next
-        for file in valid_files_to_delete:
-            file_to_delete_full_path = os.path.join(folder_path, file)
-            try:
-                os.remove(file_to_delete_full_path)
-                logger.debug(f'{inspect.stack()[0][3]}(): Deleted file: {file_to_delete_full_path}')
-            except PermissionError as pe:
-                logger.warning(f'{inspect.stack()[0][3]}(): Could not delete file: {file_to_delete_full_path} / '
-                               f'{repr(pe)}')
-            except Exception as e:
-                unusual_err = f'An unusual error was detected: {repr(e)}'
-                logger.error(unusual_err)
-                raise e
-
-    return None
-
-
-def print_if_system_is_64_bit(**kwargs):
     print(f'This system is detected to be 64-bit: {sys.maxsize > 2**32}')
 
 
-def sample(*args, **kwargs):
+def sample(*args, **kwargs) -> None:
+    """ Sample app function. """
     print(f'Args: {args}')
     print(f'kwargs: {kwargs}')

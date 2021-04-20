@@ -31,7 +31,6 @@ map_command_to_func = {
     # 'trybuild': dibs.app.trybuild,
     # 'buildandrunlegacy': dibs.main_LEGACY.test_function_to_build_then_run_py,
     # 'clean': dibs.app.clear_output_folders,  # TODO: review clear output folders function for
-    # 'cleanoutput': dibs.app.clear_output_folders,
     # 'newbuild': dibs.app.build_classifier_new_pipeline,
 }
 
