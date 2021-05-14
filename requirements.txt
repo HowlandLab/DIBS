@@ -15,7 +15,7 @@ openTSNE>=0.4.4
 seaborn>=0.10.0
 scikit-learn>=0.22.1
 scipy>=1.5.2
-streamlit>=0.64.0
+streamlit>=0.81.1
 tables
 tqdm>=4.46.0
 umap-learn>=0.4.6
