@@ -1501,7 +1501,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         for assignment_val, values_list in ((k, v) for (k, v) in rle_by_assignment.items() if k != self.null_classifier_label):
             # Loop over examples
             num_examples = min(max_examples, len(values_list))
-            for example_i in range(num_examples):  # TODO: HIGH: this part dumbly loops over first n examples...In the future, it would be better to ensure that at least one of the examples has a long runtime for analysis
+            for example_i in range(num_examples):
                 output_file_name = f'{file_name_prefix}{time.strftime("%y-%m-%d_%Hh%Mm")}_' \
                                    f'BehaviourExample__assignment_{assignment_val}__example_{example_i + 1}_of_{num_examples}'
                 frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
