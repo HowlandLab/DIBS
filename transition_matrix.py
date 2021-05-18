@@ -7,8 +7,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import networkx as nx
 import math as m
+import extract_tsne_embedding
 
-df = pd.read_csv(sys.argv[1])
+infile = sys.argv[1]
+if '.csv' in infile:
+    df = pd.read_csv(infile)
+elif '.pipeline' in infile:
+    df = extract_tsne_embedding.main(infile)
+else:
+    print(f'expected *.pipeline or *.csv file.  Got \'{infile}\' instead.')
+
 n = len(df.gmm_assignment.unique()) # number of clusters
 
 mat = np.zeros((n, n)) # mat to be filled with assignment transition counts
@@ -54,7 +62,7 @@ def heatmap(m, name, **kwargs):
 heatmap(int_mat_zero_diag, 'mat',
         annot=True, fmt='d')
 
-plt.show() # only last plot can be shown
+plt.show() # only last plot can be shown when running from command line (seems that way at least)
 plt.clf()  # clear
 
 
