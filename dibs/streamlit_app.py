@@ -18,6 +18,7 @@ import numpy as np
 import os
 import pandas as pd
 import random
+import re
 import seaborn as sns
 import streamlit as st
 import sys
@@ -30,6 +31,7 @@ import traceback
 # from mttkinter import mtTkinter as tk
 
 from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
+from dibs.io import clean_string
 
 
 # Module settings
@@ -326,11 +328,11 @@ Success! Your new project pipeline has been saved to disk to the following path:
             # input_text_path_to_pipeline_file = session[key_open_pipeline_path]
 
             ############ Original, working implementation below
-            input_text_path_to_pipeline_file = st.text_input(
+            input_text_path_to_pipeline_file = clean_string(st.text_input(
                 'Enter full path to existing project pipeline file',
                 value=pipeline_file_path,  # TODO: remove this line later, or change to a config default?
                 key='text_input_load_existing_pipeline'
-            )
+            ))
 
             # Do checks on pipeline load
             if input_text_path_to_pipeline_file:
@@ -933,18 +935,28 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
     ## Review Behaviour Example Videos ##
     st.markdown(f'## Behaviour clustering review')
 
+    # AARONT: TODO: Here we give options based on prefix and join path.  This is a temp solution to cut down on number of vids being shown and allow to look at the vids just generated.
     ### Section: create drop-down menu to review videos
-    example_videos_file_list: List[str] = [video_file_name for video_file_name in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if video_file_name.split('.')[-1] in valid_video_extensions]  # # TODO: low/med: add user intervention on default path to check?
-    videos_dict: Dict[str: str] = {**{'': ''}, **{video_file_name: os.path.join(config.EXAMPLE_VIDEOS_OUTPUT_PATH, video_file_name) for video_file_name in example_videos_file_list}}
+    # example_videos_file_list: List[str] = [video_file_name for video_file_name in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if video_file_name.split('.')[-1] in valid_video_extensions]  # # TODO: low/med: add user intervention on default path to check?
+    # ex_video_dirs: List[str] = [directory for directory in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if os.path.isdir(directory)]
+    ex_video_dirs: List[str] = [directory for directory in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if os.path.isdir(os.path.join(config.EXAMPLE_VIDEOS_OUTPUT_PATH, directory))]
 
-    video_selection: str = st.selectbox(label=f"Select video to view. Total videos found in example videos folder ({config.EXAMPLE_VIDEOS_OUTPUT_PATH}): {len(videos_dict)-1}", options=list(videos_dict.keys()))
-    if video_selection:
-        try:
-            st.video(get_video_bytes(videos_dict[video_selection]))
-        except FileNotFoundError as fe:
-            st.error(FileNotFoundError(f'No example behaviour videos were found at this time. Try '
-                                       f'generating them at check back again after. // '
-                                       f'DEBUG INFO: path checked: {config.EXAMPLE_VIDEOS_OUTPUT_PATH} // {repr(fe)}'))
+    ex_video_dirs_selection = st.selectbox(label=f'Select directory name corresponding to videos you want to see (you would have specified this when creating the videos)', options=ex_video_dirs)
+
+    if ex_video_dirs_selection:
+        ex_video_dir = os.path.join(config.EXAMPLE_VIDEOS_OUTPUT_PATH, ex_video_dirs_selection)
+        example_videos_file_list: List[str] = [video_file_name for video_file_name in os.listdir(ex_video_dir) if video_file_name.split('.')[-1] in valid_video_extensions]  # # TODO: low/med: add user intervention on default path to check?
+        # TODO: HACK: Relies on the string 'assignment_##' (number number) for sorting the video examples. If the file format ever changes will break.
+        videos_dict: Dict[str: str] = {**{'': ''}, **{video_file_name: os.path.join(ex_video_dir, video_file_name) for video_file_name in example_videos_file_list}}
+
+        video_selection: str = st.selectbox(label=f"Select video to view. Total videos found in example videos folder ({config.EXAMPLE_VIDEOS_OUTPUT_PATH}): {len(videos_dict)-1}", options=list(videos_dict.keys()))
+        if video_selection:
+            try:
+                st.video(get_video_bytes(videos_dict[video_selection]))
+            except FileNotFoundError as fe:
+                st.error(FileNotFoundError(f'No example behaviour videos were found at this time. Try '
+                                           f'generating them at check back again after. // '
+                                           f'DEBUG INFO: path checked: {config.EXAMPLE_VIDEOS_OUTPUT_PATH} // {repr(fe)}'))
     ### End section: create drop-down menu to review videos
 
     st.markdown('')
@@ -957,17 +969,17 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
     if session[key_button_show_example_videos_options]:
         st.markdown(f'Fill in variables for making new example videos of behaviours. Does this line of text need to be altered or even removed?')
         select_data_source = st.selectbox('Select a data source', options=['']+p.training_data_sources)
-        input_video = st.text_input(f'Input path to corresponding video relative to selected data source', value=config.DIBS_BASE_PROJECT_PATH)
+        input_video = clean_string(st.text_input(f'Input path to corresponding video relative to selected data source', value=config.DIBS_BASE_PROJECT_PATH))
         if input_video and not os.path.isfile(input_video):
             err = f'Video source file not found: {input_video}'
             logger.warning(err)
             st.warning(FileNotFoundError(err))
-        file_name_prefix = st.text_input(f'File name prefix. This prefix will help differentiate between example video sets.')
+        ex_video_dir_name = clean_string(st.text_input(f'File name prefix. This prefix will help differentiate between example video sets.'))
         number_input_output_fps = st.number_input(f'Output FPS for example videos', value=8., min_value=1., step=1., format='%.2f')
         number_input_max_examples_of_each_behaviour = st.number_input(f'Maximum number of videos created for each behaviour', value=5, min_value=1)
         # TODO: AARON: Number min rows crashed the app when trying to adjust from streamlit.
-        number_input_min_rows = st.number_input(f'Number of rows of data required for a detection to occur', value=3, min_value=1, max_value=100, step=1)
-        number_input_frames_leadup = st.number_input(f'Number of rows of data that precede and succeed target behaviour', value=5, min_value=0)
+        number_input_min_rows = st.number_input(f'Number of rows of data required for a detection to occur', value=2, min_value=1, max_value=100, step=1)
+        number_input_frames_leadup = st.number_input(f'Number of rows of data that precede and succeed target behaviour', value=2, min_value=0)
 
         st.markdown('')
 
@@ -979,9 +991,9 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
             is_error_detected = False
             ### Check for errors (display as many errors as necessary for redress)
             # File name prefix check
-            if check_arg.has_invalid_chars_in_name_for_a_file(file_name_prefix):
+            if check_arg.has_invalid_chars_in_name_for_a_file(ex_video_dir_name):
                 is_error_detected = True
-                invalid_name_err_msg = f'Invalid file name submitted. Has invalid char. Prefix="{file_name_prefix}"'
+                invalid_name_err_msg = f'Invalid file name submitted. Has invalid char. Prefix="{ex_video_dir_name}"'
                 st.error(ValueError(invalid_name_err_msg))
             # Input video check
             if not os.path.isfile(input_video):
@@ -994,7 +1006,7 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
                     p = p.make_behaviour_example_videos(
                         select_data_source,
                         input_video,
-                        file_name_prefix,
+                        ex_video_dir_name,
                         min_rows_of_behaviour=number_input_min_rows,
                         max_examples=number_input_max_examples_of_each_behaviour,
                         output_fps=number_input_output_fps,

@@ -181,3 +181,11 @@ def save_pipeline(pipeline_obj, dir_path: str = config.OUTPUT_PATH):
         logger.error(err)
         raise OSError(err)
     return read_pipeline(final_out_path)
+
+
+def clean_string(s):
+    if isinstance(s, str):
+        return s.strip().strip('"').strip("'")
+    else:
+        return s
+

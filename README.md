@@ -30,7 +30,7 @@ Thank you for your support.
   - You can ensure you have conda installed by running: `conda --version`
   - If you do not have Anaconda installed, it is a good idea to have it but not entirely required.
 - Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
-- Copy and paste all commands from [CONDA_ENV_COMMANDS.txt](./CONDA_ENV_COMMANDS.txt) into your 
+- Copy and paste all commands from [CONDA\_ENV\_COMMANDS.txt](./CONDA_ENV_COMMANDS.txt) into your 
   command line one at a time to download all necessary packages
 
 -------------------------------------------------------------------------------

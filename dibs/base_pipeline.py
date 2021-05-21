@@ -24,6 +24,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.utils import shuffle as sklearn_shuffle_dataframe
 from typing import Any, Collection, Dict, List, Tuple, Union  # TODO: med: review all uses of Optional
+from collections import defaultdict
 import inspect
 import joblib
 import numpy as np
@@ -1433,13 +1434,13 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         return self
 
-    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, file_name_prefix=None, min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15, max_frames_per_video=500):
+    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, ex_video_dir_name=None, min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15, max_frames_per_video=500):
         """
         Create video clips of behaviours
 
         :param data_source: (str)
         :param video_file_path: (str)
-        :param file_name_prefix:
+        :param ex_video_dir_name:
         :param min_rows_of_behaviour: (int) The number of frames that precede and succeed the points of interest
         :param max_examples:
         :return:
@@ -1449,12 +1450,14 @@ class BasePipeline(BasePipelineAttributeHolder):
         check_arg.ensure_is_file(video_file_path)
         check_arg.ensure_type(output_fps, int, float)
         # Solve kwargs
-        if file_name_prefix is None:
-            file_name_prefix = ''
+        if ex_video_dir_name is None:
+            raise RuntimeError('Must provide a prefix for now; Dont want to drop videos in default location.')
         else:
-            check_arg.ensure_type(file_name_prefix, str)
-            check_arg.ensure_has_valid_chars_for_path(file_name_prefix)
-            file_name_prefix += '__'  # TODO: low: remove hidden formatting here?
+            check_arg.ensure_type(ex_video_dir_name, str)
+            check_arg.ensure_has_valid_chars_for_path(ex_video_dir_name)
+            ex_video_output_dir = os.path.join(config.EXAMPLE_VIDEOS_OUTPUT_PATH, ex_video_dir_name)
+            logger.debug(f'Creating example videos output dir: {ex_video_output_dir}')
+            os.makedirs(ex_video_output_dir, exist_ok=True)
 
         # Get data from data source name
         if data_source in self.training_data_sources:
@@ -1483,12 +1486,11 @@ class BasePipeline(BasePipelineAttributeHolder):
             rle_zipped_by_entry.append(list(row__assignment_idx_addedLength))
 
         # Roll up assignments into a dict. Keys are labels, values are lists of [index, additional length]
-        rle_by_assignment: Dict[Any: List[int, int]] = {}  # Dict[Any: List[int, int]] // First element in list is the frame index, second element is the additional length duration of behaviour
+        rle_by_assignment: Dict[Any: List[int, int]] = defaultdict(list)  # Dict[Any: List[int, int]] // First element in list is the frame index, second element is the additional length duration of behaviour
         for label, frame_idx, additional_length in rle_zipped_by_entry:
-            if label not in rle_by_assignment:
-                rle_by_assignment[label] = []
             if additional_length >= min_rows_of_behaviour - 1:
                 rle_by_assignment[label].append([frame_idx, additional_length])
+
         # Sort from longest additional length (ostensibly the duration of behaviour) to least
         for assignment_val in (key for key in rle_by_assignment.keys() if key != self.null_classifier_label):
             rle_by_assignment[assignment_val] = sorted(rle_by_assignment[assignment_val],
@@ -1498,16 +1500,17 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         ### Finally: make video clips
         # Loop over assignments
+        time_prefix = time.strftime("%y-%m-%d_%Hh%Mm")
         for assignment_val, values_list in ((k, v) for (k, v) in rle_by_assignment.items() if k != self.null_classifier_label):
             # Loop over examples
             num_examples = min(max_examples, len(values_list))
             for example_i in range(num_examples):
-                output_file_name = f'{file_name_prefix}{time.strftime("%y-%m-%d_%Hh%Mm")}_' \
-                                   f'BehaviourExample__assignment_{assignment_val}__example_{example_i + 1}_of_{num_examples}'
+                output_file_name = f'{time_prefix}_BehaviourExample__assignment_{assignment_val:02d}__example_{example_i + 1}_of_{num_examples}'
                 frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
 
                 frame_idx, additional_length_i = values_list[example_i]  # Recall: first elem is frame idx, second elem is additional length
 
+                # AARONT: Buffer added here for video
                 lower_bound_row_idx: int = max(0, int(frame_idx) - num_frames_buffer)
                 upper_bound_row_idx: int = min(len(df) - 1, frame_idx + additional_length_i - 1 + num_frames_buffer)
                 df_frames_selection = df.iloc[lower_bound_row_idx:upper_bound_row_idx, :]
@@ -1521,7 +1524,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                 unique_assignments_index_dict = {assignment: i for i, assignment in enumerate(set(unique_assignments))}
 
                 list_of_all_labels: List[str] = [self.get_assignment_label(a) for a in list_of_all_assignments]
-                list_of_frames = list(df_frames_selection['frame'].astype(int).values)
+                list_of_frames = list(df_frames_selection['frame'].astype(int).values) # AARON: Frame-idxs is retrieved here
                 color_map_array: np.ndarray = visuals.generate_color_map(len(unique_assignments))
 
                 # # Iterate over all assignments, get their respective index, get the colour (3-tuple) for that index, normalize for 255 and set at same index position so that length of colours is same as length of assignments
@@ -1540,7 +1543,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                     current_behaviour_list=list_of_all_labels,
                     text_prefix=frame_text_prefix,
                     output_fps=output_fps,
-                    output_dir=config.EXAMPLE_VIDEOS_OUTPUT_PATH,
+                    output_dir=ex_video_output_dir,
                     text_colors_list=text_colors_list,
                 )
 
