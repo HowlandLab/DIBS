@@ -255,7 +255,7 @@ def header(pipeline_file_path):
                 st.markdown('*Note: the above decision is not final. Data can be added and removed at any time in a project.*')
                 # st.markdown('')
                 text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
-                input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.OUTPUT_PATH)
+                input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.PIPELINE_OUTPUT_PATH)
                 button_project_info_submitted_is_clicked = st.button('Submit', key='SubmitNewProjectInfo')
 
                 if button_project_info_submitted_is_clicked:
@@ -314,6 +314,12 @@ Success! Your new project pipeline has been saved to disk to the following path:
             logger.debug(f'Open LOAD EXISTING option')
             st.markdown('## Load existing project pipeline')
 
+            existing_pipeline_files: List[str] = [''] + [file for file in os.listdir(config.PIPELINE_OUTPUT_PATH)]
+
+            input_text_path_to_pipeline_file = os.path.join(
+                config.PIPELINE_OUTPUT_PATH,
+                st.selectbox(label=f'Select directory name corresponding to videos you want to see (you would have specified this when creating the videos)', options=existing_pipeline_files)
+            )
             # # Code frament of potential file selector...not yet working
             # input_text_path_to_pipeline_file = st_file_selector(pl)
             # pl = st.empty()
@@ -328,11 +334,11 @@ Success! Your new project pipeline has been saved to disk to the following path:
             # input_text_path_to_pipeline_file = session[key_open_pipeline_path]
 
             ############ Original, working implementation below
-            input_text_path_to_pipeline_file = clean_string(st.text_input(
-                'Enter full path to existing project pipeline file',
-                value=pipeline_file_path,  # TODO: remove this line later, or change to a config default?
-                key='text_input_load_existing_pipeline'
-            ))
+            # input_text_path_to_pipeline_file = clean_string(st.text_input(
+            #     'Enter full path to existing project pipeline file',
+            #     value=pipeline_file_path,  # TODO: remove this line later, or change to a config default?
+            #     key='text_input_load_existing_pipeline'
+            # ))
 
             # Do checks on pipeline load
             if input_text_path_to_pipeline_file:

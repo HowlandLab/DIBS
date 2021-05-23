@@ -74,10 +74,21 @@ VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH', fallb
 GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
 EXAMPLE_VIDEOS_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'example_videos')
+PIPELINE_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'pipelines')
 
 ### PATH asserts
-assert os.path.isdir(DEFAULT_TRAIN_DATA_DIR), f'Path could not be found: {DEFAULT_TRAIN_DATA_DIR}'
-assert os.path.isdir(DEFAULT_TEST_DATA_DIR), f'Path could not be found: {DEFAULT_TEST_DATA_DIR}'
+for path in (
+    DEFAULT_TEST_DATA_DIR,
+    DEFAULT_TRAIN_DATA_DIR,
+    OUTPUT_PATH,
+    VIDEO_OUTPUT_FOLDER_PATH,
+    GRAPH_OUTPUT_PATH,
+    FRAMES_OUTPUT_PATH,
+    EXAMPLE_VIDEOS_OUTPUT_PATH,
+    PIPELINE_OUTPUT_PATH
+):
+    os.path.isdir(path) or os.makedirs(path)
+
 assert os.path.isdir(OUTPUT_PATH), f'SPECIFIED OUTPUT PATH INVALID/DOES NOT EXIST: {OUTPUT_PATH}'
 assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
     f'`short_video_output_directory` dir. (value={VIDEO_OUTPUT_FOLDER_PATH}) must exist for runtime but does not.'
