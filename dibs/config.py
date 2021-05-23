@@ -70,7 +70,8 @@ if not os.path.isabs(DEFAULT_TEST_DATA_DIR):
 OUTPUT_PATH = config_output_path = configuration.get('PATH', 'OUTPUT_PATH').strip() \
     if configuration.get('PATH', 'OUTPUT_PATH').strip() \
     else default_output_path
-VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH', fallback=os.path.join(OUTPUT_PATH, 'videos'))
+VIDEO_INPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_INPUT_PATH').strip() or os.path.join(DIBS_BASE_PROJECT_PATH, 'input_videos')
+VIDEO_OUTPUT_FOLDER_PATH = configuration.get('PATH', 'VIDEOS_OUTPUT_PATH').strip() or os.path.join(OUTPUT_PATH, 'videos')
 GRAPH_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'graphs')
 FRAMES_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'frames')
 EXAMPLE_VIDEOS_OUTPUT_PATH = os.path.join(OUTPUT_PATH, 'example_videos')
@@ -82,12 +83,13 @@ for path in (
     DEFAULT_TRAIN_DATA_DIR,
     OUTPUT_PATH,
     VIDEO_OUTPUT_FOLDER_PATH,
+    VIDEO_INPUT_FOLDER_PATH,
     GRAPH_OUTPUT_PATH,
     FRAMES_OUTPUT_PATH,
     EXAMPLE_VIDEOS_OUTPUT_PATH,
     PIPELINE_OUTPUT_PATH
 ):
-    os.path.isdir(path) or os.makedirs(path)
+    os.path.isdir(path) or os.makedirs(path) # Will fail if a path is provided that is not a directory for any of these arguments.
 
 assert os.path.isdir(OUTPUT_PATH), f'SPECIFIED OUTPUT PATH INVALID/DOES NOT EXIST: {OUTPUT_PATH}'
 assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \

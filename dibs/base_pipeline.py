@@ -262,7 +262,7 @@ class BasePipelineAttributeHolder(object):
             prediction = np.NaN
         return prediction
 
-    def clf_predict(self, x: np.ndarray) -> np.ndarray:  # TODO: low: add type hinting once return type confirmed
+    def clf_predict(self, x: np.ndarray) -> np.ndarray:
         """
         An abstraction above using a raw classifier.predict() call in case invalid data is sent to the call.
         In the case that invalid features are sent for prediction, in the future we can add a fill value
@@ -315,13 +315,29 @@ class BasePipelineAttributeHolder(object):
     def training_data_sources(self) -> List[str]:
         return list(np.unique(self.df_features_train_raw['data_source'].values))
 
+    @staticmethod
+    def _video_path_finder(data_sources: list) -> Dict[str, str]:
+        # Use name matching on video path to find videos
+        video_paths = os.listdir(config.VIDEO_INPUT_FOLDER_PATH)
+        find_path = lambda source: next((path for path in video_paths if source in path), None)
+        logger.debug(video_paths)
+        return {source: find_path(source) for source in data_sources}
+
+    @property
+    def training_video_sources(self) -> Dict[str, str]:
+        return self._video_path_finder(self.training_data_sources)
+
+    @property
+    def predict_video_sources(self) -> Dict[str, str]:
+        return self._video_path_finder(self.predict_data_sources)
+
     @property
     def predict_data_sources(self):
         return list(np.unique(self.df_features_predict_raw['data_source'].values))
 
     @property
     def raw_assignments(self):
-        raise NotImplementedError(f'Not implemented and not used anywhere')
+        raise NotImplementedError('Not implemented and not used anywhere')
         return self.raw_assignments
 
     @property
@@ -1477,6 +1493,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Get Run-Length Encoding of assignments
         assignments = df[self.clf_assignment_col_name].values
         rle: Tuple[List, List, List] = statistics.augmented_runlength_encoding(assignments)
+        # TODO: add data source to each tuple.
 
         # Zip RLE according to order
         # First index is value, second is index, third is *additional* length of value occurrence in sequence.
