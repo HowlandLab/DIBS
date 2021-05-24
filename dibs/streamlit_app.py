@@ -885,7 +885,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
             st.markdown('')
             ### Show bar chart of % behaviour occurrence
             st.markdown(f'** Graph below: Transition matrix for behaviours **')
-            st.pyplot(p.create_transition_matrix_heatmap())
+            st.pyplot(p.plot_transition_matrix_heatmap())
         else:
             st.info('There are no assignment distributions available for display because '
                     'the model is not currently built.')
@@ -1060,6 +1060,11 @@ def results_section(p: pipeline.BasePipeline, pipeline_file_path):
                  f'Currently, your pipeline file path reads as: "{pipeline_file_path}"')
     st.markdown('---------------------------------------------------------------------------------------------')
     st.markdown(f'## Create results')
+
+    # AARONT: TODO: This sounds like it should be labelling all the DATASETS for us.  Add functionality to produce all final labeled datasets.
+    #               (This seems to be what export is for?  Revisit)
+    # AARONT: TODO: Update to use a default output video dir, use all dataset videos and make one video for each (of training or of predict)
+    #               and then to allow viewing the labelled videos.
     ### Label an entire video ###
     button_menu_label_entire_video = st.button('Toggle: Use pipeline model to label to entire video', key=key_button_menu_label_entire_video)
     if button_menu_label_entire_video: session[key_button_menu_label_entire_video] = not session[key_button_menu_label_entire_video]

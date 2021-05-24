@@ -46,7 +46,6 @@ from dibs import check_arg, config, feature_engineering, io, logging_enhanced, s
 
 logger = config.initialize_logger(__name__)
 
-
 # Base pipeline objects that outline the Pipeline API
 class BasePipelineAttributeHolder(object):
     # Base information
@@ -199,15 +198,18 @@ class BasePipelineAttributeHolder(object):
         n = len(gmm_a.unique())
         mat = np.zeros((n, n), dtype=int)
         for b1,b2 in zip(gmm_a[0:-2], gmm_a[1:-1]):
-            mat[b1,b2] += 1
+            mat[b1,b2] += 1 # TODO: med; There is a bug here at the intersection of datasets, since we are measuring
+            #                       the transition from one behavoiur to the next when really the video changed.
+            #                       Since this accounts for much less than 0.1% of our overall data, it is not critical to fix at this time.
         np.fill_diagonal(mat, 0)
         return mat
 
-    def create_transition_matrix_heatmap(self, **kwargs):
+    def plot_transition_matrix_heatmap(self, cmap=sns.color_palette("Blues", as_cmap=True),
+                                       save_name=None,
+                                       save_format=config.DEFAULT_SAVED_GRAPH_FILE_FORMAT, **kwargs):
         # TODO: Add these options too stuff and things.
         # TODO: Add axis labels.  Change labels to reflect user labels
         # sns.set(rc={'figure.figsize':(11.7, 8.27)})
-        cmap=sns.color_palette("Blues", as_cmap=True)
         hm=sns.heatmap(
             self.transition_matrix,
             cmap=cmap,
@@ -216,8 +218,8 @@ class BasePipelineAttributeHolder(object):
             **kwargs
         )
         fig = hm.get_figure()
-        # TODO: This causes too much delay. Allow saving figure if not easily done from GUI
-        # fig.savefig(os.path.join(config.GRAPH_OUTPUT_PATH, f'transition_matrix.png'))
+        if save_name:
+            fig.savefig(os.path.join(config.GRAPH_OUTPUT_PATH, f'{save_name}.{save_format}'))
         return fig
 
 
