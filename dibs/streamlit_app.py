@@ -627,6 +627,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
     st.markdown('')
 
+    # AARONT: TODO: How are the config values read from disk? Ever modified?
     ### Menu button: rebuilding model ###
     button_see_rebuild_options = st.button('Toggle: Review Model Parameters & Rebuild Model', key_button_see_rebuild_options)
     if button_see_rebuild_options:  # Click button, flip state

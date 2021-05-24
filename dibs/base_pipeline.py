@@ -812,6 +812,7 @@ class BasePipeline(BasePipelineAttributeHolder):
 
     def _engineer_features_train(self):
         """
+        TODO: Why not engineer all features at once?  Speed?
         Utilizes
         All functions that take the raw data (data retrieved from using dibs.read_csv()) and
         transforms it into classifier-ready data.
@@ -897,8 +898,6 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Queue up data to use
         if features is None:
             features = self.all_features
-        if self._is_training_data_set_different_from_model_input:
-            self._engineer_features_train()
         features = list(features)
         df_features_train = self.df_features_train.copy()
 
@@ -1317,6 +1316,7 @@ class BasePipeline(BasePipelineAttributeHolder):
             logger.debug(f'{get_current_function()}(): Start engineering features...')
             self._engineer_features_train()
 
+        # TODO: Time each step and log for the user.
         # Scale data
         logger.debug(f'Scaling data now...')
         self._scale_training_data_and_add_train_test_split(create_new_scaler=True)
@@ -1336,7 +1336,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         else:
             self.generate_accuracy_scores()
 
-        # Final touches. Save state of pipeline.
+        # Final touches. Save state of pipeline. # TODO: What if we fail half way?
         self._is_built = True
         self._is_training_data_set_different_from_model_input = False
         self._has_modified_model_variables = False
