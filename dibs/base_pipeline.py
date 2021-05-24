@@ -52,9 +52,8 @@ class BasePipelineAttributeHolder(object):
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
 
-    # Column names7
+    # Column names7 # TODO: Rename, and/or load defaults based on config.
     gmm_assignment_col_name, clf_assignment_col_name, = 'gmm_assignment', 'classifier_assignment'
-    behaviour_col_name = 'behaviour'
 
     # Pipeline state-tracking variables
     _is_built = False  # Is False until the classifiers are built then changes to True
@@ -76,7 +75,7 @@ class BasePipelineAttributeHolder(object):
 
     # Other model vars (Rename this)
     video_fps: float = config.VIDEO_FPS
-    cross_validation_k: int = config.CROSSVALIDATION_K
+    cross_validation_k: int = config.CROSS_VALIDATION_K
     cross_validation_n_jobs: int = config.CROSSVALIDATION_N_JOBS
     _random_state: int = config.RANDOM_STATE
     average_over_n_frames: int = config.AVERAGE_OVER_N_FRAMES
@@ -490,6 +489,9 @@ class BasePipeline(BasePipelineAttributeHolder):
         TODO: low: complete list
 
         """
+
+        # TODO: Accept dict of {algo: params}... NOTE: Should this be just algo names or should it be {type_of_algo: (algo_name, params)}
+        #       NOTE: params always a dict
         check_arg.ensure_type(read_config_on_missing_param, bool)
         ### General Params ###
         # Test/train split %
@@ -620,7 +622,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         svm_verbose = kwargs.get('svm_verbose', config.svm_verbose if read_config_on_missing_param else self.svm_verbose)
         self.svm_verbose = svm_verbose
         # Cross-validation K
-        cross_validation_k = kwargs.get('cross_validation_k', config.CROSSVALIDATION_K if read_config_on_missing_param else self.cross_validation_k)
+        cross_validation_k = kwargs.get('cross_validation_k', config.CROSS_VALIDATION_K if read_config_on_missing_param else self.cross_validation_k)
         check_arg.ensure_type(cross_validation_k, int)
         self.cross_validation_k = cross_validation_k
         # Cross-validation n jobs

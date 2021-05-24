@@ -128,13 +128,13 @@ if STREAMLIT_DEFAULT_VIDEOS_FOLDER:
 
 ### MODEL ###############################################################
 AVERAGE_OVER_N_FRAMES: int = configuration.getint('MODEL', 'AVERAGE_OVER_N_FRAMES')
-CROSSVALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
+CROSS_VALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
 CROSSVALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
 HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
 RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE') if configuration.get('MODEL', 'RANDOM_STATE') else random.randint(1, 100_000_000)
 
 ### MODEL ASSERTS
-assert CROSSVALIDATION_K >= 2, f'CROSSVALIDATION_K must be 2 or greater. Instead, found: {CROSSVALIDATION_K}'
+assert CROSS_VALIDATION_K >= 2, f'CROSS_VALIDATION_K must be 2 or greater. Instead, found: {CROSS_VALIDATION_K}'
 assert CROSSVALIDATION_N_JOBS >= -2, f'CROSSVALIDATION_N_JOBS must be -2 or greater. Instead, found: {CROSSVALIDATION_N_JOBS}'
 assert 0. <= HOLDOUT_PERCENT <= 1., f'HOLDOUT_PERCENT must be between 0 and 1. Instead, found: {HOLDOUT_PERCENT}'
 
