@@ -853,10 +853,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
         session[key_button_view_confusion_matrix] = not session[key_button_view_confusion_matrix]
     if session[key_button_view_confusion_matrix]:
         if p.is_built:
-            confusion_matrix_array = p.generate_confusion_matrix()
-            # mapp = sns.heatmap(cnf)
-            st.pyplot(sns.heatmap(confusion_matrix_array).get_figure())
-            # plt.show()
+            st.pyplot(p.plot_confusion_matrix())
         else:
             st.info(f'Confusion matrix not available since model has not been built.')
         if p.is_in_inconsistent_state:

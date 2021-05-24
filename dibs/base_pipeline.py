@@ -76,7 +76,7 @@ class BasePipelineAttributeHolder(object):
     # Other model vars (Rename this)
     video_fps: float = config.VIDEO_FPS
     cross_validation_k: int = config.CROSS_VALIDATION_K
-    cross_validation_n_jobs: int = config.CROSSVALIDATION_N_JOBS
+    cross_validation_n_jobs: int = config.CROSS_VALIDATION_N_JOBS
     _random_state: int = config.RANDOM_STATE
     average_over_n_frames: int = config.AVERAGE_OVER_N_FRAMES
     test_train_split_pct: float = config.HOLDOUT_PERCENT
@@ -1682,6 +1682,10 @@ class BasePipeline(BasePipelineAttributeHolder):
     def get_plot_cross_val_scoring(self) -> Tuple[object, object]:
         # TODO: med: confirm that this works as expected
         return visuals.plot_cross_validation_scores(self._cross_val_scores)
+
+    def plot_confusion_matrix(self) -> np.ndarray:
+        fig = sns.heatmap(self.generate_confusion_matrix()).get_figure()
+        return fig
 
     def generate_confusion_matrix(self) -> np.ndarray:
         """

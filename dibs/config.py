@@ -99,11 +99,13 @@ assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
 ### APP #######################################################
 
 FRAMES_OUTPUT_FORMAT: str = configuration.get('APP', 'FRAMES_OUTPUT_FORMAT')  # E.g. png, jpg, svg, etc.
-N_JOBS = configuration.getint('APP', 'N_JOBS')  # TODO: low: currently not being used
-MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
-PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
+## TODO: Not used
+# N_JOBS = configuration.getint('APP', 'N_JOBS')  # TODO: low: currently not being used
+# MODEL_NAME = configuration.get('APP', 'OUTPUT_MODEL_NAME', fallback='DEFAULT_OUTPUT_MODEL_NAME__TODO:DEPRECATE?')  # Machine learning model name?
+# PLOT_GRAPHS: bool = configuration.getboolean('APP', 'PLOT_GRAPHS')
+# SAVE_GRAPHS_TO_FILE: bool = configuration.getboolean('APP', 'SAVE_GRAPHS_TO_FILE')
+
 VIDEO_FPS: float = configuration.getfloat('APP', 'VIDEO_FRAME_RATE')
-SAVE_GRAPHS_TO_FILE: bool = configuration.getboolean('APP', 'SAVE_GRAPHS_TO_FILE')
 DEFAULT_SAVED_GRAPH_FILE_FORMAT: str = configuration.get('APP', 'DEFAULT_SAVED_GRAPH_FILE_FORMAT')
 OUTPUT_VIDEO_FPS = configuration.getint('APP', 'OUTPUT_VIDEO_FPS')
 if 'NUMEXPR_MAX_THREADS' not in os.environ and configuration.get('APP', 'NUMEXPR_MAX_THREADS'):
@@ -129,13 +131,13 @@ if STREAMLIT_DEFAULT_VIDEOS_FOLDER:
 ### MODEL ###############################################################
 AVERAGE_OVER_N_FRAMES: int = configuration.getint('MODEL', 'AVERAGE_OVER_N_FRAMES')
 CROSS_VALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
-CROSSVALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
+CROSS_VALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
 HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
 RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE') if configuration.get('MODEL', 'RANDOM_STATE') else random.randint(1, 100_000_000)
 
 ### MODEL ASSERTS
 assert CROSS_VALIDATION_K >= 2, f'CROSS_VALIDATION_K must be 2 or greater. Instead, found: {CROSS_VALIDATION_K}'
-assert CROSSVALIDATION_N_JOBS >= -2, f'CROSSVALIDATION_N_JOBS must be -2 or greater. Instead, found: {CROSSVALIDATION_N_JOBS}'
+assert CROSS_VALIDATION_N_JOBS >= -2, f'CROSSVALIDATION_N_JOBS must be -2 or greater. Instead, found: {CROSS_VALIDATION_N_JOBS}'
 assert 0. <= HOLDOUT_PERCENT <= 1., f'HOLDOUT_PERCENT must be between 0 and 1. Instead, found: {HOLDOUT_PERCENT}'
 
 
