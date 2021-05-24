@@ -205,18 +205,21 @@ class BasePipelineAttributeHolder(object):
         return mat
 
     def create_transition_matrix_heatmap(self, **kwargs):
+        # TODO: Add these options too stuff and things.
+        # TODO: Add axis labels.  Change labels to reflect user labels
         # sns.set(rc={'figure.figsize':(11.7, 8.27)})
-        mat = self.transition_matrix
         cmap=sns.color_palette("Blues", as_cmap=True)
-        hm=sns.heatmap(mat, cmap=cmap,
-                       annot=True,
-                       fmt='d',
-                       **kwargs)
-        # TODO: Allow saving figure if not easily done from GUI
-        # if save_fig:
-        #     fig = hm.get_figure()
-        #     fig.savefig(os.path.join(config.GRAPH_OUTPUT_PATH, f'transition_matrix.png'))
-        return hm.get_figure()
+        hm=sns.heatmap(
+            self.transition_matrix,
+            cmap=cmap,
+            annot=True,
+            fmt='d',
+            **kwargs
+        )
+        fig = hm.get_figure()
+        # TODO: This causes too much delay. Allow saving figure if not easily done from GUI
+        # fig.savefig(os.path.join(config.GRAPH_OUTPUT_PATH, f'transition_matrix.png'))
+        return fig
 
 
     @property
