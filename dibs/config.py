@@ -222,15 +222,15 @@ assert CLASSIFIER_VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIE
 
 ### GMM PARAMS #########################################################################################################
 
-gmm_n_components = configuration.getint('EM/GMM', 'n_components')
-gmm_covariance_type = configuration.get('EM/GMM', 'covariance_type')
-gmm_tol = configuration.getfloat('EM/GMM', 'tol')
-gmm_reg_covar = configuration.getfloat('EM/GMM', 'reg_covar')
-gmm_max_iter = configuration.getint('EM/GMM', 'max_iter')
-gmm_n_init = configuration.getint('EM/GMM', 'n_init')
-gmm_init_params = configuration.get('EM/GMM', 'init_params')
-gmm_verbose = configuration.getint('EM/GMM', 'verbose')
-gmm_verbose_interval = configuration.getint('EM/GMM', 'verbose_interval') if configuration.get('EM/GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
+gmm_n_components = configuration.getint('GMM', 'n_components')
+gmm_covariance_type = configuration.get('GMM', 'covariance_type')
+gmm_tol = configuration.getfloat('GMM', 'tol')
+gmm_reg_covar = configuration.getfloat('GMM', 'reg_covar')
+gmm_max_iter = configuration.getint('GMM', 'max_iter')
+gmm_n_init = configuration.getint('GMM', 'n_init')
+gmm_init_params = configuration.get('GMM', 'init_params')
+gmm_verbose = configuration.getint('GMM', 'verbose')
+gmm_verbose_interval = configuration.getint('GMM', 'verbose_interval') if configuration.get('GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
 EMGMM_PARAMS = {
     'n_components': gmm_n_components,
     'covariance_type': gmm_covariance_type,
