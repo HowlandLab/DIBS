@@ -876,6 +876,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
             # matplotlib.use('TkAgg')
 
             ### Show bar chart of counts of behaviours
+            # AARONT: TODO: Add 2 scales to a single histogram
             st.markdown(f'** Graph below: behaviour counts **')
             df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts()
             st.bar_chart(df_assignment_histogram)
@@ -884,6 +885,10 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
             st.markdown(f'** Graph below: behaviour counts histogram **')
             df_assignment_histogram = p.df_features_train_scaled[p.clf_assignment_col_name].value_counts(normalize=True)
             st.bar_chart(df_assignment_histogram)
+            st.markdown('')
+            ### Show bar chart of % behaviour occurrence
+            st.markdown(f'** Graph below: Transition matrix for behaviours **')
+            st.pyplot(p.create_transition_matrix_heatmap())
         else:
             st.info('There are no assignment distributions available for display because '
                     'the model is not currently built.')

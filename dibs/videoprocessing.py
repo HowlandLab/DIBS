@@ -124,9 +124,9 @@ def make_video_from_multiple_sources(
     # Return list of tuples representing a clip from a video, all from the same source.
     # list[tuple(label, user_assignment_label, color, frame_idx), ...]
     # Loop over all requested frames, add text, then append to list for later video creation
-    for data_source, clips in data_source_with_video_clip_tuples:
+    for data_source, clip in data_source_with_video_clip_tuples:
         cv2_source_video_object = data_source_to_open_video_file[data_source]
-        for label, current_behaviour, color, frame_idx in clips:
+        for label, current_behaviour, color, frame_idx in clip:
             # current_behaviour = current_behaviour_list[i] # AARONT: TODO: Do we need both label and assignment? Yes
             # logger.debug(f'label, frame_idx = {label}, {frame_idx} // type(label), type(frame_idx) = {type(label)}, {type(frame_idx)}')  # TODO: remove this line after type debugging
             cv2_source_video_object.set(1, frame_idx)

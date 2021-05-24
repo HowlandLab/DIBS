@@ -30,6 +30,8 @@ import joblib
 import numpy as np
 import os
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 import sys
 import time
 from types import FunctionType
@@ -182,6 +184,40 @@ class BasePipelineAttributeHolder(object):
     def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
     @property
     def df_features_train_scaled_train_split_only(self): return self._df_features_train_scaled_train_split_only
+    @property
+    def df_clusterer_assignments(self):
+        return self._df_features_train_scaled_train_split_only[
+            self.gmm_assignment_col_name].loc[
+            self._df_features_train_scaled_train_split_only[self.gmm_assignment_col_name] != self.null_gmm_label
+        ]
+    @property
+    def df_embedder_embedding(self): return self._df_features_train_scaled_train_split_only.loc[self.dims_cols_names].copy()
+
+    @property
+    def transition_matrix(self):
+        gmm_a = self.df_clusterer_assignments
+        logger.debug(gmm_a)
+        n = len(gmm_a.unique())
+        mat = np.zeros((n, n), dtype=int)
+        for b1,b2 in zip(gmm_a[0:-2], gmm_a[1:-1]):
+            mat[b1,b2] += 1
+        np.fill_diagonal(mat, 0)
+        return mat
+
+    def create_transition_matrix_heatmap(self, **kwargs):
+        # sns.set(rc={'figure.figsize':(11.7, 8.27)})
+        mat = self.transition_matrix
+        cmap=sns.color_palette("Blues", as_cmap=True)
+        hm=sns.heatmap(mat, cmap=cmap,
+                       annot=True,
+                       fmt='d',
+                       **kwargs)
+        # TODO: Allow saving figure if not easily done from GUI
+        # if save_fig:
+        #     fig = hm.get_figure()
+        #     fig.savefig(os.path.join(config.GRAPH_OUTPUT_PATH, f'transition_matrix.png'))
+        return hm.get_figure()
+
 
     @property
     def name(self):
