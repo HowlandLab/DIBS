@@ -321,7 +321,7 @@ class BasePipelineAttributeHolder(object):
         video_paths = os.listdir(config.VIDEO_INPUT_FOLDER_PATH)
         find_path = lambda source: next((path for path in video_paths if source in path), None)
         logger.debug(video_paths)
-        return {source: find_path(source) for source in data_sources}
+        return {source: os.path.join(config.VIDEO_INPUT_FOLDER_PATH, find_path(source)) for source in data_sources if find_path(source)}
 
     @property
     def training_video_sources(self) -> Dict[str, str]:
@@ -1450,12 +1450,12 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         return self
 
-    def make_behaviour_example_videos(self, data_source: str, video_file_path: str, ex_video_dir_name=None, min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15, max_frames_per_video=500):
+    def make_behaviour_example_videos(self, data_source_type: str, ex_video_dir_name=None,
+                                      min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15, # AARONT: TODO: High fidelity model augment here
+                                      max_frames_per_video=500):
         """
         Create video clips of behaviours
 
-        :param data_source: (str)
-        :param video_file_path: (str)
         :param ex_video_dir_name:
         :param min_rows_of_behaviour: (int) The number of frames that precede and succeed the points of interest
         :param max_examples:
@@ -1463,7 +1463,6 @@ class BasePipeline(BasePipelineAttributeHolder):
         """
         # Args checking
         check_arg.ensure_type(num_frames_buffer, int)
-        check_arg.ensure_is_file(video_file_path)
         check_arg.ensure_type(output_fps, int, float)
         # Solve kwargs
         if ex_video_dir_name is None:
@@ -1476,93 +1475,117 @@ class BasePipeline(BasePipelineAttributeHolder):
             os.makedirs(ex_video_output_dir, exist_ok=True)
 
         # Get data from data source name
-        if data_source in self.training_data_sources:
-            df = self.df_features_train_scaled
-        elif data_source in self.predict_data_sources:
-            df = self.df_features_predict_scaled
+        if data_source_type == 'training':
+            full_df = self.df_features_train_scaled
+            data_source_to_video_path: Dict[str, str] = self.training_video_sources
+        elif data_source_type == 'predict':
+            full_df = self.df_features_predict_scaled
+            data_source_to_video_path: Dict[str, str] = self.predict_video_sources
         else:
-            err = f'Data source not found: {data_source}'
+            err = f'Data source type invalid: {data_source_type}'
             logger.error(err)
-            raise KeyError(err)
-        logger.debug(f'{get_current_function()}(): Total records: {len(df)}')
+            raise ValueError(err)
+
+        valid_data_sources = data_source_to_video_path.keys()
+        logger.debug(f'WIP: Now we make the vids...  Video sources: {data_source_to_video_path}')
+        for path in data_source_to_video_path.values():
+            check_arg.ensure_is_file(path)
+
+        logger.debug(f'{get_current_function()}(): Total records: {len(full_df)}')
+
+        # cache all the required dataframes for quick lookup
+        data_source_to_data_frame = {
+            data_source: full_df.loc[full_df['data_source'] == data_source].
+            astype({'frame': float}).astype({'frame': int}).sort_values('frame') # TODO: Why astype?  It is making a copy at least.
+            for data_source in valid_data_sources
+        }
 
         ### Execute
         # Get DataFrame of the data
-        df = df.loc[df["data_source"] == data_source].astype({'frame': float}).astype({'frame': int}).sort_values('frame').copy()
+        all_rle_by_assignment: Dict[Any: Tuple[str, int, int]] = defaultdict(list) # will be labels to list
+        for data_source in valid_data_sources:
+            # TODO: NOTE: astype creates a copy.  Why are we using astype?
+            df = data_source_to_data_frame[data_source]
 
-        # Get Run-Length Encoding of assignments
-        assignments = df[self.clf_assignment_col_name].values
-        rle: Tuple[List, List, List] = statistics.augmented_runlength_encoding(assignments)
-        # TODO: add data source to each tuple.
+            # Get Run-Length Encoding of assignments
+            assignments = df[self.clf_assignment_col_name].values
+            rle: Tuple[List, List, List] = statistics.augmented_runlength_encoding(assignments)
+            # TODO: add data source to each tuple.
 
-        # Zip RLE according to order
-        # First index is value, second is index, third is *additional* length of value occurrence in sequence.
-        # EXAMPLE RESULT: Zip'd RLE according to order: [[15, 0, 0], [4, 1, 1], [14, 3, 0], [15, 4, 0], ... ]
-        rle_zipped_by_entry = []
-        for row__assignment_idx_addedLength in zip(*rle):
-            rle_zipped_by_entry.append(list(row__assignment_idx_addedLength))
+            # Zip RLE according to order
+            # First index is value, second is index, third is *additional* length of value occurrence in sequence.
+            # EXAMPLE RESULT: Zip'd RLE according to order: [[15, 0, 0], [4, 1, 1], [14, 3, 0], [15, 4, 0], ... ]
+            rle_zipped_by_entry = []
+            for row__assignment_idx_addedLength in zip(*rle):
+                rle_zipped_by_entry.append(list(row__assignment_idx_addedLength))
 
-        # Roll up assignments into a dict. Keys are labels, values are lists of [index, additional length]
-        rle_by_assignment: Dict[Any: List[int, int]] = defaultdict(list)  # Dict[Any: List[int, int]] // First element in list is the frame index, second element is the additional length duration of behaviour
-        for label, frame_idx, additional_length in rle_zipped_by_entry:
-            if additional_length >= min_rows_of_behaviour - 1:
-                rle_by_assignment[label].append([frame_idx, additional_length])
+            for label, frame_idx, additional_length in rle_zipped_by_entry:
+                if additional_length >= min_rows_of_behaviour - 1:
+                    all_rle_by_assignment[label].append([data_source, frame_idx, additional_length])
 
+        # TODO: Sort them afterwards.  Then take the ones we want, and convert into the proper format.
         # Sort from longest additional length (ostensibly the duration of behaviour) to least
-        for assignment_val in (key for key in rle_by_assignment.keys() if key != self.null_classifier_label):
-            rle_by_assignment[assignment_val] = sorted(rle_by_assignment[assignment_val],
-                                                       key=lambda x: x[1],
+        for assignment_val in (key for key in all_rle_by_assignment.keys() if key != self.null_classifier_label):
+            num_examples = min(max_examples, len(all_rle_by_assignment[assignment_val]))
+            all_rle_by_assignment[assignment_val] = sorted(all_rle_by_assignment[assignment_val],
+                                                       key=lambda x: x[2], # sort by length
                                                        reverse=True  # True means sort largest to smallest
-                                                       )
+                                                       )[:num_examples-1]
+            # TODO: Now map function over to convert to proper format per label
+            #       Desired format is:
 
-        ### Finally: make video clips
-        # Loop over assignments
-        time_prefix = time.strftime("%y-%m-%d_%Hh%Mm")
-        for assignment_val, values_list in ((k, v) for (k, v) in rle_by_assignment.items() if k != self.null_classifier_label):
-            # Loop over examples
-            num_examples = min(max_examples, len(values_list))
-            for example_i in range(num_examples):
-                output_file_name = f'{time_prefix}_BehaviourExample__assignment_{assignment_val:02d}__example_{example_i + 1}_of_{num_examples}'
-                frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
+        ## TODO: Make list of all labels, assign a color to each.
 
-                frame_idx, additional_length_i = values_list[example_i]  # Recall: first elem is frame idx, second elem is additional length
+        unique_assignments = self.df_features_train_scaled[self.clf_assignment_col_name].unique()
+        logger.debug(f'*** {unique_assignments} *** UNIQUE ASSIGNMENTS HERE')
+        unique_assignments_index_dict = {assignment: i for i, assignment in enumerate(unique_assignments)}
+        color_map_array: np.ndarray = visuals.generate_color_map(len(unique_assignments))
 
-                # AARONT: Buffer added here for video
-                lower_bound_row_idx: int = max(0, int(frame_idx) - num_frames_buffer)
-                upper_bound_row_idx: int = min(len(df) - 1, frame_idx + additional_length_i - 1 + num_frames_buffer)
-                df_frames_selection = df.iloc[lower_bound_row_idx:upper_bound_row_idx, :]
-
-                # Compile labels list via SVM assignment for now...Later, we should get the actual behavioural labels instead of the numerical assignments
-                logger.debug(f'df_frames_selection["frame"].dypes.dtypes: {df_frames_selection["frame"].dtypes}')
-
-                list_of_all_assignments: List[int] = list(df_frames_selection[self.clf_assignment_col_name].values)
-                unique_assignments = np.unique(self.df_features_train_scaled[self.clf_assignment_col_name].values)
-                logger.debug(f'*** {unique_assignments} *** UNIQUE ASSIGNMENTS HERE')
-                unique_assignments_index_dict = {assignment: i for i, assignment in enumerate(set(unique_assignments))}
-
-                list_of_all_labels: List[str] = [self.get_assignment_label(a) for a in list_of_all_assignments]
-                list_of_frames = list(df_frames_selection['frame'].astype(int).values) # AARON: Frame-idxs is retrieved here
-                color_map_array: np.ndarray = visuals.generate_color_map(len(unique_assignments))
-
+        def expand_rle(df, frame_idx, additional_length):
+            """
+            Return list of tuples representing a clip from a video, all from the same source.
+            list[tuple(label, user_assignment_label, color, frame_idx), ...]
+            """
+            lower_bound_row_idx: int = max(0, int(frame_idx) - num_frames_buffer)
+            upper_bound_row_idx: int = min(len(df) - 1, frame_idx + additional_length - 1 + num_frames_buffer)
+            df_frames_selection = df.iloc[lower_bound_row_idx:upper_bound_row_idx, :]
+            labels = df_frames_selection[self.clf_assignment_col_name].values
+            return list(zip(
+                [label for label in labels],  # just a copy
+                [self.get_assignment_label(label) for label in labels],
                 # # Iterate over all assignments, get their respective index, get the colour (3-tuple) for that index, normalize for 255 and set at same index position so that length of colours is same as length of assignments
                 # Multiply the 3 values by 255 since existing values are on a 0 to 1 scale
                 # Takes only the first 3 elements since the 4th appears to be brightness value (?)
-                text_colors_list: List[Tuple[float]] = [
-                    tuple(float(min(255. * x, 255.)) for x in tuple(color_map_array[unique_assignments_index_dict[a]][:3]))
-                    for a in list_of_all_assignments]
+                [tuple(float(min(255. * x, 255.))
+                       for x in tuple(color_map_array[unique_assignments_index_dict[label]][:3]))
+                       for label in labels],
+                df_frames_selection['frame'].values,
+            ))
 
-                assert len(list_of_all_assignments) == len(list_of_frames) == len(list_of_all_labels)
-                videoprocessing.make_labeled_video_according_to_frame(
-                    list_of_all_assignments,
-                    list_of_frames,
-                    output_file_name,
-                    video_file_path,
-                    current_behaviour_list=list_of_all_labels,
-                    text_prefix=frame_text_prefix,
-                    output_fps=output_fps,
-                    output_dir=ex_video_output_dir,
-                    text_colors_list=text_colors_list,
-                )
+        # Now expand into format that can be used to make videos. 1 per label.
+        ## Dict of lable to list of (source, [list of frame specs]) tuples
+        label_to_frames = defaultdict(list)
+        for label in all_rle_by_assignment:
+            for data_source, frame_idx, additional_length in all_rle_by_assignment[label]:
+                label_to_frames[label].append((data_source,
+                                               expand_rle(
+                                                   data_source_to_data_frame[data_source], frame_idx, additional_length))
+                                              )
+        ### Finally: make video clips
+        # Loop over assignments
+        time_prefix = time.strftime("%y-%m-%d_%Hh%Mm")
+        for assignment_val, data_source_with_video_clip_tuples in ((k, v) for (k, v) in label_to_frames.items() if k != self.null_classifier_label):
+            output_file_name = f'{time_prefix}_BehaviourExample__assignment_{assignment_val:02d}'
+            frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
+
+            videoprocessing.make_video_from_multiple_sources(
+                data_source_with_video_clip_tuples, # has clips in order to be read
+                data_source_to_video_path, # for opening video files to read
+                output_file_name,
+                text_prefix=frame_text_prefix,
+                output_fps=output_fps,
+                output_dir=ex_video_output_dir,
+            )
 
         return self
 

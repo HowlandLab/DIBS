@@ -16,10 +16,158 @@ logger = config.initialize_logger(__name__)
 
 # HOW TO GET FPS: fps = video.get(cv2.cv.CV_CAP_PROP_FPS)
 
+def make_video_from_multiple_sources(
+        data_source_with_video_clip_tuples, # has clips in order to be read
+        data_source_to_video_path, # for opening video files to read
+        output_file_name,
+        output_dir,
+        text_prefix,
+        output_fps=15,
+        fourcc='avc1',
+        **kwargs):
+    """ NOTE: Mostly copied from "make_labeled_video_according_to_frame"
+    Make a video clip, from all input videos in data_source_to_video_path based on the
+    clips in data_source_with_video_clip_tuples.
+
+    # PREVIOUSLY: fourcc='mp4v' was default
+    # PREVIOUSLY code was 'H264'
+
+    :param data_source_with_video_clip_tuples:
+    :param data_source_to_video_path:
+    :param output_file_name: (str)
+    :param output_dir:
+    :param text_prefix:
+    :param output_fps: (int)
+    :param fourcc: (str)
+
+    :param kwargs:
+        text_prefix : str
+
+        font_scale : int
+
+        text_colour_bgr : Tuple[int, int, int]
+
+        rectangle_colour_bgr : Tuple[int, int, int]
+
+        text_offset_x : int
+
+        text_offset_y : int
+
+
+    :return: None
+    """
+    font: int = cv2.FONT_HERSHEY_COMPLEX
+
+    # Kwargs
+    font_scale = kwargs.get('font_scale', config.DEFAULT_FONT_SCALE)
+    rectangle_colour_bgr: Tuple[int, int, int] = kwargs.get('rectangle_bgr', config.DEFAULT_TEXT_BACKGROUND_BGR)  # 000=Black box?
+    text_colour_bgr: Tuple[int, int, int] = kwargs.get('text_colour_bgr', config.DEFAULT_TEXT_BGR)
+    # text_prefix = kwargs.get('text_prefix', '')
+    text_offset_x = kwargs.get('text_offset_x', 50)
+    text_offset_y = kwargs.get('text_offset_y', 125)
+
+    # Arg checking
+    # check_arg.ensure_is_file(video_file_path)
+    check_arg.ensure_has_valid_chars_for_path(output_file_name)
+    check_arg.ensure_is_dir(output_dir)
+    check_arg.ensure_type(output_fps, int, float)  # TODO: uncomment this later
+    # # Check kwargs
+    check_arg.ensure_type(font_scale, int)
+    check_arg.ensure_type(rectangle_colour_bgr, tuple)
+    check_arg.ensure_type(rectangle_colour_bgr[0], int)
+    check_arg.ensure_type(text_colour_bgr, tuple)
+    check_arg.ensure_type(text_prefix, str)
+    check_arg.ensure_type(text_offset_x, int)
+    check_arg.ensure_type(text_offset_y, int)
+
+    ### Execute ###
+    # Open source video
+
+    def _open_video_file(video_path):
+        # AARONT: TODO: Will this fail if the video doesn't exist?
+        cv2_source_video_object = cv2.VideoCapture(video_path)
+        total_frames_of_source_vid = int(cv2_source_video_object.get(cv2.CAP_PROP_FRAME_COUNT))
+        logger.debug(f"Total # of frames in video: {total_frames_of_source_vid}")
+        logger.debug(f"Is it opened? {cv2_source_video_object.isOpened()}")
+        return cv2_source_video_object
+
+
+    data_source_to_open_video_file = {
+        data_source: _open_video_file(video_path)
+        for data_source, video_path in data_source_to_video_path.items()
+    }
+
+    # Get dimensions of first frame in video, use that to instantiate VideoWriter parameters
+    temp_data_source = list(data_source_to_open_video_file.keys())[0]
+    cv2_source_video_object = data_source_to_open_video_file[temp_data_source]
+    cv2_source_video_object.set(1, 0)
+    is_frame_retrieved, frame = cv2_source_video_object.read()
+    if not is_frame_retrieved:
+        err = f'Frame not retrieved. Is video path correct? data source associated with video: {temp_data_source}'
+        logger.error(err)
+        raise ValueError(err)
+    height, width, _layers = frame.shape
+
+    # Open video writer object
+    four_character_code = cv2.VideoWriter_fourcc(*fourcc)
+    full_output_video_path = os.path.join(output_dir, f'{output_file_name}.mp4') # AARONT: TODO: Why is this mp4 and fourcc is avc1?
+    logger.debug(f'Video saving to: {full_output_video_path}')
+
+    # AARONT: TODO: Allow argument for video writer to be passed in, then we can call this function repeatedly and pass a vid writer through.
+    video_writer = cv2.VideoWriter(
+        full_output_video_path,                                 # Full output file path
+        four_character_code,                                    # fourcc -- four character code
+        output_fps,                                             # fps
+        (width, height)                                         # frameSize
+    )
+
+    # Return list of tuples representing a clip from a video, all from the same source.
+    # list[tuple(label, user_assignment_label, color, frame_idx), ...]
+    # Loop over all requested frames, add text, then append to list for later video creation
+    for data_source, clips in data_source_with_video_clip_tuples:
+        cv2_source_video_object = data_source_to_open_video_file[data_source]
+        for label, current_behaviour, color, frame_idx in clips:
+            # current_behaviour = current_behaviour_list[i] # AARONT: TODO: Do we need both label and assignment? Yes
+            # logger.debug(f'label, frame_idx = {label}, {frame_idx} // type(label), type(frame_idx) = {type(label)}, {type(frame_idx)}')  # TODO: remove this line after type debugging
+            cv2_source_video_object.set(1, frame_idx)
+            is_frame_retrieved, frame = cv2_source_video_object.read()
+            if not is_frame_retrieved:
+                no_frame_err = f'frame index ({frame_idx}) not found not found. Total frames in ' \
+                               f'video: {int(cv2_source_video_object.get(cv2.CAP_PROP_FRAME_COUNT))}'
+                raise Exception(no_frame_err)
+
+            text_for_frame = f'Frame index: {frame_idx} // {text_prefix}Current Assignment: {label} // Current behaviour label: {current_behaviour}'
+
+            text_width, text_height = cv2.getTextSize(text_for_frame, font, fontScale=font_scale, thickness=1)[0]
+
+            # # New attempt implementation for functional addition of text/color
+            # # def put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, text_color_tuple: Tuple[int], rectangle_colour_bgr: Tuple[int], disposition_x: int = 0, disposition_y: int = 0):
+            # # 1/2: top level text
+            frame = put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, color, rectangle_colour_bgr)
+            frame = add_border(frame, color=text_colour_bgr, pixel_width=10)
+
+            # 2/2: Bottom level text (STILL WIP! -- put_text_over_box_on_image() needs to be debugged first before uncomment below
+            # frame = put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, text_color_tuple, rectangle_colour_bgr, disposition_x=100, disposition_y=50)
+
+            # Write to video
+            video_writer.write(frame)
+
+    ###########################################################################################
+    ### Now that all necessary frames are extracted & labeled, create video with them.
+    # Extract first image in images list. Get dimensions for video.
+    # All done. Release video, clean up, then return.
+    video_writer.release()
+    cv2.destroyAllWindows()
+    logger.debug(f'{get_current_function()}(): Done writing video.')
+    return
 
 ### In development
 # Previuosly: fourcc='mp4v', but then videos weren't being created well
-def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frames_indices_list: Union[List, Tuple], output_file_name: str, video_source: str, current_behaviour_list: List[str] = (), output_fps=15, fourcc='avc1', output_dir=config.OUTPUT_PATH, text_colors_list: Union[Tuple, List] = (), **kwargs):
+def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frames_indices_list: Union[List, Tuple],
+                                          output_file_name: str, video_file_path: str,
+                                          current_behaviour_list: List[str] = (), output_fps=15, fourcc='avc1',
+                                          output_dir=config.OUTPUT_PATH, text_colors_list: Union[Tuple, List] = (),
+                                          **kwargs):
     """
     # PREVIOUSLY: fourcc='mp4v' was default
     # PREVIOUSLY code was 'H264'
@@ -27,7 +175,7 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
 
     :param labels_list: (List[Any]) a list of labels to be included onto the frames for the final video
     :param frames_indices_list: (List[int]) a list of frames by index to be labeled and included in final video
-    :param video_source: (str) a path to a video file ___
+    :param video_file_path: (str) a path to a video file ___
     :param current_behaviour_list:
     :param output_file_name: (str)
     :param output_fps: (int)
@@ -62,7 +210,7 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
     text_offset_y = kwargs.get('text_offset_y', 125)
 
     # Arg checking
-    check_arg.ensure_is_file(video_source)
+    check_arg.ensure_is_file(video_file_path)
     check_arg.ensure_has_valid_chars_for_path(output_file_name)
     check_arg.ensure_is_dir(output_dir)
     check_arg.ensure_type(output_fps, int, float)  # TODO: uncomment this later
@@ -101,7 +249,7 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
 
     ### Execute ###
     # Open source video
-    cv2_source_video_object = cv2.VideoCapture(video_source)
+    cv2_source_video_object = cv2.VideoCapture(video_file_path)
     total_frames_of_source_vid = int(cv2_source_video_object.get(cv2.CAP_PROP_FRAME_COUNT))
     logger.debug(f"Total # of frames in video: {total_frames_of_source_vid}")
     logger.debug(f"Is it opened? {cv2_source_video_object.isOpened()}")
@@ -110,7 +258,7 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
     cv2_source_video_object.set(1, 0)
     is_frame_retrieved, frame = cv2_source_video_object.read()
     if not is_frame_retrieved:
-        err = f'Frame not retrieved. Is video path correct? video_source = {video_source} '
+        err = f'Frame not retrieved. Is video path correct? video_source = {video_file_path} '
         logger.error(err)
         raise ValueError(err)
     height, width, _layers = frame.shape
@@ -119,6 +267,8 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
     four_character_code = cv2.VideoWriter_fourcc(*fourcc)
     full_output_video_path = os.path.join(output_dir, f'{output_file_name}.mp4')
     logger.debug(f'Video saving to: {full_output_video_path}')
+
+    # AARONT: TODO: Allow argument for video writer to be passed in, then we can call this function repeatedly and pass a vid writer through.
     video_writer = cv2.VideoWriter(
         full_output_video_path,                                 # Full output file path
         four_character_code,                                    # fourcc -- four character code
@@ -141,26 +291,6 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
         text_for_frame = f'Frame index: {frame_idx} // {text_prefix}Current Assignment: {label} // Current behaviour label: {current_behaviour}'
 
         text_width, text_height = cv2.getTextSize(text_for_frame, font, fontScale=font_scale, thickness=1)[0]
-
-        # # Old, working implementation below
-        # # Add background colour for text
-        # box_top_left, box_top_right = (
-        #     (text_offset_x - 12, text_offset_y + 12),  # pt1, or top left point
-        #     (text_offset_x + text_width + 12, text_offset_y - text_height - 8),  # pt2, or bottom right point
-        # )
-        # cv2.rectangle(frame, box_top_left, box_top_right, rectangle_colour_bgr, cv2.FILLED)
-        # # Add text
-        # cv2.putText(
-        #     img=frame,
-        #     text=str(text_for_frame),
-        #     org=(text_offset_x, text_offset_y),
-        #     fontFace=font,
-        #     fontScale=font_scale,
-        #     color=text_color_tuple,
-        #     thickness=1
-        # )
-        # # numpy_frames.append(frame)
-
 
         # # New attempt implementation for functional addition of text/color
         # # def put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, text_color_tuple: Tuple[int], rectangle_colour_bgr: Tuple[int], disposition_x: int = 0, disposition_y: int = 0):
@@ -238,7 +368,8 @@ def generate_frame_filename(frame_idx: int, ext=config.FRAMES_OUTPUT_FORMAT) -> 
 
 def write_video_with_existing_frames(video_path, frames_dir_path, output_vid_name, output_fps=config.OUTPUT_VIDEO_FPS):  # TODO: <---------------------------------- Used just fine --------------------------------------
     """
-
+    TODO: Purpose seems to have been making video creation faster and/or allowing different formats to be created easily.
+          AND for use in multi-processing frame writing?
     :param video_path:
     :param frames_dir_path:
     :param output_vid_name:

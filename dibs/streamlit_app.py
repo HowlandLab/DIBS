@@ -943,8 +943,6 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
 
     # AARONT: TODO: Here we give options based on prefix and join path.  This is a temp solution to cut down on number of vids being shown and allow to look at the vids just generated. Long term solution would be to only show vids that are valid for the currently loaded model and clean generated vids periodically (maybe constantly).
     ### Section: create drop-down menu to review videos
-    # example_videos_file_list: List[str] = [video_file_name for video_file_name in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if video_file_name.split('.')[-1] in valid_video_extensions]  # # TODO: low/med: add user intervention on default path to check?
-    # ex_video_dirs: List[str] = [directory for directory in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if os.path.isdir(directory)]
     ex_video_dirs: List[str] = [directory for directory in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if os.path.isdir(os.path.join(config.EXAMPLE_VIDEOS_OUTPUT_PATH, directory))]
     ex_video_dirs_selection = st.selectbox(label=f'Select directory name corresponding to videos you want to see (you would have specified this when creating the videos)', options=ex_video_dirs)
 
@@ -973,6 +971,7 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
         session[key_button_show_example_videos_options] = not session[key_button_show_example_videos_options]
     if session[key_button_show_example_videos_options]:
         st.markdown(f'Fill in variables for making new example videos of behaviours. Does this line of text need to be altered or even removed?')
+        data_source_type = st.selectbox(f'Select type of data to use (training data is usually what you want)', options=['training', 'predict'])
         ex_video_dir_name = clean_string(st.text_input(f'File name prefix. This prefix will help differentiate between example video sets.'))
         number_input_output_fps = st.number_input(f'Output FPS for example videos', value=8., min_value=1., step=1., format='%.2f')
         number_input_max_examples_of_each_behaviour = st.number_input(f'Maximum number of videos created for each behaviour', value=5, min_value=1)
@@ -983,7 +982,6 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
         st.markdown('')
 
         # Get video paths for training data.
-        input_video_paths: Dict[str, str] = p.training_video_sources
         ### Create new example videos button
         st.markdown('#### When the variables above are filled out, press the "Confirm" button below to create new example videos')
         st.markdown('')
@@ -999,16 +997,14 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
             # Continue if good.
             if not is_error_detected:
                 with st.spinner('Creating new videos...'):
-                    logger.debug(f'WIP: Now we make the vids...  Video sources: {input_video_paths}')
-                    # p = p.make_behaviour_example_videos(
-                    #     select_data_source,
-                    #     input_video,
-                    #     ex_video_dir_name,
-                    #     min_rows_of_behaviour=number_input_min_rows,
-                    #     max_examples=number_input_max_examples_of_each_behaviour,
-                    #     output_fps=number_input_output_fps,
-                    #     num_frames_buffer=number_input_frames_leadup,
-                    # )
+                    p = p.make_behaviour_example_videos(
+                        data_source_type,
+                        ex_video_dir_name,
+                        min_rows_of_behaviour=number_input_min_rows,
+                        max_examples=number_input_max_examples_of_each_behaviour,
+                        output_fps=number_input_output_fps,
+                        num_frames_buffer=number_input_frames_leadup,
+                    )
                 st.success(f'Example videos created!')  # TODO: low: improve message
                 session[key_button_show_example_videos_options] = False
                 n = session[default_n_seconds_sleep]
