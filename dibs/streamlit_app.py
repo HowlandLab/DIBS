@@ -55,7 +55,8 @@ pipeline_options = {  # Key=Pipeline name + optional description. Value=Pipeline
     # 'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
     'PipelineKitchenSink: a debug pipeline for too many features': pipeline.PipelineKitchenSink,
     # 'PipelineIBNS'
-    'PipelineIBNS: CHBO object exploration pipeline': pipeline.PipelineIBNS,
+    'PipelineIBNS: CHBO object exploration pipeline': pipeline.PipelineIBNS_first_one,
+    'PipelineISBN_second_with_time_shifting': pipeline.PipelineIBNS_second_with_time_shifting,
 }
 valid_layouts = {'centered', 'wide'}
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
@@ -316,7 +317,8 @@ Success! Your new project pipeline has been saved to disk to the following path:
             logger.debug(f'Open LOAD EXISTING option')
             st.markdown('## Load existing project pipeline')
 
-            existing_pipeline_files: List[str] = [''] + [file for file in os.listdir(config.PIPELINE_OUTPUT_PATH)]
+            existing_pipeline_files: List[str] = \
+                [config.default_pipeline_file_path_or_name] + [file for file in os.listdir(config.PIPELINE_OUTPUT_PATH)]
 
             input_text_path_to_pipeline_file = os.path.join(
                 config.PIPELINE_OUTPUT_PATH,
@@ -417,13 +419,22 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
 
         st.markdown(f'- Number of data points in training data set: '
                     f'**{len(p.df_features_train_raw)//p.average_over_n_frames if not p.is_built else len(p.df_features_train_scaled)}**')
-        st.markdown(f'Params')
-        st.markdown(f'- Perplexity: {p.tsne_perplexity}')
-        st.markdown(f'- Perplexity % of training data (perp / data): {round(p.tsne_perplexity_relative_to_num_data_points, 5)*100}%')
+
+        # TODO: Right now this displays really poorly.  Figure out a way to fix it.
+        st.markdown(f'{p._embedder.__class__.__name__} params:')
+        st.markdown(f'{p._embedder.params_as_string()}')
+
+        st.markdown(f'{p._clusterer.__class__.__name__} params:')
+        st.markdown(f'{p._clusterer.params_as_string()}')
+
+        st.markdown(f'{p._clf.__class__.__name__} params:')
+        st.markdown(f'{p._clf.params_as_string()}')
+
+        # st.markdown(f'- Perplexity % of training data (perp / data): {round(p.tsne_perplexity_relative_to_num_data_points, 5)*100}%')
         acc_pct = f'{p.accuracy_score * 100.}%' if p.accuracy_score >= 0. else 'N/A'
         st.markdown(f'- Accuracy (with test fraction at {p.test_train_split_pct*100.}% of total training data): **{acc_pct}**')
         st.markdown(f'Model Feature Names:')
-        for feat in p.all_features:
+        for feat in p.all_engineered_features:
             st.markdown(f'- - {feat}')
         st.markdown(f'Results')
         st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
@@ -441,13 +452,18 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
     # Model check before displaying actions that could further change pipeline state.
     if p.is_in_inconsistent_state:
         st.markdown('')
-        st.info("""
+        st.info(fr"""
 The pipeline is detected to be in an inconsistent state. 
 
 Some common causes include adding/deleting training data or changing model 
 parameters without subsequently rebuilding the model.
 
-We recommend that you rebuild the model to avoid future problems. """.strip())
+We recommend that you rebuild the model to avoid future problems.
+
+Dev details:
+
+{p.get_inconsistent_state_repr()}
+""".strip())
 
     # # TODO: for below commented-out: add a CONFIRM button to confirm model re-build, then re-instate
 
@@ -506,16 +522,6 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
             session[key_button_add_predict_data_source] = False  # Close the menu for adding prediction data
         if session[key_button_add_train_data_source]:
             # # New implementation via tkinter (NOT WORKING YET - THREAD SAFE PROBS)
-            # st.markdown('')
-
-            # root = tk.Tk()
-            # root.withdraw()
-            # file_paths: Tuple[str] = tk.filedialog.askopenfilenames(initialdir=config.DIBS_BASE_PROJECT_PATH)
-            # root.destroy()
-
-            # uf = st.file_uploader('upload file')
-            # st.markdown(f'uf.name = {uf.name}')
-            # st.markdown(f'uf.label = {uf.label}')
 
             # p = p.add_train_data_source(*file_paths).save(os.path.dirname(pipeline_file_path))
             # st.success(f'Success! Refresh page to see changes')
@@ -529,7 +535,12 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
             # Original implementation below: dont delete yet!
             st.markdown(f"_Input a file path below to data which will be used to train the model._\n\n_You may input a file path or a path to a directory. If a directory is entered, all CSVs directly within will be added as training data_")
-            input_new_data_source = st.text_input('')
+            if config.DEFAULT_TRAIN_DATA_DIR:
+                input_new_data_source = st.selectbox('Select dataset to add: ', options=['']+[file for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)])
+                if input_new_data_source:
+                    input_new_data_source = os.path.join(config.DEFAULT_TRAIN_DATA_DIR, input_new_data_source)
+            else:
+                input_new_data_source = st.text_input('Past absolute path to data to add: ')
             if input_new_data_source:
                 # Check if file exists
                 if not os.path.isfile(input_new_data_source) and not os.path.isdir(input_new_data_source):
@@ -629,6 +640,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
     st.markdown('')
 
+    # AARONT: TODO: How are the config values read from disk? Ever modified?
     ### Menu button: rebuilding model ###
     button_see_rebuild_options = st.button('Toggle: Review Model Parameters & Rebuild Model', key_button_see_rebuild_options)
     if button_see_rebuild_options:  # Click button, flip state
@@ -652,7 +664,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
         # st.markdown('---')
 
         st.markdown('### Gaussian Mixture Model Parameters')
-        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=p.gmm_n_components, min_value=2, max_value=40, step=1)
+        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=p._clusterer.n_components, min_value=2, max_value=40, step=1)
         st.markdown(f'_You have currently selected __{slider_gmm_n_components}__ clusters_')
 
         # Extra info: GMM components
@@ -666,7 +678,8 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
         ### Other model info ###
         st.markdown('### Other model information')
-        input_cross_validation_k = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
+        # TODO: Remove?
+        ## input_cross_validation_k = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
         # TODO: med/high: add number input for % holdout for test/train split
         # Hack solution: specify params here so that the variable exists even though advanced params section not opened.
 
@@ -676,15 +689,29 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
         st.markdown('')
         ### Set up default values for advanced parameters in case the user does not set advanced parameters at all
-        features = p.all_features
+        # features = p.all_features # TODO: Unused, remove?
+        embedder_params, clusterer_params, clf_params = p.get_model_params()
+
         input_average_over_n_frames = p.average_over_n_frames
-        select_classifier = p.classifier_type
-        select_rf_n_estimators = p.rf_n_estimators
-        input_svm_c, input_svm_gamma = p.svm_c, p.svm_gamma
-        input_tsne_learning_rate, input_tsne_perplexity, = p.tsne_learning_rate, p.tsne_perplexity
-        input_tsne_early_exaggeration, input_tsne_n_components = p.tsne_early_exaggeration, p.tsne_n_components
-        input_tsne_n_iter, input_gmm_reg_covar, input_gmm_tol = p.tsne_n_iter, p.gmm_reg_covar, p.gmm_tol
-        input_gmm_max_iter, input_gmm_n_init = p.gmm_max_iter, p.gmm_n_init
+
+        # TODO: Streamline the streamlit stuff.  This is temporary
+        input_tsne_learning_rate = embedder_params['learning_rate']
+        input_tsne_perplexity = embedder_params['make_this_better_perplexity']
+        input_tsne_early_exaggeration = embedder_params['early_exaggeration']
+        input_tsne_n_components = embedder_params['n_components']
+        input_tsne_n_iter = embedder_params['n_iter']
+
+        input_gmm_reg_covar = clusterer_params['reg_covar']
+        input_gmm_tol = clusterer_params['tol']
+        input_gmm_max_iter = clusterer_params['max_iter']
+        input_gmm_n_init = clusterer_params['n_init']
+
+        # TODO: REMOVE TEMP HACKS HERE!!  This whole thing needs to be generalized in some way.
+        select_classifier = p._clf.__class__
+        input_svm_c = clf_params.get('c')
+        input_svm_gamma = clf_params.get('gamma')
+        select_rf_n_estimators = clf_params.get('n_estimators')
+
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
         # TODO: HIGH IMPORTANCE! The advanced parameters should reflect the classifier type being used (SVM vs RF vs something new in the future)
@@ -705,57 +732,57 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                         ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
                         ' Section 2 includes perplexity.')
             # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
-            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=p.tsne_perplexity if p.tsne_perplexity else 100., min_value=0.1)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
+            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=input_tsne_perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
             # Extra info: tsne-perplexity
             if session[checkbox_show_extra_text]:
                 st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')  # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
-            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=p.tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
+            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=input_tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
             # Extra info: learning rate
             if session[checkbox_show_extra_text]:
                 st.info('TODO: learning rate')  # TODO: low
-            input_tsne_early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=p.tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
+            input_tsne_early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=input_tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
             # Extra info: early exaggeration
             if session[checkbox_show_extra_text]:
                 st.info('TODO: early exaggeration')  # TODO: low
-            input_tsne_n_iter = st.number_input(label=f'TSNE N Iterations', value=p.tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
+            input_tsne_n_iter = st.number_input(label=f'TSNE N Iterations', value=input_tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
             # Extra info: number of iterations
             if session[checkbox_show_extra_text]:
                 st.info('TODO: number of iterations')  # TODO: low
-            input_tsne_n_components = st.number_input(f'TSNE N Components/Dimensions', value=p.tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
+            input_tsne_n_components = st.number_input(f'TSNE N Components/Dimensions', value=input_tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
             # Extra info: number of components (dimensions)
             if session[checkbox_show_extra_text]:
                 st.info('TODO: number of components (dimensions)')  # TODO: low
 
             st.markdown(f'### Advanced GMM parameters')
-            input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=p.gmm_reg_covar, format='%f')
+            input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=input_gmm_reg_covar, format='%f')
             # Extra info: reg covar
             if session[checkbox_show_extra_text]:
                 st.info('TODO: reg covar')  # TODO: low
-            input_gmm_tol = st.number_input(f'GMM tolerance', value=p.gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
+            input_gmm_tol = st.number_input(f'GMM tolerance', value=input_gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
             # Extra info: GMM tolerance
             if session[checkbox_show_extra_text]:
                 st.info('TODO: GMM tolerance')  # TODO: low
-            input_gmm_max_iter = st.number_input(f'GMM max iterations', value=p.gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
+            input_gmm_max_iter = st.number_input(f'GMM max iterations', value=input_gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
             # Extra info: GMM max iterations
             if session[checkbox_show_extra_text]:
                 st.info('TODO: GMM max iterations')  # TODO: low
-            input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=p.gmm_n_init, min_value=1, step=1, format="%i")
+            input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=input_gmm_n_init, min_value=1, step=1, format="%i")
             # Extra info: GMM number of initializations
             if session[checkbox_show_extra_text]:
                 st.info('TODO: GMM number of initializations')  # TODO: low
 
             st.markdown(f'### Advanced Classifier Parameters')
-            select_classifier = st.selectbox('Select a classifier type:', options=[p.classifier_type] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p.classifier_type])
+            select_classifier = st.selectbox('Select a classifier type:', options=[p._clf.__class__.__name__] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p._clf.__class__.__name__])
             if select_classifier == 'SVM':
                 ### SVM ###
-                input_svm_c = st.number_input(f'SVM C', value=p.svm_c, min_value=1e-10, format='%.2f')
+                input_svm_c = st.number_input(f'SVM C', value=input_svm_c, min_value=1e-10, format='%.2f')
                 if session[checkbox_show_extra_text]:
                     st.info('TODO: explain SVM "C" parameter')  # TODO: low
-                input_svm_gamma = st.number_input(f'SVM gamma', value=p.svm_gamma, min_value=1e-10, format='%.2f')
+                input_svm_gamma = st.number_input(f'SVM gamma', value=input_svm_gamma, min_value=1e-10, format='%.2f')
                 if session[checkbox_show_extra_text]:
                     st.info('TODO: explain SVM "gamma" parameter')  # TODO: low
             elif select_classifier == 'RANDOMFOREST':
-                select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p.rf_n_estimators, min_value=1, max_value=1_000, format='%i')
+                select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p._clf.n_estimators, min_value=1, max_value=1_000, format='%i')
                 if session[checkbox_show_extra_text]:
                     st.info('TODO: explain RF # of trees and roughly optimal #')
         ### End of Show Advanced Params Section
@@ -779,29 +806,39 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                     with st.spinner('Building model. This could take a couple minutes...'):
                         model_vars = {
                             # General opts
-                            'classifier_type': select_classifier,
-                            'rf_n_estimators': select_rf_n_estimators,
                             'video_fps': input_video_fps,
                             'average_over_n_frames': input_average_over_n_frames,
+                            # 'cross_validation_k': input_cross_validation_k, # TODO: Remove?
 
-                            'gmm_n_components': slider_gmm_n_components,
-
-                            'cross_validation_k': input_cross_validation_k,
-
-                            # Advanced opts
-                            'tsne_perplexity': input_tsne_perplexity,
-                            'tsne_learning_rate': input_tsne_learning_rate,
-                            'tsne_early_exaggeration': input_tsne_early_exaggeration,
-                            'tsne_n_iter': input_tsne_n_iter,
-                            'tsne_n_components': input_tsne_n_components,
-
-                            'gmm_reg_covar': input_gmm_reg_covar,
-                            'gmm_tol': input_gmm_tol,
-                            'gmm_max_iter': input_gmm_max_iter,
-                            'gmm_n_init': input_gmm_n_init,
-
-                            'svm_c': input_svm_c,
-                            'svm_gamma': input_svm_gamma,
+                            # TODO: Generalize this dict of params so that we can dynamically set algos
+                            # Something like: {type_of_thing1: (selected_thing, selected_params_for_thing)}
+                            'EMBEDDER': (
+                                'TSNE', {
+                                    'perplexity': input_tsne_perplexity,
+                                    'learning_rate': input_tsne_learning_rate,
+                                    'early_exaggeration': input_tsne_early_exaggeration,
+                                    'n_iter': input_tsne_n_iter,
+                                    'n_components': input_tsne_n_components,
+                                }
+                            ),
+                            'CLUSTERER': (
+                                'GMM', {
+                                    'n_components': slider_gmm_n_components,
+                                    'reg_covar': input_gmm_reg_covar,
+                                    'tol': input_gmm_tol,
+                                    'max_iter': input_gmm_max_iter,
+                                    'n_init': input_gmm_n_init,
+                                }
+                            ),
+                            'CLF':
+                                ('RANDOMFOREST', {
+                                    # 'classifier_type': select_classifier,
+                                    'n_estimators': select_rf_n_estimators,
+                                })
+                            # 'SVM': {
+                            #     'svm_c': input_svm_c,
+                            #     'svm_gamma': input_svm_gamma,
+                            # }
 
                         }
 
@@ -820,7 +857,11 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                     time.sleep(n)
                     st.experimental_rerun()
                 except Exception as e:
-                    err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}. SEE LOGS FOR DETAILS.'
+                    traceback_string = '        \n'.join(traceback.format_exc().split('\n'))
+                    err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}.' \
+                          f'    \n'\
+                          f'    \nTraceback:' \
+                          f'    \n{traceback_string}.'
                     logger.error(err, exc_info=True)
                     st.error(err)
                     st.stop()
@@ -855,10 +896,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
         session[key_button_view_confusion_matrix] = not session[key_button_view_confusion_matrix]
     if session[key_button_view_confusion_matrix]:
         if p.is_built:
-            confusion_matrix_array = p.generate_confusion_matrix()
-            # mapp = sns.heatmap(cnf)
-            st.pyplot(sns.heatmap(confusion_matrix_array).get_figure())
-            # plt.show()
+            st.pyplot(p.plot_confusion_matrix())
         else:
             st.info(f'Confusion matrix not available since model has not been built.')
         if p.is_in_inconsistent_state:
@@ -890,7 +928,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
             st.markdown('')
             ### Show bar chart of % behaviour occurrence
             st.markdown(f'** Graph below: Transition matrix for behaviours **')
-            st.pyplot(p.create_transition_matrix_heatmap())
+            st.pyplot(p.plot_transition_matrix_heatmap())
         else:
             st.info('There are no assignment distributions available for display because '
                     'the model is not currently built.')
@@ -903,7 +941,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
     if session[key_button_view_assignments_clusters]:
         if p.is_built:
             azim, elevation = 15, 110
-            if p.tsne_n_components == 3:
+            if p._embedder.n_components == 3:
                 azim = st.slider('azimuth slider', value=azim, min_value=-90, max_value=90)
                 elevation = st.slider('elevation slider', value=elevation, min_value=1, max_value=180)
             try:  # Debugging try/catch. Remove when both 3-d and 2-d graphs show and don't crash the app.
@@ -1065,6 +1103,11 @@ def results_section(p: pipeline.BasePipeline, pipeline_file_path):
                  f'Currently, your pipeline file path reads as: "{pipeline_file_path}"')
     st.markdown('---------------------------------------------------------------------------------------------')
     st.markdown(f'## Create results')
+
+    # AARONT: TODO: This sounds like it should be labelling all the DATASETS for us.  Add functionality to produce all final labeled datasets.
+    #               (This seems to be what export is for?  Revisit)
+    # AARONT: TODO: Update to use a default output video dir, use all dataset videos and make one video for each (of training or of predict)
+    #               and then to allow viewing the labelled videos.
     ### Label an entire video ###
     button_menu_label_entire_video = st.button('Toggle: Use pipeline model to label to entire video', key=key_button_menu_label_entire_video)
     if button_menu_label_entire_video: session[key_button_menu_label_entire_video] = not session[key_button_menu_label_entire_video]
@@ -1146,7 +1189,9 @@ def export_data(p: pipeline.BasePipeline, pipeline_file_path):
                 elif training_data_selec == scaled:
                     df_train = p.df_features_train_scaled
                 else:
-                    logging_enhanced.log_then_raise(f'Invalid data selected ({training_data_selec}).', logger, ValueError)
+                    err = f'Invalid data selected ({training_data_selec}).'
+                    logger.error(err)
+                    raise ValueError(err)
                 st.info(f'Saving file to "{raw_data_save_location}"...')
                 with st.spinner(f'Trying to save training (raw) data to: {raw_data_save_location}...'):
                     df_train.to_csv(raw_data_save_location, index=None)

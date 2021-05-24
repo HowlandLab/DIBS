@@ -138,23 +138,11 @@ def get_current_function() -> str:
     return inspect.stack()[1][3]
 
 
-def get_caller_function() -> str:
+def get_caller_function(_up_extra_frames=0) -> str:
     """
     Get the string name of the function which calls the current function the interpreter is in.
     """
-    return inspect.stack()[2][3]
-
-
-def log_then_raise(err_msg: str, logger: logging.Logger, exception):
-    """
-    Log an error then raise corresponding exception. Helps save space since this pattern is seen often.
-    :param err_msg: (str) Error message
-    :param logger: (Logger object)
-    :param exception: A valid python exception that can be raised
-    :return:
-    """
-    logger.error(err_msg)
-    raise exception(err_msg)
+    return inspect.stack()[2+_up_extra_frames][3]
 
 
 # Example functions (not actively in use but useful to have)

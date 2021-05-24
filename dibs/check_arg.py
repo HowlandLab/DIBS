@@ -20,7 +20,7 @@ logger = config.initialize_logger(__name__)
 
 ###
 
-def ensure_type(var, *expected_types):
+def ensure_type(var, *expected_types, _up_extra_frames=0):
     """
     Checks that input variable `var` matches at least 1 of the expected types.
     If it does match an expected type, function returns immediately without problem.
@@ -28,11 +28,15 @@ def ensure_type(var, *expected_types):
     """
     for t in expected_types:
         if isinstance(var, t):
-            return
-    type_err = f'Type-checking caller: {get_caller_function()}(): For object (value = {var}), ' \
+            return True
+    type_err = f'Type-checking caller: {get_caller_function(_up_extra_frames=_up_extra_frames)}(): For object (value = {var}), ' \
                f'expected type(s) was {expected_types} but instead found {type(var)}'
     logger.error(type_err)
     raise TypeError(type_err)
+
+
+def ensure_int(var): return ensure_type(var, int, _up_extra_frames=1)
+def ensure_float(var): return ensure_type(var, float, _up_extra_frames=1)
 
 
 def ensure_collection_not_empty(collection):

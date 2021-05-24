@@ -81,7 +81,7 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
         raise ValueError(non_standard_dlc_top_row_err)
     # Save scorer/model name for later column creation
     dlc_scorer = top_row_without_scorer[0]
-    # Remove top row (e.g.: [scorer, DLCModel, DLCModel, ... ]) now that we have saved the model name
+    # Remove top row (e.g.: [scorer, DLCModel, DLCModel, ...]) now that we have saved the model name
     df = df.iloc[1:, :]
 
     # # Manipulate Frame based on next two rows to create column names.
@@ -106,7 +106,7 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     # Instantiate 'scorer' column so we can track the model if needed later
     df['scorer'] = dlc_scorer
     # File source __________
-    df['file_source'] = csv_file_path
+    # df['file_source'] = csv_file_path
     # Save data file name (different from pathing source)
     df['data_source'] = file_name_without_extension
     # Number the frames

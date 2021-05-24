@@ -56,7 +56,8 @@ def attach_average_bodypart_xy(df: pd.DataFrame, bodypart_1: str, bodypart_2: st
         if feat_xy not in set(df.columns):
             err_missing_feature = f'{logging_enhanced.get_current_function()}(): missing feature column "{feat_xy}", ' \
                                   f'so cannot calculate avg position. Columns = {list(df.columns)}'
-            logging_enhanced.log_then_raise(err_missing_feature, logger, KeyError)
+            logger.error(err_missing_feature)
+            raise KeyError(err_missing_feature)
 
     # hindpaw_left = config.get_part('HINDPAW_LEFT') if hindpaw_left is None else hindpaw_left
     # hindpaw_right = config.get_part('HINDPAW_RIGHT') if hindpaw_right is None else hindpaw_right
@@ -172,6 +173,55 @@ def attach_feature_velocity_of_bodypart(df: pd.DataFrame, bodypart: str, action_
     return df
 
 
+def attach_delta_of_single_column(df: pd.DataFrame, bodypart: str, action_duration: float, output_feature_name: str, copy=False, infer_bodypart_name_from_config=False) -> pd.DataFrame:
+    # Check args
+    check_arg.ensure_type(df, pd.DataFrame)
+    check_arg.ensure_type(bodypart, str)
+    check_arg.ensure_type(output_feature_name, str)
+    check_arg.ensure_type(copy, bool)
+    check_arg.ensure_type(infer_bodypart_name_from_config, bool)
+    # Resolve kwargs
+    bodypart = config.get_part(bodypart) if infer_bodypart_name_from_config else bodypart
+    df = df.copy() if copy else df
+    # Calculate velocities
+    arr = df[[bodypart]].values.flatten()
+    delta_array: np.ndarray = delta_of_array(arr) / action_duration
+    # With output array of values, attach to DataFrame
+    df[f'{output_feature_name}'] = delta_array
+
+    return df
+
+
+def delta_of_array(arr: np.ndarray) -> np.ndarray:
+    ret = np.zeros(len(arr))
+    ret[1:] = arr[:-1] - arr[1:] # delta at t0 remains 0; Could use NaN but those can reproduce unexpectedly.
+    return ret
+
+
+def attach_time_shifted_data(df: pd.DataFrame, bodypart: str, tau: int, output_feature_name: str, copy=False) -> pd.DataFrame:
+    # Check args
+    check_arg.ensure_type(df, pd.DataFrame)
+    check_arg.ensure_type(bodypart, str)
+    check_arg.ensure_type(output_feature_name, str)
+    check_arg.ensure_type(copy, bool)
+    df = df.copy() if copy else df
+    # Calculate velocities
+    bodyparts = [col for col in df.columns if bodypart in col]
+    if not bodyparts:
+        err = f'There are no columns in the data frame which contain {bodypart} as a sub string, as such we can not produce the time shifted features'
+        logger.error(err)
+        raise RuntimeError(err)
+
+    for b in bodyparts:
+        arr: pd.Series = df[[b]]
+        tau_array: pd.Series = arr.shift(periods=tau)
+        # With output array of values, attach to DataFrame
+        string_difference = b.strip(bodypart)
+        df[f'{output_feature_name+string_difference}'] = tau_array
+
+    return df
+
+
 def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_feature_name: str, copy=False) -> pd.DataFrame:
     """
     # TODO: med: add docstring
@@ -191,7 +241,7 @@ def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_
     return df
 
 
-def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results_by: Optional[List[str]] = None, random_state=config.RANDOM_STATE, copy: bool = False) -> pd.DataFrame:
+def attach_train_test_split_col(df, test_col: str, test_pct: float, random_state: int, sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
     """
 
     :param df:
@@ -208,7 +258,8 @@ def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results
         check_arg.ensure_type(sort_results_by, list)
         if len(sort_results_by) <= 0:
             err = f'{logging_enhanced.get_current_function()}(): List cannot be empty TODO: elaborate'
-            logging_enhanced.log_then_raise(err, logger, ValueError)
+            logger.error(err)
+            raise ValueError()
         for col_name in sort_results_by:
             check_arg.ensure_type(col_name, str)
 

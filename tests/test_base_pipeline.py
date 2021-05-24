@@ -469,7 +469,7 @@ class TestPipeline(TestCase):
         old_value = 10
         new_value = 'lambda self: len(self.all_features) * 1.0'
         p = get_unique_pipeline_loaded_with_data().set_params(**{property_of_note: old_value}).build()
-        expected_value = len(p.all_features) * 1.0
+        expected_value = len(p.all_engineered_features) * 1.0
         assert old_value != new_value
         # logger.debug(f'Preplexity: {p.tsne_perplexity} / num features: {len(p.all_features)}')
         new_params = {property_of_note: new_value, }
