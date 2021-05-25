@@ -30,6 +30,7 @@ import time
 from types import FunctionType
 
 from dibs.pipeline_pieces import FeatureEngineerer, Embedderer, Clusterer, CLF
+from dibs import pipeline_pieces
 
 
 # from pandas.core.common import SettingWithCopyWarning
@@ -347,11 +348,11 @@ class BasePipeline(BasePipelineAttributeHolder):
     """
 
     # Model objects.  Only objects in this class rather than Holder
-    _feature_engineerer : FeatureEngineerer = None
+    _feature_engineerer : FeatureEngineerer = getattr(pipeline_pieces, config.DEFAULT_FEATURE_ENGINEERER)()
     # TODO: Scalar??  Not sure what that is used for yet.
-    _embedder : Embedderer = None
-    _clusterer : Clusterer = None
-    _clf : CLF = None
+    _embedder : Embedderer = getattr(pipeline_pieces, config.DEFAULT_EMBEDDER)()
+    _clusterer : Clusterer = getattr(pipeline_pieces, config.DEFAULT_CLUSTERER)()
+    _clf : CLF = getattr(pipeline_pieces, config.DEFAULT_CLASSIFIER)()
 
     # Init
     def __init__(self, name: str, **kwargs):
@@ -1016,7 +1017,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         """"""
         # if n_clusters is not None: # TODO: Remove??
         #     self.set_params(gmm_n_components=n_clusters)
-        self._clusterer = Clusterer.get(self.)
+        # TODO: Where do we reset the self._clusterer?? And the other models?? Where should we??
 
         # Train GMM, get assignments
         logger.debug(f'Training GMM now...')
