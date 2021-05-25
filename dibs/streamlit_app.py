@@ -665,7 +665,8 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
         ### Other model info ###
         st.markdown('### Other model information')
-        input_cross_validation_k = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
+        # TODO: Remove?
+        ## input_cross_validation_k = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
         # TODO: med/high: add number input for % holdout for test/train split
         # Hack solution: specify params here so that the variable exists even though advanced params section not opened.
 
@@ -675,15 +676,24 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
         st.markdown('')
         ### Set up default values for advanced parameters in case the user does not set advanced parameters at all
-        features = p.all_features
+        # features = p.all_features # TODO: Unused, remove?
+        embedder_params, clusterer_params, clf_params = p.get_model_params()
+
         input_average_over_n_frames = p.average_over_n_frames
+
+        input_tsne_learning_rate, input_tsne_perplexity, = embedder_params.tsne_learning_rate, embedder_params.tsne_perplexity
+        input_tsne_early_exaggeration, input_tsne_n_components = embedder_params.tsne_early_exaggeration, embedder_params.tsne_n_components
+        input_tsne_n_iter = embedder_params.tsne_n_iter
+
+        input_gmm_reg_covar = clusterer_params.gmm_reg_covar
+        input_gmm_tol = clusterer_params.gmm_tol
+        input_gmm_max_iter, input_gmm_n_init = clusterer_params.gmm_max_iter, clusterer_params.gmm_n_init
+
+        # TODO: REMOVE TEMP HACKS HERE!!  This whole thing needs to be generalized in some way.
         select_classifier = p.classifier_type
-        select_rf_n_estimators = p.rf_n_estimators
-        input_svm_c, input_svm_gamma = p.svm_c, p.svm_gamma
-        input_tsne_learning_rate, input_tsne_perplexity, = p.tsne_learning_rate, p.tsne_perplexity
-        input_tsne_early_exaggeration, input_tsne_n_components = p.tsne_early_exaggeration, p.tsne_n_components
-        input_tsne_n_iter, input_gmm_reg_covar, input_gmm_tol = p.tsne_n_iter, p.gmm_reg_covar, p.gmm_tol
-        input_gmm_max_iter, input_gmm_n_init = p.gmm_max_iter, p.gmm_n_init
+        input_svm_c, input_svm_gamma = clf_params.svm_c, clf_params.svm_gamma
+        select_rf_n_estimators = clf_params.rf_n_estimators
+
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
         # TODO: HIGH IMPORTANCE! The advanced parameters should reflect the classifier type being used (SVM vs RF vs something new in the future)
@@ -782,25 +792,28 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                             'rf_n_estimators': select_rf_n_estimators,
                             'video_fps': input_video_fps,
                             'average_over_n_frames': input_average_over_n_frames,
+                            # 'cross_validation_k': input_cross_validation_k, # TODO: Remove?
 
-                            'gmm_n_components': slider_gmm_n_components,
-
-                            'cross_validation_k': input_cross_validation_k,
-
-                            # Advanced opts
-                            'tsne_perplexity': input_tsne_perplexity,
-                            'tsne_learning_rate': input_tsne_learning_rate,
-                            'tsne_early_exaggeration': input_tsne_early_exaggeration,
-                            'tsne_n_iter': input_tsne_n_iter,
-                            'tsne_n_components': input_tsne_n_components,
-
-                            'gmm_reg_covar': input_gmm_reg_covar,
-                            'gmm_tol': input_gmm_tol,
-                            'gmm_max_iter': input_gmm_max_iter,
-                            'gmm_n_init': input_gmm_n_init,
-
-                            'svm_c': input_svm_c,
-                            'svm_gamma': input_svm_gamma,
+                            # TODO: Generalize this dict of params so that we can dynamically set algos
+                            'TSNE': {
+                                # Advanced opts
+                                'tsne_perplexity': input_tsne_perplexity,
+                                'tsne_learning_rate': input_tsne_learning_rate,
+                                'tsne_early_exaggeration': input_tsne_early_exaggeration,
+                                'tsne_n_iter': input_tsne_n_iter,
+                                'tsne_n_components': input_tsne_n_components,
+                            },
+                            'GMM': {
+                                'gmm_n_components': slider_gmm_n_components,
+                                'gmm_reg_covar': input_gmm_reg_covar,
+                                'gmm_tol': input_gmm_tol,
+                                'gmm_max_iter': input_gmm_max_iter,
+                                'gmm_n_init': input_gmm_n_init,
+                            },
+                            'SVM': {
+                                'svm_c': input_svm_c,
+                                'svm_gamma': input_svm_gamma,
+                            }
 
                         }
 

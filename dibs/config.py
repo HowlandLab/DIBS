@@ -207,11 +207,16 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH), f'
 
 
 ### GENERAL CLASSIFIER VARIABLES ###
+DEFAULT_EMBEDDER: str = configuration.get('EMBEDDER', 'DEFAULT_EMBEDDER')
+DEFAULT_CLUSTERER: str = configuration.get('CLUSTERER', 'DEFAULT_CLUSTERER')
 DEFAULT_CLASSIFIER: str = configuration.get('CLASSIFIER', 'DEFAULT_CLASSIFIER')
 CLASSIFIER_VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
 ### Classifier asserts
+valid_embedders = {'TSNE'}
+valid_clusterers = {'GMM', 'SPECTRAL', 'DBSCAN'}
 valid_classifiers = {'SVM', 'RANDOMFOREST'}
+# TODO: Dynamically parse valid embedders, clusterers, and classifiers from modules
 
 assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detected: "{DEFAULT_CLASSIFIER}". ' \
                                                 f'Valid classifier values include: {valid_classifiers}'
@@ -230,7 +235,7 @@ gmm_n_init = configuration.getint('GMM', 'n_init')
 gmm_init_params = configuration.get('GMM', 'init_params')
 gmm_verbose = configuration.getint('GMM', 'verbose')
 gmm_verbose_interval = configuration.getint('GMM', 'verbose_interval') if configuration.get('GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
-EMGMM_PARAMS = {
+GMM_PARAMS = {
     'n_components': gmm_n_components,
     'covariance_type': gmm_covariance_type,
     'tol': gmm_tol,
