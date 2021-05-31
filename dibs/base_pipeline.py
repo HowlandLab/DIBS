@@ -44,6 +44,7 @@ logger = config.initialize_logger(__name__)
 
 # Base pipeline objects that outline the Pipeline API
 class BasePipelineAttributeHolder(object):
+    """ Philosophy: Read config once at start up unless told otherwise.  Hence, all objects should always be viable. """
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
 
@@ -350,9 +351,9 @@ class BasePipeline(BasePipelineAttributeHolder):
     # Model objects.  Only objects in this class rather than Holder
     _feature_engineerer : FeatureEngineerer = getattr(pipeline_pieces, config.DEFAULT_FEATURE_ENGINEERER)()
     # TODO: Scalar??  Not sure what that is used for yet.
-    _embedder : Embedderer = getattr(pipeline_pieces, config.DEFAULT_EMBEDDER)()
-    _clusterer : Clusterer = getattr(pipeline_pieces, config.DEFAULT_CLUSTERER)()
-    _clf : CLF = getattr(pipeline_pieces, config.DEFAULT_CLASSIFIER)()
+    _embedder : Embedderer = getattr(pipeline_pieces, config.DEFAULT_EMBEDDER)(42)
+    _clusterer : Clusterer = getattr(pipeline_pieces, config.DEFAULT_CLUSTERER)(42)
+    _clf : CLF = getattr(pipeline_pieces, config.DEFAULT_CLASSIFIER)(42) # TODO: Random state NEEDS to be handled!!
 
     # Init
     def __init__(self, name: str, **kwargs):
@@ -425,6 +426,12 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         ### TSNE ###
         # TSNE implementation type
+        # TODO: Get TSNE params dict.  Then assign by calling set_params() on the thing downstream
+        # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly
+        # self._feature_engineerer.set_params(params[self._feature_engineerer.__class__]) # TODO: Should feature engineering be handled differently or nah??? Yes but only because it is expensive.  We have to make sure things have actually changed.
+        # self._embedder.set_params(params[self._embedder.__class__])
+        # self._clusterer.set_params(params[self._clusterer.__class__])
+        # self._classifier.set_params(params[self._classifier.__class__])
         tsne_implementation = kwargs.get('tsne_implementation', config.TSNE_IMPLEMENTATION if read_config_on_missing_param else self.tsne_implementation)
         check_arg.ensure_type(tsne_implementation, str)
         self.tsne_implementation = tsne_implementation

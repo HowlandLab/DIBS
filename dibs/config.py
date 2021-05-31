@@ -25,7 +25,8 @@ import random
 import sys
 import time
 
-from dibs import logging_enhanced
+from dibs import logging_enhanced, pipeline_pieces
+from dibs.pipeline_pieces import FeatureEngineerer, Embedderer, Clusterer, CLF
 
 
 ### Debug options
@@ -89,7 +90,7 @@ for path in (
     EXAMPLE_VIDEOS_OUTPUT_PATH,
     PIPELINE_OUTPUT_PATH
 ):
-    os.path.isdir(path) or os.makedirs(path) # Will fail if a path is provided that is not a directory for any of these arguments.
+    os.path.isdir(path) or os.makedirs(path) # Will fail if a path is provided that is an existing file for any of these arguments.
 
 assert os.path.isdir(OUTPUT_PATH), f'SPECIFIED OUTPUT PATH INVALID/DOES NOT EXIST: {OUTPUT_PATH}'
 assert os.path.isdir(VIDEO_OUTPUT_FOLDER_PATH), \
@@ -129,6 +130,7 @@ if STREAMLIT_DEFAULT_VIDEOS_FOLDER:
     assert os.path.isabs(STREAMLIT_DEFAULT_VIDEOS_FOLDER), f'Streamlit config `DEFAULT_VIDEOS_FOLDER` Path is not absolute: {STREAMLIT_DEFAULT_VIDEOS_FOLDER}'
 
 ### MODEL ###############################################################
+# TODO: Move to feature_engineerer config/setup
 AVERAGE_OVER_N_FRAMES: int = configuration.getint('MODEL', 'AVERAGE_OVER_N_FRAMES')
 CROSS_VALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
 CROSS_VALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
@@ -214,11 +216,23 @@ DEFAULT_CLASSIFIER: str = configuration.get('CLASSIFIER', 'DEFAULT_CLASSIFIER')
 CLASSIFIER_VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
 ### Classifier asserts
-valid_embedders = {'TSNE'}
-valid_clusterers = {'GMM', 'SPECTRAL', 'DBSCAN'}
-valid_classifiers = {'SVM', 'RANDOMFOREST'}
+all_model_class_defs = dict([(name, cls) for name, cls in pipeline_pieces.__dict__.items() if isinstance(cls, type)])
+
+valid_feature_engineerers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, FeatureEngineerer)]
+# valid_embedders = {'TSNE'}
+valid_embedders = [name for name, cls in all_model_class_defs.items() if issubclass(cls, Embedderer)]
+# valid_clusterers = {'GMM', 'SPECTRAL', 'DBSCAN'}
+valid_clusterers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, Clusterer)]
+# valid_classifiers = {'SVM', 'RANDOMFOREST'}
+valid_classifiers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, CLF)]
 # TODO: Dynamically parse valid embedders, clusterers, and classifiers from modules
 
+assert DEFAULT_FEATURE_ENGINEERER in valid_feature_engineerers, f'An invalid feature_engineerer was specified in config.ini: {DEFAULT_FEATURE_ENGINEERER}.' \
+                                                                f'Valid feature_engineerer classes: {valid_feature_engineerers}'
+assert DEFAULT_EMBEDDER in valid_embedders, f'An invalid embedder was specified in config.ini: {DEFAULT_EMBEDDER}.' \
+                                                                f'Valid embedder classes: {valid_embedders}'
+assert DEFAULT_CLUSTERER in valid_clusterers, f'An invalid clusterer was specified in config.ini: {DEFAULT_CLUSTERER}.' \
+                                                                f'Valid clusterer classes: {valid_clusterers}'
 assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detected: "{DEFAULT_CLASSIFIER}". ' \
                                                 f'Valid classifier values include: {valid_classifiers}'
 # assert CLASSIFIER_N_JOBS
@@ -226,25 +240,37 @@ assert CLASSIFIER_VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIE
 
 
 ### GMM PARAMS #########################################################################################################
+# TODO: Implement a generic config loader for unspecified classes.
+# FEATURE_ENGINEERER_SPECIFICATION = If using custom load from a config file here
+# TODO: Software eng questions: Pick up the raw configurations, have the models parameter setter read it? OR Should the models just read the config?? Nah
+#       The models shouldn't know anything about the config and the config shouldn't know anything about the models, beyond the models
+#       complaining when they get invalid input.
 
-gmm_n_components = configuration.getint('GMM', 'n_components')
-gmm_covariance_type = configuration.get('GMM', 'covariance_type')
-gmm_tol = configuration.getfloat('GMM', 'tol')
-gmm_reg_covar = configuration.getfloat('GMM', 'reg_covar')
-gmm_max_iter = configuration.getint('GMM', 'max_iter')
-gmm_n_init = configuration.getint('GMM', 'n_init')
-gmm_init_params = configuration.get('GMM', 'init_params')
-gmm_verbose = configuration.getint('GMM', 'verbose')
-gmm_verbose_interval = configuration.getint('GMM', 'verbose_interval') if configuration.get('GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
+# TODO: Allow specification of robust config parsers for our models that are well defined, while still allowing pass through??
+all_embedder_params = {name: configuration[name] for name in valid_embedders}
+all_clusterer_params = {name: configuration[name] for name in valid_clusterers}
+all_classifier_params = {name: configuration[name] for name in valid_classifiers}
+
+# TODO: Should we parse all the model params at startup? Or should we parse them when we build the models?
+#       When we build the models.  We can ignore any config that is malformed for a model we don't care about.
+embedder_params = configuration[DEFAULT_EMBEDDER]
+clusterer_params = configuration[DEFAULT_CLUSTERER]
+classifier_params = configuration[DEFAULT_CLASSIFIER]
+
+embedder_params = all_embedder_params[DEFAULT_EMBEDDER]
+clusterer_params = all_clusterer_params[DEFAULT_CLUSTERER]
+classifier_params = all_classifier_params[DEFAULT_CLASSIFIER]
+
 GMM_PARAMS = {
-    'n_components': gmm_n_components,
-    'covariance_type': gmm_covariance_type,
-    'tol': gmm_tol,
-    'reg_covar': gmm_reg_covar,
-    'max_iter': gmm_max_iter,
-    'n_init': gmm_n_init,
-    'init_params': gmm_init_params,
-    'verbose': gmm_verbose,
+    'n_components': configuration.getint('GMM', 'n_components'),
+    'covariance_type': configuration.get('GMM', 'covariance_type'),
+    'tol': configuration.getfloat('GMM', 'tol'),
+    'reg_covar': configuration.getfloat('GMM', 'reg_covar'),
+    'max_iter': configuration.getint('GMM', 'max_iter'),
+    'n_init': configuration.getint('GMM', 'n_init'),
+    'init_params': configuration.get('GMM', 'init_params'),
+    'verbose': configuration.getint('GMM', 'verbose'),
+    'verbose_interval': configuration.getint('GMM', 'verbose_interval') if configuration.get('GMM', 'verbose_interval') else 10,  # 10 is a default that can be changed  # TODO: low: address
     'random_state': RANDOM_STATE,
 }
 

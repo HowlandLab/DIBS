@@ -67,7 +67,7 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
 
     # # # # # # #
     # Read in CSV
-    df = pd.read_csv(csv_file_path, header=None, nrows=nrows)
+    df = pd.read_csv(csv_file_path, header=[0, 1, 2], nrows=nrows)
     # # Manipulate Frame based on top row
     # Check that the top row is like [scorer, DLCModel, DLCModel.1, DLCModel.2, ...] OR [scorer, DLCModel, DLCModel,...]
     # Use regex to truncate the decimal/number suffix if present.
@@ -80,21 +80,10 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
         logger.error(non_standard_dlc_top_row_err)
         raise ValueError(non_standard_dlc_top_row_err)
     # Save scorer/model name for later column creation
-    dlc_scorer = top_row_without_scorer[0]
+    # dlc_scorer = top_row_without_scorer[0]
     # Remove top row (e.g.: [scorer, DLCModel, DLCModel, ... ]) now that we have saved the model name
-    df = df.iloc[1:, :]
-
-    # # Manipulate Frame based on next two rows to create column names.
-    # Create columns based on next two rows. Combine the tow rows of each column and separate with "_"
-    array_of_next_two_rows = np.array(df.iloc[:2, :])
-    new_column_names: List[str] = []
-    for col_idx in range(array_of_next_two_rows.shape[1]):
-        new_col = f'{array_of_next_two_rows[0, col_idx]}_{array_of_next_two_rows[1, col_idx]}'
-        new_column_names += [new_col, ]
-    df.columns = new_column_names
-
-    # Remove next two rows (just column names, no data here) now that columns names are instantiated
-    df = df.iloc[2:, :]
+    dlc_scorer = df.columns[1][0] # HACK: Extract the dlc model that did the scoring.
+    df.columns = [(body_part, dimension) for _, body_part, dimension in df.columns] # strip the first section from the column sepc.
 
     # # Final touches
     # Delete "coords" column since it is just a numerical counting of rows. Not useful data.
@@ -106,7 +95,7 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     # Instantiate 'scorer' column so we can track the model if needed later
     df['scorer'] = dlc_scorer
     # File source __________
-    df['file_source'] = csv_file_path
+    # df['file_source'] = csv_file_path
     # Save data file name (different from pathing source)
     df['data_source'] = file_name_without_extension
     # Number the frames
