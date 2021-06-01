@@ -305,7 +305,7 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
 
     return veloc_array
 
-def attach_delta_of_single_column(df: pd.DataFrame, bodypart: str, action_duration: float, output_feature_name: str, copy=False, infer_bodypart_name_from_config=False) -> np.ndarray:
+def attach_delta_of_single_column(df: pd.DataFrame, bodypart: str, action_duration: float, output_feature_name: str, copy=False, infer_bodypart_name_from_config=False) -> pd.DataFrame:
     # Check args
     check_arg.ensure_type(df, pd.DataFrame)
     check_arg.ensure_type(bodypart, str)
@@ -326,7 +326,7 @@ def attach_delta_of_single_column(df: pd.DataFrame, bodypart: str, action_durati
 
 def delta_of_array(arr: np.ndarray) -> np.ndarray:
     ret = np.zeros(len(arr))
-    ret[:-1] = arr[:-1] - arr[1:]
+    ret[1:] = arr[:-1] - arr[1:] # delta at t0 remains 0; Could use NaN but those can reproduce unexpectedly.
     return ret
 
 
