@@ -357,12 +357,35 @@ class BasePipelineAttributeHolder(object):
     @staticmethod
     def _video_path_finder(data_sources: list) -> Dict[str, str]:
         # Use name matching on video path to find videos
-        video_paths = os.listdir(config.VIDEO_INPUT_FOLDER_PATH)
-        find_path = lambda source: next((path for path in video_paths if os.path.splitext(path)[0] in source), None)
-        # TODO: Warn if there are any unmatched video paths, or any unmatched data sources
-        logger.debug(f'data_sources: {data_sources}')
-        logger.debug(f'video_paths: {video_paths}')
-        return {source: os.path.join(config.VIDEO_INPUT_FOLDER_PATH, find_path(source)) for source in data_sources if find_path(source)}
+        video_paths = sorted(os.listdir(config.VIDEO_INPUT_FOLDER_PATH))
+        sources = sorted(data_sources)
+        sources_to_video_paths = dict()
+        while len(video_paths) > 0:
+            path = video_paths.pop()
+            logger.debug(f'Just popped path: {path}')
+            temp_sources = sources.copy()
+            while len(temp_sources) > 0:
+                source = temp_sources.pop()
+                # HACK: The 'DLC.*' suffix is appended to all data sources, and we assume that this will be present,
+                #       and that the string prior to this suffix will be part of the path
+                if source.split('DLC')[0] in os.path.splitext(os.path.basename(path))[0]:
+                    if source in sources_to_video_paths:
+                        # TODO: Come up with more robust logic, or actionable solution for the user to take.  Possible solution: Have the split pattern specified in config.ini
+                        raise RuntimeError(f'Double matched source {source} to multiple paths: {path}, {sources_to_video_paths[source]}')
+                    sources_to_video_paths[source] = os.path.join(config.VIDEO_INPUT_FOLDER_PATH, path)
+                    # HACK: Have to remove from the sources list... so there is no double matching
+                    sources.remove(source)
+                    break
+            else:
+                logger.warn(f'Video path not matched to any data source: {path}; This is probably undesirable.')
+        logger.info(f'Matched videos and paths as follows:')
+        for k,v in sources_to_video_paths.items():
+            logger.info(f'{k}: {v}')
+        if unmatched_datasources := sorted(set(data_sources) - set(sources_to_video_paths.keys())):
+            logger.warn(f'Sources not matched to a video path:')
+            for source in unmatched_datasources:
+                logger.warn(f'{source}')
+        return sources_to_video_paths
 
     @property
     def training_video_sources(self) -> Dict[str, str]:
