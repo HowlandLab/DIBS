@@ -358,8 +358,10 @@ class BasePipelineAttributeHolder(object):
     def _video_path_finder(data_sources: list) -> Dict[str, str]:
         # Use name matching on video path to find videos
         video_paths = os.listdir(config.VIDEO_INPUT_FOLDER_PATH)
-        find_path = lambda source: next((path for path in video_paths if source in path), None)
-        logger.debug(video_paths)
+        find_path = lambda source: next((path for path in video_paths if os.path.splitext(path)[0] in source), None)
+        # TODO: Warn if there are any unmatched video paths, or any unmatched data sources
+        logger.debug(f'data_sources: {data_sources}')
+        logger.debug(f'video_paths: {video_paths}')
         return {source: os.path.join(config.VIDEO_INPUT_FOLDER_PATH, find_path(source)) for source in data_sources if find_path(source)}
 
     @property

@@ -305,6 +305,30 @@ def velocity_of_xy_feature(arr: np.ndarray, secs_between_rows: float) -> np.ndar
 
     return veloc_array
 
+def attach_delta_of_single_column(df: pd.DataFrame, bodypart: str, action_duration: float, output_feature_name: str, copy=False, infer_bodypart_name_from_config=False) -> np.ndarray:
+    # Check args
+    check_arg.ensure_type(df, pd.DataFrame)
+    check_arg.ensure_type(bodypart, str)
+    check_arg.ensure_type(output_feature_name, str)
+    check_arg.ensure_type(copy, bool)
+    check_arg.ensure_type(infer_bodypart_name_from_config, bool)
+    # Resolve kwargs
+    bodypart = config.get_part(bodypart) if infer_bodypart_name_from_config else bodypart
+    df = df.copy() if copy else df
+    # Calculate velocities
+    arr = df[[bodypart]].values.flatten()
+    delta_array: np.ndarray = delta_of_array(arr) / action_duration
+    # With output array of values, attach to DataFrame
+    df[f'{output_feature_name}'] = delta_array
+
+    return df
+
+
+def delta_of_array(arr: np.ndarray) -> np.ndarray:
+    ret = np.zeros(len(arr))
+    ret[:-1] = arr[:-1] - arr[1:]
+    return ret
+
 
 def delta_two_body_parts_angle(body_part_arr_1, body_part_arr_2) -> np.ndarray:
     """
@@ -838,6 +862,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
                            f'has {len(df_adaptively_filtered_data)}. Should be same number.'
         logger.error(missing_rows_err)
         raise ValueError(missing_rows_err)
+
     return df_adaptively_filtered_data, percent_filterd_per_bodypart__perc_rect
 
 

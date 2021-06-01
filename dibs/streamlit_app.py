@@ -54,6 +54,8 @@ pipeline_options = {  # Key=Pipeline name + optional description. Value=Pipeline
     'PipelineMimic: a pipeline that mimics the B-SOiD implementation for Open Field': pipeline.PipelineMimic,
     # 'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
     'PipelineKitchenSink: a debug pipeline for too many features': pipeline.PipelineKitchenSink,
+    # 'PipelineIBNS'
+    'PipelineIBNS: CHBO object exploration pipeline': pipeline.PipelineIBNS,
 }
 valid_layouts = {'centered', 'wide'}
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
