@@ -135,7 +135,8 @@ AVERAGE_OVER_N_FRAMES: int = configuration.getint('MODEL', 'AVERAGE_OVER_N_FRAME
 CROSS_VALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
 CROSS_VALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
 HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
-RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE') if configuration.get('MODEL', 'RANDOM_STATE') else random.randint(1, 100_000_000)
+RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE') if configuration.get('MODEL', 'RANDOM_STATE') else None
+    # random.randint(1, 100_000_000)
 
 ### MODEL ASSERTS
 assert CROSS_VALIDATION_K >= 2, f'CROSS_VALIDATION_K must be 2 or greater. Instead, found: {CROSS_VALIDATION_K}'

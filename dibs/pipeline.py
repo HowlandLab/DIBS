@@ -83,7 +83,7 @@ class PipelinePrime(BasePipeline):
         df_filtered, _ = feature_engineering.adaptively_filter_dlc_output(df)
         # Engineer features
         df_features: pd.DataFrame = feature_engineering.engineer_7_features_dataframe(
-            df_filtered, features_names_7=list(self.all_features))
+            df_filtered, features_names_7=list(self.all_engineered_features))
 
         # Ensure columns don't get dropped by accident
         for col in columns_to_save:
@@ -167,7 +167,7 @@ class PipelineRetreat(BasePipeline):
         # Engineer features
         df_features: pd.DataFrame = feature_engineering.engineer_7_features_dataframe(
             df_filtered,
-            features_names_7=list(self.all_features),
+            features_names_7=list(self.all_engineered_features),
             map_names={
                 'Head': 'NOSETIP',
                 'ForepawLeft': 'FOREPAW_LEFT',
@@ -229,7 +229,7 @@ class PipelineEPM(BasePipeline):
         # Engineer features
         df_features: pd.DataFrame = feature_engineering.engineer_7_features_dataframe(
             df_filtered,
-            features_names_7=list(self.all_features),
+            features_names_7=list(self.all_engineered_features),
             map_names=map_mouse_point_to_config_name,
         )
         # Ensure columns don't get dropped by accident
@@ -672,7 +672,7 @@ class PipelineHowlandUMAP(PipelineHowland):
             low_memory=False,
         )
 
-        arr_result = reducer.fit_transform(data[list(self.all_features)].values)
+        arr_result = reducer.fit_transform(data[list(self.all_engineered_features)].values)
         return arr_result
 
 
@@ -694,7 +694,7 @@ class PipelineHowlandLLE(PipelineHowland):
             n_jobs=self.tsne_n_jobs,
         )
 
-        arr_result = reducer.fit_transform(data[list(self.all_features)].values)
+        arr_result = reducer.fit_transform(data[list(self.all_engineered_features)].values)
         return arr_result
 
 

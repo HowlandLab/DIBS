@@ -421,7 +421,7 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
         acc_pct = f'{p.accuracy_score * 100.}%' if p.accuracy_score >= 0. else 'N/A'
         st.markdown(f'- Accuracy (with test fraction at {p.test_train_split_pct*100.}% of total training data): **{acc_pct}**')
         st.markdown(f'Model Feature Names:')
-        for feat in p.all_features:
+        for feat in p.all_engineered_features:
             st.markdown(f'- - {feat}')
         st.markdown(f'Results')
         st.markdown(f'- Total unique behaviours clusters: **{len(p.unique_assignments) if p.is_built else "[Not Available]"}**')
@@ -810,10 +810,13 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                                 'gmm_max_iter': input_gmm_max_iter,
                                 'gmm_n_init': input_gmm_n_init,
                             },
-                            'SVM': {
-                                'svm_c': input_svm_c,
-                                'svm_gamma': input_svm_gamma,
+                            'RANDOMFOREST' : {
+
                             }
+                            # 'SVM': {
+                            #     'svm_c': input_svm_c,
+                            #     'svm_gamma': input_svm_gamma,
+                            # }
 
                         }
 

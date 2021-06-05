@@ -42,6 +42,7 @@ class BasePipelineAttributeHolder(object):
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
 
+    # TODO: Separate random states for each algo?
     _random_state: int = config.RANDOM_STATE
 
     # Model objects.  Modular, so that we can swap out different parts of the algorithm independently.
@@ -168,7 +169,7 @@ class BasePipelineAttributeHolder(object):
     def plot_transition_matrix_heatmap(self, cmap=sns.color_palette("Blues", as_cmap=True),
                                        save_name=None,
                                        save_format=config.DEFAULT_SAVED_GRAPH_FILE_FORMAT, **kwargs):
-        # TODO: Add these options too stuff and things.
+        # TODO: Add these options too stuff and things?
         # TODO: Add axis labels.  Change labels to reflect user labels
         # sns.set(rc={'figure.figsize':(11.7, 8.27)})
         hm=sns.heatmap(
@@ -209,7 +210,7 @@ class BasePipelineAttributeHolder(object):
             return 0
 
         df_train = df_train.loc[
-            (~df_train[list(self.all_features)].isnull().any(axis=1))
+            (~df_train[list(self.all_engineered_features)].isnull().any(axis=1))
             & (~df_train[self.test_col_name])
             # &
             # (~df_train[self.clusterer_assignment_col_name].isnull())
@@ -299,10 +300,10 @@ class BasePipelineAttributeHolder(object):
         return []
 
     @property
-    def all_features(self) -> Tuple[str]: return self._all_features
+    def all_engineered_features(self) -> Tuple[str]: return self._feature_engineerer._all_engineered_features
 
     @property
-    def all_features_list(self) -> List[str]: return list(self._all_features)
+    def all_engineered_features_list(self) -> List[str]: return list(self.all_engineered_features)
 
     @property
     def dims_cols_names(self) -> List[str]:
@@ -384,22 +385,6 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         video_fps : int
             Explanation goes here
-
-        random_state : int
-            Explanation __
-
-        tsne_n_components : int
-
-        tsne_n_iter : int
-
-        tsne_early_exaggeration : float
-
-        tsne_n_jobs : int
-
-        tsne_verbose : int
-
-        TODO: low: complete list
-
         """
 
         # TODO: Accept dict of {algo: params}... NOTE: Should this be just algo names or should it be {type_of_algo: (algo_name, params)}
@@ -735,7 +720,7 @@ class BasePipeline(BasePipelineAttributeHolder):
             check_arg.ensure_frame_indices_are_integers(df_i)
             logger.debug(f'{get_current_function()}(): Engineering df feature set {i+1} of {len(list_dfs_of_raw_data)}')
             df_engineered_features: pd.DataFrame = self.engineer_features(df_i)
-            df_engineered_features = df_engineered_features.astype({feature: float for feature in self.all_features})
+            df_engineered_features = df_engineered_features.astype({feature: float for feature in self.all_engineered_features})
             list_dfs_engineered_features.append(df_engineered_features)
 
         # Aggregate all data into one DataFrame, return
@@ -826,7 +811,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         """
         # Queue up data to use
         if features is None:
-            features = self.all_features
+            features = self.all_engineered_features
         features = list(features)
         df_features_train = self.df_features_train.copy()
 
@@ -858,7 +843,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         """
         # Queue up data to use
         if features is None:
-            features = self.all_features
+            features = self.all_engineered_features
         features = list(features)
         df_features_predict = self.df_features_predict
 
@@ -949,14 +934,14 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Grab train data
         df_train_data_for_tsne = self.df_features_train_scaled.loc[
             (~self.df_features_train_scaled[self.test_col_name])  # Train only
-            & (~self.df_features_train_scaled[self.all_features_list].isnull().any(axis=1))  # Non-null features only
+            & (~self.df_features_train_scaled[self.all_engineered_features_list].isnull().any(axis=1))  # Non-null features only
             ].copy()
 
         # TODO: new implementation for dim reduc
         # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)  # Original
 
-        check_arg.ensure_columns_in_DataFrame(df_train_data_for_tsne, self.all_features_list)
-        arr_tsne_result: np.ndarray = self._embedder.embed(df_train_data_for_tsne[list(self.all_features)])  # Original
+        check_arg.ensure_columns_in_DataFrame(df_train_data_for_tsne, self.all_engineered_features_list)
+        arr_tsne_result: np.ndarray = self._embedder.embed(df_train_data_for_tsne[list(self.all_engineered_features)])  # Original
         # arr_tsne_result = self._train_cvae(df_train_data_for_tsne)  # CVAE
         # arr_tsne_result = self._train_isomap(df_train_data_for_tsne)  # ISOMAP
         # arr_tsne_result = self._locally_linear_dim_reduc(df_train_data_for_tsne)  # local lienar
@@ -981,7 +966,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Grab train data
         df_train_data_for_tsne = self.df_features_train_scaled.loc[
             (~self.df_features_train_scaled[self.test_col_name])  # Train only
-            & (~self.df_features_train_scaled[self.all_features_list].isnull().any(axis=1))  # Non-null features only
+            & (~self.df_features_train_scaled[self.all_engineered_features_list].isnull().any(axis=1))  # Non-null features only
             ].copy()
 
         # TODO: new implementation for dim reduc
@@ -1042,13 +1027,13 @@ class BasePipeline(BasePipelineAttributeHolder):
         df[self.test_col_name] = df[self.test_col_name].astype(bool)
         # Select only
         df = df.loc[
-            (~df[list(self.all_features)].isnull().any(axis=1)) &
+            (~df[list(self.all_engineered_features)].isnull().any(axis=1)) &
             (~df[self.clusterer_assignment_col_name].isnull()) &
             (df[self.clusterer_assignment_col_name] != self.null_gmm_label) &
             (~df[self.test_col_name])
             ]
 
-        X=df[list(self.all_features)]
+        X=df[list(self.all_engineered_features)]
         y=df[self.clusterer_assignment_col_name]
         self._clf.train(X, y)
         return self
@@ -1062,7 +1047,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         """
         df = self.df_features_train_scaled
         df = df.loc[
-            (~df[list(self.all_features)+[self.clf_assignment_col_name]].isnull().any(axis=1))
+            (~df[list(self.all_engineered_features) + [self.clf_assignment_col_name]].isnull().any(axis=1))
             # & (df[] != self.label_999)
         ]
         logger.debug(f'Generating cross-validation scores...')
@@ -1070,7 +1055,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         try:
             self._cross_val_scores = cross_val_score(
                 self.clf,
-                df[self.all_features_list].values,
+                df[self.all_engineered_features_list].values,
                 df[self.clf_assignment_col_name].values,
                 cv=self.cross_validation_k,
                 n_jobs=self.cross_validation_n_jobs,
@@ -1083,7 +1068,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         df_features_train_scaled_test_data = df.loc[df[self.test_col_name]]
 
         self._acc_score = accuracy_score(
-            y_pred=self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)]),
+            y_pred=self.clf_predict(df_features_train_scaled_test_data[list(self.all_engineered_features)]),
             y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
         logger.debug(f'Pipeline train accuracy: {self.accuracy_score}')
         return self
@@ -1094,7 +1079,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         :return:
         """
         # Set classifier predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_features_list].apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_engineered_features_list].apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_engineered_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
         self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: self.null_classifier_label if x != x else x)
         self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
 
@@ -1124,7 +1109,7 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         # Add prediction labels
         if len(self.df_features_predict_scaled) > 0:
-            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf_predict(self.df_features_predict_scaled[list(self.all_features)].values)
+            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf_predict(self.df_features_predict_scaled[list(self.all_engineered_features)].values)
         else:
             logger.debug(f'{get_current_function()}(): 0 records were detected '
                          f'for PREDICT data. No data was predicted with model.')
@@ -1471,7 +1456,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         ]
 
         y_true = df_data[self.clf_assignment_col_name].values
-        y_pred = self.clf_predict(df_data[self.all_features_list].values)
+        y_pred = self.clf_predict(df_data[self.all_engineered_features_list].values)
 
         # Generate confusion matrix
         # df_features_train_scaled_test_data = self.df_features_train_scaled_train_split_only.loc[self.df_features_train_scaled_train_split_only[self.test_col_name]];y_pred = self.clf_predict(df_features_train_scaled_test_data[list(self.all_features)]);y_true = df_features_train_scaled_test_data[self.clf_assignment_col_name].values
@@ -1525,7 +1510,7 @@ rf_n_estimators = {self.rf_n_estimators}
 rf_n_jobs = rf_n_job{self.rf_n_jobs}
 rf_verbose = rf_verbos{self.rf_verbose}
 # Column names
-_all_features = {self._all_features}
+all_engineered_features = {self.all_engineered_features}
 
 """.strip()
         return diag

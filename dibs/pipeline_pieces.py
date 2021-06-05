@@ -49,7 +49,7 @@ class WithStreamlitParamDialog(object):
 class FeatureEngineerer(object):
     """ Examples: Custom built feature engineering for each task"""
 
-    _all_features = None # TODO: Force overriding _all_features
+    _all_engineered_features = None # TODO: Force overriding _all_features
 
     def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames: int) -> pd.DataFrame:
         raise NotImplementedError()
@@ -69,7 +69,7 @@ class HowlandFeatureEngineerer(FeatureEngineerer):
     feat_name_dist_AvgHindpaw_Nosetip = 'DistanceAvgHindpawToNosetip'
     feat_name_dist_AvgForepaw_NoseTip = 'DistanceAvgForepawToNosetip'
     feat_name_velocity_AvgForepaw = 'VelocityAvgForepaw'
-    _all_features = (
+    _all_engineered_features = (
         feat_name_dist_forepawleft_nosetip,
         feat_name_dist_forepawright_nosetip,
         feat_name_dist_forepawLeft_hindpawLeft,
@@ -158,11 +158,17 @@ class HowlandFeatureEngineerer(FeatureEngineerer):
 class Embedderer(WithRandomState, WithParams):
     """ Examples: pca, tsne, umap """
     _model = None
+    _n_reduced_dimensions = -1
     def embed(self, data: pd.DataFrame) -> np.ndarray:
         raise NotImplementedError()
 
     def _train(self, data: pd.DataFrame):
-        """ Some implementations can be trained and the model can be used later """
+        """ Some implementations can be trained and the model can be used later
+        For example OpenTSNE allows for reusing of the embedding to add new data.
+        Technially this could be used as a classifier, by reusing the OpenTSNE and
+        a pre-trained clustering algorithm, although this may not scale well and would
+        be much slower at classifying new data than a pre trained classifier.
+        """
         raise NotImplementedError()
 
 
