@@ -25,17 +25,11 @@ import os
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import sys
 import time
 from types import FunctionType
 
 from dibs.pipeline_pieces import FeatureEngineerer, Embedderer, Clusterer, CLF
 from dibs import pipeline_pieces
-
-
-# from pandas.core.common import SettingWithCopyWarning
-# from tqdm import tqdm
-# import openTSNE  # openTSNE only supports n_components 2 or less
 
 from dibs.logging_enhanced import get_current_function
 from dibs import check_arg, config, feature_engineering, io, logging_enhanced, statistics, videoprocessing, visuals
@@ -47,6 +41,15 @@ class BasePipelineAttributeHolder(object):
     """ Philosophy: Read config once at start up unless told otherwise.  Hence, all objects should always be viable. """
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
+
+    _random_state: int = config.RANDOM_STATE
+
+    # Model objects.  Modular, so that we can swap out different parts of the algorithm independently.
+    _feature_engineerer : FeatureEngineerer = getattr(pipeline_pieces, config.DEFAULT_FEATURE_ENGINEERER)()
+    # TODO: Scalar??  Not sure what that is used for yet.
+    _embedder : Embedderer = getattr(pipeline_pieces, config.DEFAULT_EMBEDDER)(_random_state)
+    _clusterer : Clusterer = getattr(pipeline_pieces, config.DEFAULT_CLUSTERER)(_random_state)
+    _clf : CLF = getattr(pipeline_pieces, config.DEFAULT_CLASSIFIER)(_random_state)
 
     # Column names7 # TODO: Rename, and/or load defaults based on config.
     clusterer_assignment_col_name, clf_assignment_col_name, = 'clusterer_assignment', 'classifier_assignment'
@@ -73,7 +76,6 @@ class BasePipelineAttributeHolder(object):
     video_fps: float = config.VIDEO_FPS
     # cross_validation_k: int = config.CROSS_VALIDATION_K # TODO: Remove?
     # cross_validation_n_jobs: int = config.CROSS_VALIDATION_N_JOBS # TODO: Remove?
-    _random_state: int = config.RANDOM_STATE
     average_over_n_frames: int = config.AVERAGE_OVER_N_FRAMES
     test_train_split_pct: float = config.HOLDOUT_PERCENT
 
@@ -291,11 +293,6 @@ class BasePipelineAttributeHolder(object):
         return list(np.unique(self.df_features_predict_raw['data_source'].values))
 
     @property
-    def raw_assignments(self):
-        raise NotImplementedError('Not implemented and not used anywhere')
-        return self.raw_assignments
-
-    @property
     def unique_assignments(self) -> List[any]:
         if len(self._df_features_train_scaled) > 0:
             return list(np.unique(self._df_features_train_scaled.loc[self._df_features_train_scaled[self.clf_assignment_col_name] != self.null_classifier_label][self.svm_col].values))
@@ -347,13 +344,6 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         # TODO: med: expand on further kwargs
     """
-
-    # Model objects.  Only objects in this class rather than Holder
-    _feature_engineerer : FeatureEngineerer = getattr(pipeline_pieces, config.DEFAULT_FEATURE_ENGINEERER)()
-    # TODO: Scalar??  Not sure what that is used for yet.
-    _embedder : Embedderer = getattr(pipeline_pieces, config.DEFAULT_EMBEDDER)(42)
-    _clusterer : Clusterer = getattr(pipeline_pieces, config.DEFAULT_CLUSTERER)(42)
-    _clf : CLF = getattr(pipeline_pieces, config.DEFAULT_CLASSIFIER)(42) # TODO: Random state NEEDS to be handled!!
 
     # Init
     def __init__(self, name: str, **kwargs):
