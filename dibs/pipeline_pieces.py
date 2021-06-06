@@ -30,30 +30,39 @@ class WithRandomState(object):
 
 class WithParams(object):
 
+    # specify custom parameter checkers, especially useful if multiple types are valid, if only a certain range
+    # for a numerical value is valid, or if only a specific set of strings is valid
+    _param_checkers = dict()
+    # Turn of parameter type checking completely if you want
+    _check_parameter_types = True
+
     def set_params(self, params: Dict):
 
         # TODO: Derive checker from type of previous value.
         #       We can add custom checkers later if we need them.
 
-        # assert that only valid params have been specified
-        # old_params = self.get_params()
+        # The valid params are specified by all the attributes attached to the class that do not start with _
+        old_params = self.get_params()
+        assert not (invalid_keys := set(params.keys()) - set(old_params.keys())), \
+            f'Recieved invalid parameter specifications for {self.__class__.__name__}: {invalid_keys}'
 
-        if self._expected_params:
-            # Allow specification of expected params and set of functions for checking values.
-            for param_name, checker in self._expected_params.items():
+        if self._check_parameter_types:
+            for param_name, old_value in old_params.items():
                 if param_name in params:
                     value = params[param_name]
-                else:
-                    value = None
-
-                if callable(checker):
-                    # TODO: Automagically define the checker as well? We might want to use lambda...
-                    checker(value)
-                else:
-                    logger.warning(f'Expected callable value checker for param \'{param_name}\' when setting value for algorithm {self.__class__.__name__}.  Continuing without check.')
-
-                params.update(**{param_name: value})
-        else: # No expected params
+                    # check that new param has same type as old param?
+                    if checker := self._param_checkers.get(param_name):
+                        if callable(checker):
+                            checker(value)
+                        else:
+                            raise RuntimeError(f'Expected callable custom parameter checker for {self.__class__.__name__}'
+                                               f' when checking value associated with {param_name}. \n'
+                                               f'Instead of a checker we got: {checker}.\n'
+                                               f'Please put a function name or lambda definition instead.')
+                    else: # use default checking method.  Will enforce all parameters are the same type as the
+                          # defaults for this class, which might be hard coded, or might be parsed from config.ini
+                          # by config.py
+                        check_arg.ensure_type(value, type(old_value))
 
         for param_name, value in params.items():
             # set the parameters as names on this class
