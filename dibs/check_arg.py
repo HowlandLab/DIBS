@@ -28,7 +28,7 @@ def ensure_type(var, *expected_types, _up_extra_frames=0):
     """
     for t in expected_types:
         if isinstance(var, t):
-            return
+            return True
     type_err = f'Type-checking caller: {get_caller_function(_up_extra_frames=_up_extra_frames)}(): For object (value = {var}), ' \
                f'expected type(s) was {expected_types} but instead found {type(var)}'
     logger.error(type_err)

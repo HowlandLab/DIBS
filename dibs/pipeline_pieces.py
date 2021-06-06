@@ -380,7 +380,20 @@ class UMAP(Embedder):
     n_neighbors: int = 5
     learning_rate: float = 1.0
     n_components: int = 2 # TODO: No reason to pick this number
+    n_jobs: int = 1
     # TODO: UMAP
+
+    def embed(self, data):
+        reducer = umap.UMAP(
+            n_neighbors=self.n_neighbors,
+            n_components=self.n_components,
+            learning_rate=self.learning_rate,
+            n_jobs=self.n_jobs,
+            low_memory=False,
+        )
+
+        arr_result = reducer.fit_transform(data.values)
+        return arr_result
 
 
 class CVAE(Embedder):
@@ -423,8 +436,7 @@ class CVAE(Embedder):
         return arr_result
 
 
-class LocallyLinearDimReduc(Embedder):
-    LLE_method: str = 'standard'
+class LocallyLinearDimReducer(Embedder):
     n_neighbors: int = 5
     n_components: int = 2 # TODO: I have no reason to chose this!!!
     n_jobs: int = 1 # TODO: Could be more??
@@ -563,6 +575,12 @@ class RANDOMFOREST(CLF):
     n_estimators: int = config.RANDOMFOREST.n_estimators
     n_jobs: int = config.RANDOMFOREST.n_jobs
     verbose = config.RANDOMFOREST.verbose
+
+    _param_checkers = dict(
+        n_estimators=lambda v: check_arg.ensure_int(v) and v > 0,
+        n_jobs=lambda v: check_arg.ensure_int(v) and v > 0,
+        verbose=lambda v: check_arg.ensure_int(v) and v >= 0,
+    )
 
     def train(self, X, y):
         clf = RandomForestClassifier(
