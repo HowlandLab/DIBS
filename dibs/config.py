@@ -25,8 +25,7 @@ import random
 import sys
 import time
 
-from dibs import logging_enhanced, pipeline_pieces
-from dibs.pipeline_pieces import FeatureEngineerer, Embedder, Clusterer, CLF
+from dibs import logging_enhanced
 
 
 ### Debug options
@@ -133,8 +132,6 @@ if STREAMLIT_DEFAULT_VIDEOS_FOLDER:
 # TODO: Move to feature_engineerer config/setup
 AVERAGE_OVER_N_FRAMES: int = configuration.getint('MODEL', 'AVERAGE_OVER_N_FRAMES')
 HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
-RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE') if configuration.get('MODEL', 'RANDOM_STATE') else None
-    # random.randint(1, 100_000_000)
 
 ### MODEL ASSERTS
 assert 0. <= HOLDOUT_PERCENT <= 1., f'HOLDOUT_PERCENT must be between 0 and 1. Instead, found: {HOLDOUT_PERCENT}'
@@ -208,47 +205,25 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH), f'
 ### GENERAL CLASSIFIER VARIABLES ###
 class FEATURE_ENGINEERER:
     DEFAULT: str = configuration.get('FEATURE_ENGINEERER', 'DEFAULT')
+    RANDOM_STATE: int = configuration.getint('FEATURE_ENGINEERER', 'RANDOM_STATE')
 
 
 class EMBEDDER:
     DEFAULT: str = configuration.get('EMBEDDER', 'DEFAULT')
-    RANDOM_STATE: str = configuration.get('EMBEDDER', 'RANDOM_STATE')
+    RANDOM_STATE: int = configuration.getint('EMBEDDER', 'RANDOM_STATE')
 
 
 class CLUSTERER:
     DEFAULT: str = configuration.get('CLUSTERER', 'DEFAULT')
-    RANDOM_STATE: str = configuration.get('CLUSTERER', 'RANDOM_STATE')
+    RANDOM_STATE: int = configuration.getint('CLUSTERER', 'RANDOM_STATE')
 
 
 class CLASSIFIER:
     DEFAULT: str = configuration.get('CLASSIFIER', 'DEFAULT')
-    RANDOM_STATE: str = configuration.get('CLASSIFIER', 'RANDOM_STATE')
+    RANDOM_STATE: int = configuration.getint('CLASSIFIER', 'RANDOM_STATE')
     VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
-### Classifier asserts
-all_model_class_defs = dict([(name, cls) for name, cls in pipeline_pieces.__dict__.items() if isinstance(cls, type)])
-
-valid_feature_engineerers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, FeatureEngineerer)]
-# valid_embedders = {'TSNE'}
-valid_embedders = [name for name, cls in all_model_class_defs.items() if issubclass(cls, Embedder)]
-# valid_clusterers = {'GMM', 'SPECTRAL', 'DBSCAN'}
-valid_clusterers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, Clusterer)]
-# valid_classifiers = {'SVM', 'RANDOMFOREST'}
-valid_classifiers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, CLF)]
 # TODO: Dynamically parse valid embedders, clusterers, and classifiers from modules
-
-assert FEATURE_ENGINEERER.DEFAULT in valid_feature_engineerers, f'An invalid feature_engineerer was specified in config.ini: ' \
-                                                                f'{FEATURE_ENGINEERER.DEFAULT}.' \
-                                                                f'Valid feature_engineerer classes: {valid_feature_engineerers}'
-assert EMBEDDER.DEFAULT in valid_embedders, f'An invalid embedder was specified in config.ini: {EMBEDDER.DEFAULT}.' \
-                                                        f'Valid embedder classes: {valid_embedders}'
-assert CLUSTERER.DEFAULT in valid_clusterers, f'An invalid clusterer was specified in config.ini: {CLUSTERER.DEFAULT}.' \
-                                                        f'Valid clusterer classes: {valid_clusterers}'
-assert CLASSIFIER.DEFAULT in valid_classifiers, f'An invalid classifer was detected: "{CLASSIFIER.DEFAULT}". ' \
-                                                f'Valid classifier values include: {valid_classifiers}'
-# assert CLASSIFIER_N_JOBS
-assert CLASSIFIER.VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER.VERBOSE}'
-
 
 ### GMM PARAMS #########################################################################################################
 # TODO: Implement a generic config loader for unspecified classes.
@@ -264,7 +239,6 @@ class GMM:
     init_params = configuration.get('GMM', 'init_params')
     verbose = configuration.getint('GMM', 'verbose')
     verbose_interval = configuration.getint('GMM', 'verbose_interval') if configuration.get('GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
-    random_state = RANDOM_STATE
 
 
 ### HDBSCAN -- Density-based clustering ################################################################################
@@ -344,7 +318,6 @@ class UMAP:
     n_neighbors = configuration.getint('UMAP', 'n_neighbors')
     n_components = configuration.getint('UMAP', 'n_components')
     min_dist = configuration.getfloat('UMAP', 'min_dist')
-    random_state = RANDOM_STATE
 
 
 ###### VIDEO PARAMETERS #####
@@ -452,6 +425,36 @@ def get_data_source_from_file_path(file_path: str):
 
 
 ### Debugging efforts below. __main__ not integral to file. Use __main__ to check in on config vars.
+
+
+### Algorithm asserts; Must happen after all algorithm parameters are initialized
+from dibs import pipeline_pieces
+all_model_class_defs = dict([(name, cls) for name, cls in pipeline_pieces.__dict__.items() if isinstance(cls, type)])
+
+from dibs.pipeline_pieces import FeatureEngineerer, Embedder, Clusterer, CLF
+valid_feature_engineerers = \
+    [name for name, cls in all_model_class_defs.items() if issubclass(cls, FeatureEngineerer) and cls is not FeatureEngineerer]
+valid_embedders = \
+    [name for name, cls in all_model_class_defs.items() if issubclass(cls, Embedder) and cls is not Embedder]
+valid_clusterers = \
+    [name for name, cls in all_model_class_defs.items() if issubclass(cls, Clusterer) and cls is not Clusterer]
+valid_classifiers = \
+    [name for name, cls in all_model_class_defs.items() if issubclass(cls, CLF) and cls is not CLF]
+
+assert FEATURE_ENGINEERER.DEFAULT in valid_feature_engineerers, f'An invalid feature_engineerer was specified in config.ini: ' \
+                                                                f'{FEATURE_ENGINEERER.DEFAULT}.' \
+                                                                f'Valid feature_engineerer classes: {valid_feature_engineerers}'
+assert EMBEDDER.DEFAULT in valid_embedders, f'An invalid embedder was specified in config.ini: {EMBEDDER.DEFAULT}.' \
+                                            f'Valid embedder classes: {valid_embedders}'
+assert CLUSTERER.DEFAULT in valid_clusterers, f'An invalid clusterer was specified in config.ini: {CLUSTERER.DEFAULT}.' \
+                                              f'Valid clusterer classes: {valid_clusterers}'
+assert CLASSIFIER.DEFAULT in valid_classifiers, f'An invalid classifer was detected: "{CLASSIFIER.DEFAULT}". ' \
+                                                f'Valid classifier values include: {valid_classifiers}'
+# assert CLASSIFIER_N_JOBS
+assert CLASSIFIER.VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER.VERBOSE}'
+
+
+
 
 
 if __name__ == '__main__':

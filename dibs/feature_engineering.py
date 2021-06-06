@@ -191,7 +191,7 @@ def attach_angle_between_bodyparts(df, bodypart_1: str, bodypart_2: str, output_
     return df
 
 
-def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results_by: Optional[List[str]] = None, random_state=config.RANDOM_STATE, copy: bool = False) -> pd.DataFrame:
+def attach_train_test_split_col(df, test_col: str, test_pct: float, random_state: int, sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
     """
 
     :param df:
@@ -208,7 +208,8 @@ def attach_train_test_split_col(df, test_col: str, test_pct: float, sort_results
         check_arg.ensure_type(sort_results_by, list)
         if len(sort_results_by) <= 0:
             err = f'{logging_enhanced.get_current_function()}(): List cannot be empty TODO: elaborate'
-            logging_enhanced.log_then_raise(err, logger, ValueError)
+            logger.error(err)
+            raise ValueError()
         for col_name in sort_results_by:
             check_arg.ensure_type(col_name, str)
 

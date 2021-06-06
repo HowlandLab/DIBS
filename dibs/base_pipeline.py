@@ -50,7 +50,7 @@ class BasePipelineAttributeHolder(object):
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
 
     # Model objects.  Modular, so that we can swap out different parts of the algorithm independently.
-    _feature_engineerer: FeatureEngineerer = getattr(pipeline_pieces, config.FEATURE_ENGINEERER.DEFAULT)()
+    _feature_engineerer: FeatureEngineerer = getattr(pipeline_pieces, config.FEATURE_ENGINEERER.DEFAULT)(config.FEATURE_ENGINEERER.RANDOM_STATE)
     # TODO: Scalar??  Not sure what that is used for yet.
     _embedder: Embedder = getattr(pipeline_pieces, config.EMBEDDER.DEFAULT)(config.EMBEDDER.RANDOM_STATE)
     _clusterer: Clusterer = getattr(pipeline_pieces, config.CLUSTERER.DEFAULT)(config.CLUSTERER.RANDOM_STATE)
@@ -355,13 +355,6 @@ class BasePipeline(BasePipelineAttributeHolder):
         return self
 
     def set_params(self, **kwargs):
-        ### General Params ###
-        # Test/train split %
-        test_train_split_pct = kwargs.get('test_train_split_pct', self.test_train_split_pct)
-        check_arg.ensure_type(test_train_split_pct, float)
-        self.test_train_split_pct = test_train_split_pct
-
-    def set_model_params(self, **kwargs):
         """
         Reads in variables to change for pipeline.
 
@@ -380,6 +373,12 @@ class BasePipeline(BasePipelineAttributeHolder):
             Explanation goes here
         """
 
+        ### General Params ###
+        # Test/train split %
+        test_train_split_pct = kwargs.get('test_train_split_pct', self.test_train_split_pct)
+        check_arg.ensure_type(test_train_split_pct, float)
+        self.test_train_split_pct = test_train_split_pct
+
         # TODO: Accept dict of {algo: params}... NOTE: Should this be just algo names or should it be {type_of_algo: (algo_name, params)}
         #       NOTE: params always a dict
         ### TSNE ###
@@ -387,9 +386,11 @@ class BasePipeline(BasePipelineAttributeHolder):
         # TODO: Get TSNE params dict.  Then assign by calling set_params() on the thing downstream
         # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly redo?
 
-        if new_feature_engineerer_name := kwargs.get('FEATURE_ENGINEERER'):
+        if new_feature_engineerer_tuple := kwargs.get('FEATURE_ENGINEERER'):
+            new_feature_engineerer_name, new_feature_engineerer_params = new_feature_engineerer_tuple # params usually just RANDOM_STATE
             if new_feature_engineerer_name != self._feature_engineerer.__class__.__name__:
-                self._feature_engineerer = getattr(pipeline_pieces, new_feature_engineerer_name)()
+                self._feature_engineerer = getattr(pipeline_pieces, new_feature_engineerer_name)(new_feature_engineerer_params.get('RANDOM_STATE', self._feature_engineerer.random_state))
+                # self._feature_engineerer.set_params(new_feature_engineerer_params)
 
         if new_embedder_tuple := kwargs.get('EMBEDDER'):
             new_embedder_name, new_embedder_params = new_embedder_tuple
@@ -397,13 +398,13 @@ class BasePipeline(BasePipelineAttributeHolder):
                 self._embedder = getattr(pipeline_pieces, new_embedder_name)(new_embedder_params.get('RANDOM_STATE', self._embedder._random_state))
                 self._embedder.set_params(new_embedder_params)
 
-        if new_clusterer_tuple := kwargs.get('EMBEDDER'):
+        if new_clusterer_tuple := kwargs.get('CLUSTERER'):
             new_clusterer_name, new_clusterer_params = new_clusterer_tuple
             if new_clusterer_name != self._clusterer.__class__.__name__:
                 self._clusterer = getattr(pipeline_pieces, new_clusterer_name)(new_clusterer_params.get('RANDOM_STATE', self._clusterer._random_state))
                 self._clusterer.set_params(new_clusterer_params)
 
-        if new_clf_tuple := kwargs.get('EMBEDDER'):
+        if new_clf_tuple := kwargs.get('CLF'):
             new_clf_name, new_clf_params = new_clf_tuple
             if new_clf_name != self._clf.__class__.__name__:
                 self._clf = getattr(pipeline_pieces, new_clf_name)(new_clf_params.get('RANDOM_STATE', self._clf._random_state))
@@ -683,7 +684,7 @@ class BasePipeline(BasePipelineAttributeHolder):
             test_col=self.test_col_name,
             test_pct=self.test_train_split_pct,
             sort_results_by=['data_source', 'frame'],
-            random_state=self.random_state,
+            random_state=self._feature_engineerer.random_state,
         )
 
         # df_features_train_scaled = df_features_train_scaled.loc[~df_features_train_scaled[features].isnull().any(axis=1)]
@@ -1343,7 +1344,7 @@ Clusterer params:
 {self._clusterer.params_as_string()}
 
 Classifier params:
-{self._classifier.p}
+{self._clf.params_as_string()}
 
 all_engineered_features = {self.all_engineered_features}
 

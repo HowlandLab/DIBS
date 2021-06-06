@@ -66,10 +66,10 @@ class WithParams(object):
     def get_params(self) -> Dict:
         # Return all properties on this object that are not callable or hidden.
         # All such names are assumed parameters to the model.
-        return {name: value for name, value in self.__dict__ if not name.startswith('_') and not callable(value)}
+        return {name: value for name in dir(self) if not name.startswith('_') and not callable(value := getattr(self, name))}
 
     def params_as_string(self) -> str:
-        return '\n'.join([f'{name}: value' for name, value in self.get_params()])
+        return '\n'.join([f'{name}: value' for name, value in self.get_params().items()])
 
 
 class WithStreamlitParamDialog(object):
@@ -83,7 +83,7 @@ class WithStreamlitParamDialog(object):
         raise NotImplementedError()
 
 
-class FeatureEngineerer(object):
+class FeatureEngineerer(WithRandomState):
     """ Examples: Custom built feature engineering for each task"""
 
     _all_engineered_features = None # TODO: Force overriding _all_engineered_features
@@ -315,7 +315,7 @@ class TSNE(Embedder):
         return arr_result
 
     @property
-    def tsne_perplexity_relative_to_num_features(self) -> float:
+    def _tsne_perplexity_relative_to_num_features(self) -> float:
         """
         TODO: Move or lose
         Calculate the perplexity relative to the number of features.
@@ -323,7 +323,7 @@ class TSNE(Embedder):
         return self.perplexity / self._num_training_features
 
     @property
-    def tsne_perplexity_relative_to_num_data_points(self) -> float:
+    def _tsne_perplexity_relative_to_num_data_points(self) -> float:
         """
         TODO: Move or lose
         Calculate the perplexity relative to the number of data points.
@@ -494,8 +494,13 @@ class Clusterer(WithRandomState, WithParams):
 
 
 class GMM(Clusterer):
-    n_components, covariance_type, tol, reg_covar = None, None, None, None
-    max_iter, n_init, init_params = None, None, None
+    n_components = config.GMM.n_components
+    covariance_type = config.GMM.covariance_type
+    tol = config.GMM.tol
+    reg_covar = config.GMM.reg_covar
+    max_iter = config.GMM.max_iter
+    n_init = config.GMM.n_init
+    init_params = config.GMM.init_params
     verbose: int = config.GMM.verbose
     verbose_interval: int = config.GMM.verbose_interval
 
