@@ -415,9 +415,17 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
 
         st.markdown(f'- Number of data points in training data set: '
                     f'**{len(p.df_features_train_raw)//p.average_over_n_frames if not p.is_built else len(p.df_features_train_scaled)}**')
-        st.markdown(f'Params')
-        st.markdown(f'- Perplexity: {p.tsne_perplexity}')
-        st.markdown(f'- Perplexity % of training data (perp / data): {round(p.tsne_perplexity_relative_to_num_data_points, 5)*100}%')
+
+        st.markdown(f'{p._embedder.__class__.__name__} params:')
+        st.markdown(f'{p._embedder.params_as_string()}')
+
+        st.markdown(f'{p._clusterer.__class__.__name__} params:')
+        st.markdown(f'{p._clusterer.params_as_string()}')
+
+        st.markdown(f'{p._clf.__class__.__name__} params:')
+        st.markdown(f'{p._clf.params_as_string()}')
+
+        # st.markdown(f'- Perplexity % of training data (perp / data): {round(p.tsne_perplexity_relative_to_num_data_points, 5)*100}%')
         acc_pct = f'{p.accuracy_score * 100.}%' if p.accuracy_score >= 0. else 'N/A'
         st.markdown(f'- Accuracy (with test fraction at {p.test_train_split_pct*100.}% of total training data): **{acc_pct}**')
         st.markdown(f'Model Feature Names:')
@@ -681,7 +689,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
         input_average_over_n_frames = p.average_over_n_frames
 
-        input_tsne_learning_rate, input_tsne_perplexity, = embedder_params.tsne_learning_rate, embedder_params.tsne_perplexity
+        input_tsne_learning_rate, input_tsne_perplexity, = embedder_params.tsne_learning_rate, embedder_params.perplexity
         input_tsne_early_exaggeration, input_tsne_n_components = embedder_params.tsne_early_exaggeration, embedder_params.tsne_n_components
         input_tsne_n_iter = embedder_params.tsne_n_iter
 
