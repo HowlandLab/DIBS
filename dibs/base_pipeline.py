@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 import time
 from types import FunctionType
 
-from dibs.pipeline_pieces import FeatureEngineerer, Embedderer, Clusterer, CLF
+from dibs.pipeline_pieces import FeatureEngineerer, Embedder, Clusterer, CLF
 from dibs import pipeline_pieces
 
 from dibs.logging_enhanced import get_current_function
@@ -36,21 +36,25 @@ from dibs import check_arg, config, feature_engineering, io, logging_enhanced, s
 
 logger = config.initialize_logger(__name__)
 
+
 # Base pipeline objects that outline the Pipeline API
 class BasePipelineAttributeHolder(object):
-    """ Philosophy: Read config once at start up unless told otherwise.  Hence, all objects should always be viable. """
+    """ Philosophy: Read config once at start up ever.
+    Hence, all objects should always be viable and editing the config at runtime will have no effect.
+    config.ini is meant to act as default parameters, and these will be valid for the entire lifetime
+    of the process. If interactive modification of parameters at runtime is desired, either edit the
+    source code directly, or use streamlit.
+    """
+
     # Base information
     _name, _description = 'DefaultPipelineName', '(Default pipeline description)'
 
-    # TODO: Separate random states for each algo?
-    _random_state: int = config.RANDOM_STATE
-
     # Model objects.  Modular, so that we can swap out different parts of the algorithm independently.
-    _feature_engineerer : FeatureEngineerer = getattr(pipeline_pieces, config.DEFAULT_FEATURE_ENGINEERER)()
+    _feature_engineerer: FeatureEngineerer = getattr(pipeline_pieces, config.FEATURE_ENGINEERER.DEFAULT)()
     # TODO: Scalar??  Not sure what that is used for yet.
-    _embedder : Embedderer = getattr(pipeline_pieces, config.DEFAULT_EMBEDDER)(_random_state)
-    _clusterer : Clusterer = getattr(pipeline_pieces, config.DEFAULT_CLUSTERER)(_random_state)
-    _clf : CLF = getattr(pipeline_pieces, config.DEFAULT_CLASSIFIER)(_random_state)
+    _embedder: Embedder = getattr(pipeline_pieces, config.EMBEDDER.DEFAULT)(config.EMBEDDER.RANDOM_STATE)
+    _clusterer: Clusterer = getattr(pipeline_pieces, config.CLUSTERER.DEFAULT)(config.CLUSTERER.RANDOM_STATE)
+    _clf: CLF = getattr(pipeline_pieces, config.CLASSIFIER.DEFAULT)(config.CLASSIFIER.RANDOM_STATE)
 
     # Column names7 # TODO: Rename, and/or load defaults based on config.
     clusterer_assignment_col_name, clf_assignment_col_name, = 'clusterer_assignment', 'classifier_assignment'
@@ -75,15 +79,8 @@ class BasePipelineAttributeHolder(object):
 
     # Other model vars (Rename this)
     video_fps: float = config.VIDEO_FPS
-    # cross_validation_k: int = config.CROSS_VALIDATION_K # TODO: Remove?
-    # cross_validation_n_jobs: int = config.CROSS_VALIDATION_N_JOBS # TODO: Remove?
     average_over_n_frames: int = config.AVERAGE_OVER_N_FRAMES
     test_train_split_pct: float = config.HOLDOUT_PERCENT
-
-    # Classifier, general
-    embedder_type: str = config.DEFAULT_EMBEDDER
-    clusterer_type: str = config.DEFAULT_CLUSTERER
-    classifier_type: str = config.DEFAULT_CLASSIFIER
 
     # Column names # TODO: If runs remove!
     # features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength', 'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
@@ -111,8 +108,9 @@ class BasePipelineAttributeHolder(object):
         try:
             assignment = int(assignment)
         except ValueError:
-            err = f'TODO: elaborate error: invalid assignment submitted: "{assignment}"'
-            logging_enhanced.log_then_raise(err, logger, ValueError)
+            err = f'TODO: elaborate error: invalid assignment submitted: "{assignment}".  Must be interger'
+            logger.error(err)
+            raise ValueError()
 
         label = getattr(self, f'label_{assignment}', '')
 
@@ -184,7 +182,6 @@ class BasePipelineAttributeHolder(object):
             fig.savefig(os.path.join(config.GRAPH_OUTPUT_PATH, f'{save_name}.{save_format}'))
         return fig
 
-
     @property
     def name(self):
         return self._name
@@ -221,7 +218,6 @@ class BasePipelineAttributeHolder(object):
 
         return len(df_train)
 
-
     def clf_predict(self, x: np.ndarray) -> np.ndarray:
         """
         An abstraction above using a raw classifier.predict() call in case invalid data is sent to the call.
@@ -246,9 +242,6 @@ class BasePipelineAttributeHolder(object):
     def clf(self): return self._clf
 
     @property
-    def random_state(self) -> int: return self._random_state
-
-    @property
     def is_built(self): return self._is_built
 
     @property
@@ -259,12 +252,6 @@ class BasePipelineAttributeHolder(object):
 
     @property
     def accuracy_score(self): return self._acc_score
-
-    @property
-    def svm_col(self) -> str: return self.clf_assignment_col_name
-
-    @property
-    def svm_assignment(self) -> str: return self.clf_assignment_col_name
 
     @property
     def cross_val_scores(self): return self._cross_val_scores
@@ -296,7 +283,7 @@ class BasePipelineAttributeHolder(object):
     @property
     def unique_assignments(self) -> List[any]:
         if len(self._df_features_train_scaled) > 0:
-            return list(np.unique(self._df_features_train_scaled.loc[self._df_features_train_scaled[self.clf_assignment_col_name] != self.null_classifier_label][self.svm_col].values))
+            return list(np.unique(self._df_features_train_scaled.loc[self._df_features_train_scaled[self.clf_assignment_col_name] != self.null_classifier_label][self.clf_assignment_col_name].values))
         return []
 
     @property
@@ -311,7 +298,7 @@ class BasePipelineAttributeHolder(object):
         Automatically creates a list of consistent column names, relative to the number of
         TSNE components, that labels the columns of reduced data after the TSNE operation.
         """
-        return [f'dim_{d}' for d in range(1, self.tsne_n_components+1)]
+        return [f'dim_{d}' for d in range(1, self._embedder.n_components+1)]
 
 
 class BasePipeline(BasePipelineAttributeHolder):
@@ -349,12 +336,11 @@ class BasePipeline(BasePipelineAttributeHolder):
     # Init
     def __init__(self, name: str, **kwargs):
         # Pipeline name
+        logger.info(f'Received following params when initializing pipeline: {kwargs}')
         check_arg.ensure_type(name, str)
         self.set_name(name)
-        # TODO: low: remove saving of kwargs. It likely doesn't get saved to pickle as a mutable characteristic and it isn't used elsewhere. Mostly a debugging tool.
-        self.kwargs = kwargs
         # Set parameters for Pipeline according to kwargs. If kwarg is missing, use default from config.ini.
-        self.set_params(read_config_on_missing_param=True, **kwargs)
+        self.set_params(**kwargs)
 
     # Setters
     def set_name(self, name: str):
@@ -368,7 +354,14 @@ class BasePipeline(BasePipelineAttributeHolder):
         self._description = description
         return self
 
-    def set_params(self, read_config_on_missing_param: bool = False, **kwargs):
+    def set_params(self, **kwargs):
+        ### General Params ###
+        # Test/train split %
+        test_train_split_pct = kwargs.get('test_train_split_pct', self.test_train_split_pct)
+        check_arg.ensure_type(test_train_split_pct, float)
+        self.test_train_split_pct = test_train_split_pct
+
+    def set_model_params(self, **kwargs):
         """
         Reads in variables to change for pipeline.
 
@@ -389,175 +382,44 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         # TODO: Accept dict of {algo: params}... NOTE: Should this be just algo names or should it be {type_of_algo: (algo_name, params)}
         #       NOTE: params always a dict
-        check_arg.ensure_type(read_config_on_missing_param, bool)
-
-
-
-        ### General Params ###
-        # Test/train split %
-        test_train_split_pct = kwargs.get('test_train_split_pct', config.HOLDOUT_PERCENT if read_config_on_missing_param else self.test_train_split_pct)
-        check_arg.ensure_type(test_train_split_pct, float)
-        self.test_train_split_pct = test_train_split_pct
-
         ### TSNE ###
         # TSNE implementation type
         # TODO: Get TSNE params dict.  Then assign by calling set_params() on the thing downstream
-        # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly
-        # self._feature_engineerer.set_params(params[self._feature_engineerer.__class__]) # TODO: Should feature engineering be handled differently or nah??? Yes but only because it is expensive.  We have to make sure things have actually changed.
-        # self._embedder.set_params(params[self._embedder.__class__])
-        # self._clusterer.set_params(params[self._clusterer.__class__])
-        # self._classifier.set_params(params[self._classifier.__class__])
-        tsne_implementation = kwargs.get('tsne_implementation', config.TSNE_IMPLEMENTATION if read_config_on_missing_param else self.tsne_implementation)
-        check_arg.ensure_type(tsne_implementation, str)
-        self.tsne_implementation = tsne_implementation
-        # TSNE Initialization
-        tsne_init = kwargs.get('tsne_init', config.TSNE_INIT if read_config_on_missing_param else self.tsne_init)
-        check_arg.ensure_type(tsne_init, str)
-        self.tsne_init = tsne_init
-        # TSNE early exaggeration
-        tsne_early_exaggeration = kwargs.get('tsne_early_exaggeration', config.TSNE_EARLY_EXAGGERATION if read_config_on_missing_param else self.tsne_early_exaggeration)
-        check_arg.ensure_type(tsne_early_exaggeration, float, int)
-        self.tsne_early_exaggeration = float(tsne_early_exaggeration)
-        # TSNE learning rate
-        tsne_learning_rate = kwargs.get('tsne_learning_rate', config.TSNE_LEARNING_RATE if read_config_on_missing_param else self.tsne_learning_rate)
-        check_arg.ensure_type(tsne_learning_rate, float, int)
-        self.tsne_learning_rate = float(tsne_learning_rate)
-        # TSNE n components
-        tsne_n_components = kwargs.get('tsne_n_components', config.TSNE_N_COMPONENTS if read_config_on_missing_param else self.tsne_n_components)  # TODO: low: shape up kwarg name for n components? See string name
-        check_arg.ensure_type(tsne_n_components, int)
-        self.tsne_n_components = tsne_n_components
-        # TSNE n iterations
-        tsne_n_iter = kwargs.get('tsne_n_iter', config.TSNE_N_ITER if read_config_on_missing_param else self.tsne_n_iter)
-        check_arg.ensure_type(tsne_n_iter, int)
-        self.tsne_n_iter = tsne_n_iter
-        # TSNE n jobs
-        tsne_n_jobs = kwargs.get('tsne_n_jobs', config.TSNE_N_JOBS if read_config_on_missing_param else self.tsne_n_jobs)
-        check_arg.ensure_type(tsne_n_jobs, int)
-        self.tsne_n_jobs = tsne_n_jobs
-        # TSNE perplexity
-        tsne_perplexity: Union[float, int, str] = kwargs.get('tsne_perplexity', config.TSNE_PERPLEXITY if read_config_on_missing_param else self._tsne_perplexity)
-        if isinstance(tsne_perplexity, str):
-            check_arg.ensure_valid_perplexity_lambda(tsne_perplexity)
-        check_arg.ensure_type(tsne_perplexity, float, int, str)
-        self._tsne_perplexity = float(tsne_perplexity) if isinstance(tsne_perplexity, int) else tsne_perplexity
-        # TSNE verbosity
-        tsne_verbose = kwargs.get('tsne_verbose', config.TSNE_VERBOSE if read_config_on_missing_param else self.tsne_verbose)
-        check_arg.ensure_type(tsne_verbose, int)
-        self.tsne_verbose = tsne_verbose
+        # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly redo?
 
+        if new_feature_engineerer_name := kwargs.get('FEATURE_ENGINEERER'):
+            if new_feature_engineerer_name != self._feature_engineerer.__class__.__name__:
+                self._feature_engineerer = getattr(pipeline_pieces, new_feature_engineerer_name)()
 
+        if new_embedder_tuple := kwargs.get('EMBEDDER'):
+            new_embedder_name, new_embedder_params = new_embedder_tuple
+            if new_embedder_name != self._embedder.__class__.__name__:
+                self._embedder = getattr(pipeline_pieces, new_embedder_name)(new_embedder_params.get('RANDOM_STATE', self._embedder._random_state))
+                self._embedder.set_params(new_embedder_params)
 
+        if new_clusterer_tuple := kwargs.get('EMBEDDER'):
+            new_clusterer_name, new_clusterer_params = new_clusterer_tuple
+            if new_clusterer_name != self._clusterer.__class__.__name__:
+                self._clusterer = getattr(pipeline_pieces, new_clusterer_name)(new_clusterer_params.get('RANDOM_STATE', self._clusterer._random_state))
+                self._clusterer.set_params(new_clusterer_params)
 
-        ### GMM parameters
-        # GMM n components
-        gmm_n_components = kwargs.get('gmm_n_components', config.gmm_n_components if read_config_on_missing_param else self.gmm_n_components)
-        check_arg.ensure_type(gmm_n_components, int)
-        self.gmm_n_components = gmm_n_components
-        # GMM covariance type
-        gmm_covariance_type = kwargs.get('gmm_covariance_type', config.gmm_covariance_type if read_config_on_missing_param else self.gmm_covariance_type)
-        check_arg.ensure_type(gmm_covariance_type, str)
-        self.gmm_covariance_type = gmm_covariance_type
-        # GMM tolerance
-        gmm_tol = kwargs.get('gmm_tol', config.gmm_tol if read_config_on_missing_param else self.gmm_tol)
-        check_arg.ensure_type(gmm_tol, float)
-        self.gmm_tol = gmm_tol
-        # TODO: what does reg cover stand for?
-        gmm_reg_covar = kwargs.get('gmm_reg_covar', config.gmm_reg_covar if read_config_on_missing_param else self.gmm_reg_covar)
-        check_arg.ensure_type(gmm_reg_covar, float, int)
-        self.gmm_reg_covar = float(gmm_reg_covar)
-        # GMM maximum iterations
-        gmm_max_iter = kwargs.get('gmm_max_iter', config.gmm_max_iter if read_config_on_missing_param else self.gmm_max_iter)
-        check_arg.ensure_type(gmm_max_iter, int)
-        self.gmm_max_iter = gmm_max_iter
-        # GMM n init TODO
-        gmm_n_init = kwargs.get('gmm_n_init', config.gmm_n_init if read_config_on_missing_param else self.gmm_n_init)
-        check_arg.ensure_type(gmm_n_init, int)
-        self.gmm_n_init = gmm_n_init
-        # GMM initialization parameters
-        gmm_init_params = kwargs.get('gmm_init_params', config.gmm_init_params if read_config_on_missing_param else self.gmm_init_params)
-        check_arg.ensure_type(gmm_init_params, str)
-        self.gmm_init_params = gmm_init_params
-        # GMM verbosity
-        gmm_verbose = kwargs.get('gmm_verbose', config.gmm_verbose if read_config_on_missing_param else self.gmm_verbose)
-        check_arg.ensure_type(gmm_verbose, int)
-        self.gmm_verbose = gmm_verbose
-        # GMM verbosity interval
-        gmm_verbose_interval = kwargs.get('gmm_verbose_interval', config.gmm_verbose_interval if read_config_on_missing_param else self.gmm_verbose_interval)
-        check_arg.ensure_type(gmm_verbose_interval, int)
-        self.gmm_verbose_interval = gmm_verbose_interval
-        # Classifiers
-        classifier_verbose = kwargs.get('classifier_verbose', config.CLASSIFIER_VERBOSE if read_config_on_missing_param else self.classifier_verbose)
-        check_arg.ensure_type(classifier_verbose, int)
-        self.classifier_verbose = classifier_verbose
+        if new_clf_tuple := kwargs.get('EMBEDDER'):
+            new_clf_name, new_clf_params = new_clf_tuple
+            if new_clf_name != self._clf.__class__.__name__:
+                self._clf = getattr(pipeline_pieces, new_clf_name)(new_clf_params.get('RANDOM_STATE', self._clf._random_state))
+                self._clf.set_params(new_clf_params)
 
-
-        # Classifier model
-        classifier_type = kwargs.get('classifier_type', config.DEFAULT_CLASSIFIER if read_config_on_missing_param else self.classifier_type)
-        check_arg.ensure_type(classifier_type, str)
-        if classifier_type not in config.valid_classifiers:
-            err = f'Input classifier type is not valid. Value = {classifier_type}'
-            logger.error(err)
-            raise ValueError(err)
-        self.classifier_type = classifier_type
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
-        # Source video FPS
-        video_fps = kwargs.get('video_fps', config.VIDEO_FPS if read_config_on_missing_param else self.video_fps)
+        # Source video FPS # TODO: NOT SURE IF VIDEO FPS SHOULD INVALIDATE MODELS OR NOT?? Probably not but I don't know for sure
+        video_fps = kwargs.get('video_fps', self.video_fps)
         check_arg.ensure_type(video_fps, int, float)
         self.video_fps = float(video_fps)
         # Window averaging
         average_over_n_frames = kwargs.get('average_over_n_frames', self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
         check_arg.ensure_type(average_over_n_frames, int)
         self.average_over_n_frames = average_over_n_frames
-        # Random state value
-        random_state = kwargs.get('random_state', config.RANDOM_STATE if read_config_on_missing_param else self.random_state)  # TODO: low: ensure random state correct
-        check_arg.ensure_type(random_state, int)
-        self._random_state = random_state
 
-
-
-        ### Random Forest vars
-        # Random Forest n estimators
-        rf_n_estimators = kwargs.get('rf_n_estimators', config.rf_n_estimators if read_config_on_missing_param else self.rf_n_estimators)
-        check_arg.ensure_type(rf_n_estimators, int)
-        self.rf_n_estimators = rf_n_estimators
-        # Random Forest n jobs
-        rf_n_jobs = kwargs.get('rf_n_jobs', config.rf_n_jobs if read_config_on_missing_param else self.rf_n_jobs)
-        check_arg.ensure_type(rf_n_jobs, int)
-        self.rf_n_jobs = rf_n_jobs
-        ### SVM vars
-        # SVM C
-        svm_c = kwargs.get('svm_c', config.svm_c if read_config_on_missing_param else self.svm_c)
-        self.svm_c = svm_c
-        # SVM gamma
-        svm_gamma = kwargs.get('svm_gamma', config.svm_gamma if read_config_on_missing_param else self.svm_gamma)
-        self.svm_gamma = svm_gamma
-        # SVM probability
-        svm_probability = kwargs.get('svm_probability', config.svm_probability if read_config_on_missing_param else self.svm_probability)
-        self.svm_probability = svm_probability
-        # SVM verbosity
-        svm_verbose = kwargs.get('svm_verbose', config.svm_verbose if read_config_on_missing_param else self.svm_verbose)
-        self.svm_verbose = svm_verbose
-
-
-        # ## TODO: Remove??
-        # # Cross-validation K
-        # cross_validation_k = kwargs.get('cross_validation_k', config.CROSS_VALIDATION_K if read_config_on_missing_param else self.cross_validation_k)
-        # check_arg.ensure_type(cross_validation_k, int)
-        # self.cross_validation_k = cross_validation_k
-        # # Cross-validation n jobs
-        # cross_validation_n_jobs = kwargs.get('cross_validation_n_jobs', config.CROSSVALIDATION_N_JOBS if read_config_on_missing_param else self.cross_validation_n_jobs)
-        # check_arg.ensure_type(cross_validation_n_jobs, int)
-        # self.cross_validation_n_jobs = cross_validation_n_jobs
-
-        # Experimental params that need to be properly implemented in this function later (type chekcing , config.ini implementation, etc)
-        self.umap_n_neighbors = kwargs.get('umap_n_neighbors', 5)
-        self.umap_learning_rate = kwargs.get('umap_learning_rate', 1.0)
-        self.LLE_method = kwargs.get('LLE_method', 'standard')
-        self.LLE_n_neighbors = kwargs.get('LLE_n_neighbors', 5)
-        self.cvae_num_steps: int = kwargs.get('cvae_num_steps')
-        self.isomap_n_neighbors: int = kwargs.get('isomap_n_neighbors')
-        self.LLE_n_neighbors: int = kwargs.get('LLE_n_neighbors')
-
+        # TODO: We could mark all models that are invalid after params updated here!
         # Fin
         self._has_modified_model_variables = True
 
@@ -1229,7 +1091,7 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         df_data = df_data.astype({'frame': float}).astype({'frame': int}).sort_values('frame')
 
-        svm_assignment_values_array = df_data[self.svm_assignment].values
+        svm_assignment_values_array = df_data[self.clf_assignment_col_name].values
         labels = list(map(self.get_assignment_label, svm_assignment_values_array))
         frames = list(df_data['frame'].astype(int).values)
 
@@ -1474,42 +1336,15 @@ unique sources in df_train GMM ASSIGNMENTS: {len(np.unique(self.df_features_trai
 unique sources in df_train SVM ASSIGNMENTS: {len(np.unique(self.df_features_train_scaled_train_split_only[self.clf_assignment_col_name].values)) if self.clf_assignment_col_name in set(self.df_features_train_scaled_train_split_only.columns) else "NA"}
 self._is_training_data_set_different_from_model_input: {self._is_training_data_set_different_from_model_input}
 
-# TSNE
-tsne_implementation:  = {self.tsne_implementation}
-tsne_n_components: int = {self.tsne_n_components}
-tsne_n_iter: int = {self.tsne_n_iter}
-tsne_early_exaggeration: float = {self.tsne_early_exaggeration}
-tsne_n_jobs: int = {self.tsne_n_jobs}
-tsne_verbose: int = {self.tsne_verbose}
-tsne_init: str = {self.tsne_init}
-_tsne_perplexity = {self._tsne_perplexity}
-tsne_perplexity = {self.tsne_perplexity}
-tsne_learning_rate = {self.tsne_learning_rate}
-# GMM
-gmm_n_components = {self.gmm_n_components}
-gmm_covariance_type = {self.gmm_covariance_type}
-gmm_tol = {self.gmm_tol}
-gmm_reg_covar = {self.gmm_reg_covar}
+Embedder params:
+{self._embedder.params_as_string()}
 
-gmm_max_iter = {self.gmm_max_iter}
-gmm_n_init = {self.gmm_n_init}
-gmm_init_params  = {self.gmm_init_params}
-gmm_verbose: int = {self.gmm_verbose}
-gmm_verbose_interval = {self.gmm_verbose_interval}
-# Classifier, general
-classifier_type = {self.classifier_type}
-classifier_verbose = {self.classifier_verbose}
-_classifier = Non{self._classifier}
-# Classifier: SVM
-svm_c = {self.gmm_init_params}
-svm_gamma = {self.svm_gamma}
-svm_probability = {self.svm_probability}
-svm_verbose = {self.svm_verbose}
-# Classifier: Random Forest
-rf_n_estimators = {self.rf_n_estimators}
-rf_n_jobs = rf_n_job{self.rf_n_jobs}
-rf_verbose = rf_verbos{self.rf_verbose}
-# Column names
+Clusterer params:
+{self._clusterer.params_as_string()}
+
+Classifier params:
+{self._classifier.p}
+
 all_engineered_features = {self.all_engineered_features}
 
 """.strip()

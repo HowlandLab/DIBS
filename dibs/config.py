@@ -26,7 +26,7 @@ import sys
 import time
 
 from dibs import logging_enhanced, pipeline_pieces
-from dibs.pipeline_pieces import FeatureEngineerer, Embedderer, Clusterer, CLF
+from dibs.pipeline_pieces import FeatureEngineerer, Embedder, Clusterer, CLF
 
 
 ### Debug options
@@ -53,7 +53,7 @@ default_log_file_name = 'default.log'
 config_file_name = 'config.ini'
 #
 valid_dlc_output_extensions = {'csv', 'h5', }
-# Load up config file
+
 configuration = configparser.ConfigParser()
 configuration.read(os.path.join(DIBS_BASE_PROJECT_PATH, config_file_name))
 
@@ -132,15 +132,11 @@ if STREAMLIT_DEFAULT_VIDEOS_FOLDER:
 ### MODEL ###############################################################
 # TODO: Move to feature_engineerer config/setup
 AVERAGE_OVER_N_FRAMES: int = configuration.getint('MODEL', 'AVERAGE_OVER_N_FRAMES')
-CROSS_VALIDATION_K: int = configuration.getint('MODEL', 'CROSS_VALIDATION_K')
-CROSS_VALIDATION_N_JOBS: int = configuration.getint('MODEL', 'CROSS_VALIDATION_N_JOBS')
 HOLDOUT_PERCENT: float = configuration.getfloat('MODEL', 'HOLDOUT_TEST_PCT')
 RANDOM_STATE: int = configuration.getint('MODEL', 'RANDOM_STATE') if configuration.get('MODEL', 'RANDOM_STATE') else None
     # random.randint(1, 100_000_000)
 
 ### MODEL ASSERTS
-assert CROSS_VALIDATION_K >= 2, f'CROSS_VALIDATION_K must be 2 or greater. Instead, found: {CROSS_VALIDATION_K}'
-assert CROSS_VALIDATION_N_JOBS >= -2, f'CROSSVALIDATION_N_JOBS must be -2 or greater. Instead, found: {CROSS_VALIDATION_N_JOBS}'
 assert 0. <= HOLDOUT_PERCENT <= 1., f'HOLDOUT_PERCENT must be between 0 and 1. Instead, found: {HOLDOUT_PERCENT}'
 
 
@@ -210,146 +206,145 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH), f'
 
 
 ### GENERAL CLASSIFIER VARIABLES ###
-DEFAULT_FEATURE_ENGINEERER: str = configuration.get('FEATURE_ENGINEERER', 'DEFAULT_FEATURE_ENGINEERER')
-DEFAULT_EMBEDDER: str = configuration.get('EMBEDDER', 'DEFAULT_EMBEDDER')
-DEFAULT_CLUSTERER: str = configuration.get('CLUSTERER', 'DEFAULT_CLUSTERER')
-DEFAULT_CLASSIFIER: str = configuration.get('CLASSIFIER', 'DEFAULT_CLASSIFIER')
-CLASSIFIER_VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
+class FEATURE_ENGINEERER:
+    DEFAULT: str = configuration.get('FEATURE_ENGINEERER', 'DEFAULT')
+
+
+class EMBEDDER:
+    DEFAULT: str = configuration.get('EMBEDDER', 'DEFAULT')
+    RANDOM_STATE: str = configuration.get('EMBEDDER', 'RANDOM_STATE')
+
+
+class CLUSTERER:
+    DEFAULT: str = configuration.get('CLUSTERER', 'DEFAULT')
+    RANDOM_STATE: str = configuration.get('CLUSTERER', 'RANDOM_STATE')
+
+
+class CLASSIFIER:
+    DEFAULT: str = configuration.get('CLASSIFIER', 'DEFAULT')
+    RANDOM_STATE: str = configuration.get('CLASSIFIER', 'RANDOM_STATE')
+    VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
 ### Classifier asserts
 all_model_class_defs = dict([(name, cls) for name, cls in pipeline_pieces.__dict__.items() if isinstance(cls, type)])
 
 valid_feature_engineerers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, FeatureEngineerer)]
 # valid_embedders = {'TSNE'}
-valid_embedders = [name for name, cls in all_model_class_defs.items() if issubclass(cls, Embedderer)]
+valid_embedders = [name for name, cls in all_model_class_defs.items() if issubclass(cls, Embedder)]
 # valid_clusterers = {'GMM', 'SPECTRAL', 'DBSCAN'}
 valid_clusterers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, Clusterer)]
 # valid_classifiers = {'SVM', 'RANDOMFOREST'}
 valid_classifiers = [name for name, cls in all_model_class_defs.items() if issubclass(cls, CLF)]
 # TODO: Dynamically parse valid embedders, clusterers, and classifiers from modules
 
-assert DEFAULT_FEATURE_ENGINEERER in valid_feature_engineerers, f'An invalid feature_engineerer was specified in config.ini: {DEFAULT_FEATURE_ENGINEERER}.' \
+assert FEATURE_ENGINEERER.DEFAULT in valid_feature_engineerers, f'An invalid feature_engineerer was specified in config.ini: ' \
+                                                                f'{FEATURE_ENGINEERER.DEFAULT}.' \
                                                                 f'Valid feature_engineerer classes: {valid_feature_engineerers}'
-assert DEFAULT_EMBEDDER in valid_embedders, f'An invalid embedder was specified in config.ini: {DEFAULT_EMBEDDER}.' \
-                                                                f'Valid embedder classes: {valid_embedders}'
-assert DEFAULT_CLUSTERER in valid_clusterers, f'An invalid clusterer was specified in config.ini: {DEFAULT_CLUSTERER}.' \
-                                                                f'Valid clusterer classes: {valid_clusterers}'
-assert DEFAULT_CLASSIFIER in valid_classifiers, f'An invalid classifer was detected: "{DEFAULT_CLASSIFIER}". ' \
+assert EMBEDDER.DEFAULT in valid_embedders, f'An invalid embedder was specified in config.ini: {EMBEDDER.DEFAULT}.' \
+                                                        f'Valid embedder classes: {valid_embedders}'
+assert CLUSTERER.DEFAULT in valid_clusterers, f'An invalid clusterer was specified in config.ini: {CLUSTERER.DEFAULT}.' \
+                                                        f'Valid clusterer classes: {valid_clusterers}'
+assert CLASSIFIER.DEFAULT in valid_classifiers, f'An invalid classifer was detected: "{CLASSIFIER.DEFAULT}". ' \
                                                 f'Valid classifier values include: {valid_classifiers}'
 # assert CLASSIFIER_N_JOBS
-assert CLASSIFIER_VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER_VERBOSE}'
+assert CLASSIFIER.VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER.VERBOSE}'
 
 
 ### GMM PARAMS #########################################################################################################
 # TODO: Implement a generic config loader for unspecified classes.
 # FEATURE_ENGINEERER_SPECIFICATION = If using custom load from a config file here
-# TODO: Software eng questions: Pick up the raw configurations, have the models parameter setter read it? OR Should the models just read the config?? Nah
-#       The models shouldn't know anything about the config and the config shouldn't know anything about the models, beyond the models
-#       complaining when they get invalid input.
 
-# TODO: Allow specification of robust config parsers for our models that are well defined, while still allowing pass through??
-all_embedder_params = {name: configuration[name] for name in valid_embedders}
-all_clusterer_params = {name: configuration[name] for name in valid_clusterers}
-all_classifier_params = {name: configuration[name] for name in valid_classifiers}
+class GMM:
+    n_components = configuration.getint('GMM', 'n_components')
+    covariance_type = configuration.get('GMM', 'covariance_type')
+    tol = configuration.getfloat('GMM', 'tol')
+    reg_covar = configuration.getfloat('GMM', 'reg_covar')
+    max_iter = configuration.getint('GMM', 'max_iter')
+    n_init = configuration.getint('GMM', 'n_init')
+    init_params = configuration.get('GMM', 'init_params')
+    verbose = configuration.getint('GMM', 'verbose')
+    verbose_interval = configuration.getint('GMM', 'verbose_interval') if configuration.get('GMM', 'verbose_interval') else 10  # 10 is a default that can be changed  # TODO: low: address
+    random_state = RANDOM_STATE
 
-# TODO: Should we parse all the model params at startup? Or should we parse them when we build the models?
-#       When we build the models.  We can ignore any config that is malformed for a model we don't care about.
-embedder_params = configuration[DEFAULT_EMBEDDER]
-clusterer_params = configuration[DEFAULT_CLUSTERER]
-classifier_params = configuration[DEFAULT_CLASSIFIER]
-
-embedder_params = all_embedder_params[DEFAULT_EMBEDDER]
-clusterer_params = all_clusterer_params[DEFAULT_CLUSTERER]
-classifier_params = all_classifier_params[DEFAULT_CLASSIFIER]
-
-GMM_PARAMS = {
-    'n_components': configuration.getint('GMM', 'n_components'),
-    'covariance_type': configuration.get('GMM', 'covariance_type'),
-    'tol': configuration.getfloat('GMM', 'tol'),
-    'reg_covar': configuration.getfloat('GMM', 'reg_covar'),
-    'max_iter': configuration.getint('GMM', 'max_iter'),
-    'n_init': configuration.getint('GMM', 'n_init'),
-    'init_params': configuration.get('GMM', 'init_params'),
-    'verbose': configuration.getint('GMM', 'verbose'),
-    'verbose_interval': configuration.getint('GMM', 'verbose_interval') if configuration.get('GMM', 'verbose_interval') else 10,  # 10 is a default that can be changed  # TODO: low: address
-    'random_state': RANDOM_STATE,
-}
 
 ### HDBSCAN -- Density-based clustering ################################################################################
-hdbscan_min_samples: int = configuration.getint('HDBSCAN', 'min_samples')
+class HDBSCAN:
+    min_samples: int = configuration.getint('HDBSCAN', 'min_samples')
 
 
 ### MLP -- Feedforward neural network (MLP) params #####################################################################
-MLP_PARAMS = {
-    'hidden_layer_sizes': eval(configuration.get('MLP', 'hidden_layer_sizes')),
-    'activation': configuration.get('MLP', 'activation'),
-    'solver': configuration.get('MLP', 'solver'),
-    'learning_rate': configuration.get('MLP', 'learning_rate'),
-    'learning_rate_init': configuration.getfloat('MLP', 'learning_rate_init'),
-    'alpha': configuration.getfloat('MLP', 'alpha'),
-    'max_iter': configuration.getint('MLP', 'max_iter'),
-    'early_stopping': configuration.getboolean('MLP', 'early_stopping'),
-    'verbose': configuration.getint('MLP', 'verbose'),
-}
+class MLP:
+    hidden_layer_sizes = eval(configuration.get('MLP', 'hidden_layer_sizes'))
+    activation = configuration.get('MLP', 'activation')
+    solver = configuration.get('MLP', 'solver')
+    learning_rate = configuration.get('MLP', 'learning_rate')
+    learning_rate_init = configuration.getfloat('MLP', 'learning_rate_init')
+    alpha = configuration.getfloat('MLP', 'alpha')
+    max_iter = configuration.getint('MLP', 'max_iter')
+    early_stopping = configuration.getboolean('MLP', 'early_stopping')
+    verbose = configuration.getint('MLP', 'verbose')
 
 
 ### RANDOM FOREST ###
-rf_n_estimators = configuration.getint('RANDOMFOREST', 'n_estimators')
-rf_n_jobs = configuration.getint('RANDOMFOREST', 'n_jobs')
-rf_verbose = configuration.getint('RANDOMFOREST', 'verbose')
+class RANDOMFOREST:
+    n_estimators = configuration.getint('RANDOMFOREST', 'n_estimators')
+    n_jobs = configuration.getint('RANDOMFOREST', 'n_jobs')
+    verbose = configuration.getint('RANDOMFOREST', 'verbose')
+    assert n_estimators > 0, f''
+    assert n_jobs > 0, f''
+    assert verbose >= 0, f''
 
-assert rf_n_estimators > 0, f''
-assert rf_n_jobs > 0, f''
-assert rf_verbose >= 0, f''
 
 ### SVM ################################################################################################################
-svm_c = configuration.getfloat('SVM', 'C')
-svm_gamma = configuration.getfloat('SVM', 'gamma')
-svm_probability = configuration.getboolean('SVM', 'probability')
-svm_verbose = configuration.getint('SVM', 'verbose')
+class SVM:
+    c = configuration.getfloat('SVM', 'C')
+    gamma = configuration.getfloat('SVM', 'gamma')
+    probability = configuration.getboolean('SVM', 'probability')
+    verbose = configuration.getint('SVM', 'verbose')
 
 
 ### TSNE ################################################################################
 # TSNE parameters, can tweak if you are getting undersplit/oversplit behaviors
 #   the missing perplexity is scaled with data size (1% of data for nearest neighbors)
 
-TSNE_EARLY_EXAGGERATION: float = configuration.getfloat('TSNE', 'early_exaggeration')
-TSNE_IMPLEMENTATION: str = configuration.get('TSNE', 'implementation')
-TSNE_INIT: str = configuration.get('TSNE', 'init')
-TSNE_LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
-TSNE_N_COMPONENTS: int = configuration.getint('TSNE', 'n_components')
-TSNE_N_ITER: int = configuration.getint('TSNE', 'n_iter')
-TSNE_N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
-TSNE_PERPLEXITY: Union[str, float] = configuration.get('TSNE', 'perplexity')
-try:
-    TSNE_PERPLEXITY = float(TSNE_PERPLEXITY)
-except ValueError:
-    pass
-TSNE_THETA: float = configuration.getfloat('TSNE', 'theta')
-TSNE_VERBOSE: int = configuration.getint('TSNE', 'verbose')
+class TSNE:
+    EARLY_EXAGGERATION: float = configuration.getfloat('TSNE', 'early_exaggeration')
+    IMPLEMENTATION: str = configuration.get('TSNE', 'implementation')
+    INIT: str = configuration.get('TSNE', 'init')
+    LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
+    N_COMPONENTS: int = configuration.getint('TSNE', 'n_components')
+    N_ITER: int = configuration.getint('TSNE', 'n_iter')
+    N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
+    PERPLEXITY: Union[str, float] = configuration.get('TSNE', 'perplexity')
+    try:
+        PERPLEXITY = float(PERPLEXITY)
+    except ValueError:
+        pass
+    THETA: float = configuration.getfloat('TSNE', 'theta')
+    VERBOSE: int = configuration.getint('TSNE', 'verbose')
 
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}
 valid_tsne_implementations = {'SKLEARN', 'BHTSNE', 'OPENTSNE'}
 minimum_tsne_n_iter = 250
-assert TSNE_INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
-                                                f'Parameter is currently: {TSNE_INIT}.'
-assert TSNE_IMPLEMENTATION in valid_tsne_implementations, f''
-assert isinstance(TSNE_N_ITER, int) and TSNE_N_ITER >= minimum_tsne_n_iter, \
+assert TSNE.INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
+                                                f'Parameter is currently: {TSNE.INIT}.'
+assert TSNE.IMPLEMENTATION in valid_tsne_implementations, f''
+assert isinstance(TSNE.N_ITER, int) and TSNE.N_ITER >= minimum_tsne_n_iter, \
     f'TSNE_N_ITER should be an integer above {minimum_tsne_n_iter} but was found ' \
-    f'to be: {TSNE_N_ITER} (type: {type(TSNE_N_ITER)})'
+    f'to be: {TSNE.N_ITER} (type: {type(TSNE.N_ITER)})'
 # assert isinstance(TSNE_PERPLEXITY, float) \
 #     or isinstance(TSNE_PERPLEXITY, int) \
 #     or isinstance(TSNE_PERPLEXITY, str), \
 #     f'INVALID TYPE FOR PERPLEXITY: {type(TSNE_PERPLEXITY)} (value: {TSNE_PERPLEXITY})'
 
+
 ### UMAP ################################################################################
-UMAP_PARAMS = {
-    'n_neighbors': configuration.getint('UMAP', 'n_neighbors'),
-    'n_components': configuration.getint('UMAP', 'n_components'),
-    'min_dist': configuration.getfloat('UMAP', 'min_dist'),
-    'random_state': RANDOM_STATE,
-}
+class UMAP:
+    n_neighbors = configuration.getint('UMAP', 'n_neighbors')
+    n_components = configuration.getint('UMAP', 'n_components')
+    min_dist = configuration.getfloat('UMAP', 'min_dist')
+    random_state = RANDOM_STATE
 
 
 ###### VIDEO PARAMETERS #####

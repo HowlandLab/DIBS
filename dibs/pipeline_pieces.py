@@ -21,7 +21,6 @@ logger = config.initialize_logger(__name__)
 
 class WithRandomState(object):
     def __init__(self, random_state):
-        # TODO: Figure out how to synchronize random state across models.  IMPORTANT FOR REPRODUCABILITY AND SOME FORMS OF SEARCH
         self._random_state = random_state
 
     @property
@@ -37,10 +36,6 @@ class WithParams(object):
     _check_parameter_types = True
 
     def set_params(self, params: Dict):
-
-        # TODO: Derive checker from type of previous value.
-        #       We can add custom checkers later if we need them.
-
         # The valid params are specified by all the attributes attached to the class that do not start with _
         old_params = self.get_params()
         assert not (invalid_keys := set(params.keys()) - set(old_params.keys())), \
@@ -73,21 +68,25 @@ class WithParams(object):
         # All such names are assumed parameters to the model.
         return {name: value for name, value in self.__dict__ if not name.startswith('_') and not callable(value)}
 
+    def params_as_string(self) -> str:
+        return '\n'.join([f'{name}: value' for name, value in self.get_params()])
+
 
 class WithStreamlitParamDialog(object):
     def st_param_dialogue(self):
         """ TODO: Implement default streamlit dialogue that says 'sorry, but we can only read the config',
                   and put a button here to read the config again...? Yes?? """
-        # configuration = configparser.ConfigParser()
-        # configuration.read(os.path.join(DIBS_BASE_PROJECT_PATH, config_file_name))
-
+        # 0. Does this work at all?  Do this without crashing.
+        # 1. Get parameter values from this class.  Those are the defaults.  GET THE DEFAULTS FROM A NEW INSTANTIATION. Lol
+        # 2. Display the name of each, and a dialog for entering new values
+        # 3. BONUS: Can we pick up doc strings attached to parameters and display these as extra info?
         raise NotImplementedError()
 
 
 class FeatureEngineerer(object):
     """ Examples: Custom built feature engineering for each task"""
 
-    _all_engineered_features = None # TODO: Force overriding _all_features
+    _all_engineered_features = None # TODO: Force overriding _all_engineered_features
 
     def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames: int) -> pd.DataFrame:
         raise NotImplementedError()
@@ -193,10 +192,15 @@ class HowlandFeatureEngineerer(FeatureEngineerer):
 
 
 
-class Embedderer(WithRandomState, WithParams):
+class Embedder(WithRandomState, WithParams):
     """ Examples: pca, tsne, umap """
     _model = None
-    _n_reduced_dimensions = -1
+
+    @property
+    def n_components(self) -> int:
+        """ Embedders must override n_components """
+        raise NotImplementedError()
+
     def embed(self, data: pd.DataFrame) -> np.ndarray:
         raise NotImplementedError()
 
@@ -210,78 +214,21 @@ class Embedderer(WithRandomState, WithParams):
         raise NotImplementedError()
 
 
-class TSNE(Embedderer):
+class TSNE(Embedder):
     # TSNE
-    tsne_implementation: str = config.TSNE_IMPLEMENTATION
-    tsne_n_components: int = config.TSNE_N_COMPONENTS
-    tsne_n_iter: int = config.TSNE_N_ITER
-    tsne_early_exaggeration: float = config.TSNE_EARLY_EXAGGERATION
-    tsne_n_jobs: int = config.TSNE_N_JOBS  # n cores used during process
-    tsne_verbose: int = config.TSNE_VERBOSE
-    tsne_init: str = config.TSNE_INIT
-    _tsne_perplexity: Union[float, str] = None  # config.TSNE_PERPLEXITY
-    tsne_learning_rate: float = config.TSNE_LEARNING_RATE
+    tsne_implementation: str = config.TSNE.IMPLEMENTATION
+    n_components: int = config.TSNE.N_COMPONENTS
+    n_iter: int = config.TSNE.N_ITER
+    early_exaggeration: float = config.TSNE.EARLY_EXAGGERATION
+    n_jobs: int = config.TSNE.N_JOBS  # n cores used during process
+    verbose: int = config.TSNE.VERBOSE
+    init: str = config.TSNE.INIT
+    make_this_better_perplexity: Union[float, str] = config.TSNE.PERPLEXITY
+    learning_rate: float = config.TSNE.LEARNING_RATE
 
-    def set_params(self, params):
-        # TODO: Genearliz set_params so we don't have to repeat ourselves so much.
-        self.tsne_implementation = params.get('tsne_implementation')
-        self.tsne_n_components = params.get('tsne_n_components')
-        self.tsne_n_iter = params.get('tsne_n_iter')
-        self.tsne_early_exaggeration = params.get('tsne_early_exaggeration')
-        self.tsne_n_jobs = params.get('tsne_n_jobs')
-        self.tsne_verbose = params.get('tsne_verbose')
-        self.tsne_init = params.get('tsne_init')
-        self._tsne_perplexity = params.get('_tsne_perplexity') # TODO: Is this what we call it everywhere?
-        self.tsne_learning_rate = params.get('tsne_learning_rate')
-
-    def get_params(self):
-        # TODO: Generalize get_params so we don't have to repeat ourselves so much
-        return {
-            self.tsne_implementation: {
-                'tsne_n_components': self.tsne_n_components,
-                'tsne_n_iter': self.tsne_n_iter,
-                'tsne_early_exaggeration': self.tsne_early_exaggeration,
-                'tsne_n_jobs': self.tsne_n_jobs,
-                'tsne_verbose': self.tsne_verbose,
-                'tsne_init': self.tsne_init,
-                'tsne_perplexity': self.tsne_perplexity,
-                'tsne_learning_rate': self.tsne_learning_rate,
-            }
-        }
-
-    @property
-    def tsne_perplexity_relative_to_num_features(self) -> float:
-        """
-        TODO: Move or lose
-        Calculate the perplexity relative to the number of features.
-        """
-        return self.tsne_perplexity / len(self.all_features)
-
-    @property
-    def tsne_perplexity_relative_to_num_data_points(self) -> float:
-        """
-        TODO: Move or lose
-        Calculate the perplexity relative to the number of data points.
-        """
-        if self.num_training_data_points == 0:
-            logger.warning(f'{logging_enhanced.get_caller_function()}() is calling to get perplexity, '
-                           f'but there are zero data points. Returning 0 for TSNE perplexity!')
-            return 0
-        return self.tsne_perplexity / self.num_training_data_points
-
-    def tsne_perplexity(self) -> float:
-        """
-        Fetch t-SNE perplexity. Since perplexity has been reworked to not just be used as a nominal
-        number but also as a fraction of an existing property (notably # of training data points),
-        this property will sort that math out and return the actual perplexity number used in training.
-        TODO:
-        """
-        perplexity = self._tsne_perplexity
-        if isinstance(perplexity, str):
-            check_arg.ensure_valid_perplexity_lambda(perplexity)
-            perplexity = eval(perplexity)(self)
-        check_arg.ensure_type(perplexity, float)
-        return perplexity
+    # Non settable.  Not considered by set_params/get_params
+    _num_training_data_points: int = None # must be set at runtime
+    _num_training_features: int = None
 
     # TSNE Transformations
     # TODO: Original name, remove #def _train_tsne_get_dimension_reduced_data(self, df: pd.DataFrame) -> np.ndarray:
@@ -292,34 +239,36 @@ class TSNE(Embedderer):
         :param df:
         :return:
         """
+        self._num_training_data_points = len(df)
+        self._num_training_features = len(df.columns)
         # Check args
         check_arg.ensure_type(df, pd.DataFrame)
-        logger.debug(f'Pre-TSNE info: Perplexity={self.tsne_perplexity} / Raw perplexity={self._tsne_perplexity} / num_training_data_points={self.num_training_data_points} / number of df_features_train={len(self.df_features_train)} / number of df_features_train_scaled={len(self.df_features_train_scaled)}')
+        logger.debug(f'Pre-TSNE info: Perplexity={self.perplexity} / Raw perplexity={self.make_this_better_perplexity} / num_training_data_points={self._num_training_data_points} / number of df_features_train={self._num_training_features} / number of df_features_train_scaled=TODO: Is this value meaningful?')
         # Execute
         start_time = time.perf_counter()
         logger.debug(f'Now reducing data with {self.tsne_implementation} implementation...')
         if self.tsne_implementation == 'SKLEARN':
             arr_result = TSNE_sklearn(
-                n_components=self.tsne_n_components,
-                perplexity=self.tsne_perplexity,
-                early_exaggeration=self.tsne_early_exaggeration,
-                learning_rate=self.tsne_learning_rate,  # alpha*eta = n  # TODO: low: follow up with this
-                n_iter=self.tsne_n_iter,
+                n_components=self.n_components,
+                perplexity=self.perplexity,
+                early_exaggeration=self.early_exaggeration,
+                learning_rate=self.learning_rate,  # alpha*eta = n  # TODO: low: follow up with this
+                n_iter=self.n_iter,
                 # n_iter_without_progress=300,
                 # min_grad_norm=1e-7,
                 # metric="euclidean",
-                init=self.tsne_init,
-                verbose=self.tsne_verbose,
+                init=self.init,
+                verbose=self.verbose,
                 random_state=self.random_state,
                 # method='barnes_hut',
                 # angle=0.5,
-                n_jobs=self.tsne_n_jobs,
+                n_jobs=self.n_jobs,
             ).fit_transform(df.values)
         elif self.tsne_implementation == 'BHTSNE':
             arr_result = TSNE_bhtsne(
                 df,
-                dimensions=self.tsne_n_components,
-                perplexity=self.tsne_perplexity,
+                dimensions=self.n_components,
+                perplexity=self.perplexity,
                 theta=0.5,
                 rand_seed=self.random_state,
             )
@@ -327,12 +276,12 @@ class TSNE(Embedderer):
             tsne = OpenTsneObj(
                 **{
                     k:v for k,v in dict(
-                        n_components=self.tsne_n_components,
-                        perplexity=self.tsne_perplexity,
-                        learning_rate=self.tsne_learning_rate,
-                        early_exaggeration=self.tsne_early_exaggeration,
+                        n_components=self.n_components,
+                        perplexity=self.perplexity,
+                        learning_rate=self.learning_rate,
+                        early_exaggeration=self.early_exaggeration,
                         early_exaggeration_iter=250,  # TODO: med: review
-                        n_iter=self.tsne_n_iter,
+                        n_iter=self.n_iter,
                         # exaggeration=None,
                         # dof=1,
                         # theta=0.5,
@@ -346,66 +295,107 @@ class TSNE(Embedderer):
                         # final_momentum=0.8,
                         # max_grad_norm=None,
                         # max_step_norm=5,
-                        n_jobs=self.tsne_n_jobs,
+                        n_jobs=self.n_jobs,
                         # affinities=None,
                         # neighbors="auto",
                         negative_gradient_method='bh',  # Note: default 'fft' does not work with dims >2
                         # callbacks=None,
                     ).items()
-                    if v is not None # NOTE: Providing None values allows for OpenTSNE to do optimization itself
+                    if v is not None # NOTE: Providing MISSING values allows for OpenTSNE to do optimization itself
                 }
             )
             arr_result = tsne.fit(df.values)
         else:
             err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
-            logging_enhanced.log_then_raise(err, logger, RuntimeError)
+            logger.error(err)
+            raise RuntimeError()
         end_time = time.perf_counter()
         logger.info(f'Number of seconds it took to train TSNE ({self.tsne_implementation}): '
                     f'{round(end_time- start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
         return arr_result
 
+    @property
+    def tsne_perplexity_relative_to_num_features(self) -> float:
+        """
+        TODO: Move or lose
+        Calculate the perplexity relative to the number of features.
+        """
+        return self.perplexity / self._num_training_features
 
-class ISOMAP(Embedderer):
+    @property
+    def tsne_perplexity_relative_to_num_data_points(self) -> float:
+        """
+        TODO: Move or lose
+        Calculate the perplexity relative to the number of data points.
+        """
+        if self._num_training_data_points == 0:
+            logger.warning(f'{logging_enhanced.get_caller_function()}() is calling to get perplexity, '
+                           f'but there are zero data points. Returning 0 for TSNE perplexity!')
+            return 0
+        return self.perplexity / self._num_training_data_points
+
+    def perplexity(self) -> float:
+        """
+        Fetch t-SNE perplexity. Since perplexity has been reworked to not just be used as a nominal
+        number but also as a fraction of an existing property (notably # of training data points),
+        this property will sort that math out and return the actual perplexity number used in training.
+        TODO:
+        """
+        perplexity = self.make_this_better_perplexity
+        if isinstance(perplexity, str):
+            check_arg.ensure_valid_perplexity_lambda(perplexity)
+            perplexity = eval(perplexity)(self)
+        check_arg.ensure_type(perplexity, float)
+        return perplexity
+
+
+class ISOMAP(Embedder):
     """ TODO: What is Isomap? """
     # TODO: Isomap implementation
-    isomap_n_neighbors: int = 7  # TODO: low:
-    def train(self, data: pd.DataFrame):
+    # TODO: ADD TO CONFIG?
+    n_neighbors: int = 7  # TODO: low:
+    n_jobs: int = 1
+    n_components: int = 2 # TODO: I have no reason for picking this value!!!
+
+    def embed(self, data):
         logger.debug(f'Reducing dimensions using ISOMAP now...')
         isomap = Isomap(
-            n_neighbors=self.isomap_n_neighbors,
-            n_components=self.tsne_n_components,
+            n_neighbors=self.n_neighbors,
+            n_components=self.n_components,
             eigen_solver='auto',
             tol=0,
             max_iter=5000,
             path_method='auto',
             neighbors_algorithm='auto',
-            n_jobs=self.tsne_n_jobs,
+            n_jobs=self.n_jobs,
             metric='minkowski',
             p=2,
             metric_params=None)
-        arr_result = isomap.fit_transform(data[self.all_features_list].values)
+        arr_result = isomap.fit_transform(data.values)
         return arr_result
 
 
-
-class UMAP(Embedderer):
+class UMAP(Embedder):
     """ Uniform Manifold __ __ """
-    umap_n_neighbors: int = 5
-    umap_learning_rate: float = 1.0
+    n_neighbors: int = 5
+    learning_rate: float = 1.0
+    n_components: int = 2 # TODO: No reason to pick this number
     # TODO: UMAP
 
 
-class CVAE(Embedderer):
+class CVAE(Embedder):
     """ Variational Auto Encoder """
     # TODO: CVAE
-    cvae_num_steps: int = 1000  # TODO: low: arbitrary default
-    def train(self, data: pd.DataFrame):
+    num_steps: int = 1000  # TODO: low: arbitrary default
+    n_components: int = 2  # TODO: No reason to pick this
+
+    def embed(self, data: pd.DataFrame):
         logger.debug(f'Reducing dims using CVAE now...')
-        data_array = data[self.all_features_list].values
+        data_array = data.values
         embedder = cvae.CompressionVAE(
             data_array,
             train_valid_split=0.75,
-            dim_latent=2,
+            dim_latent=self.n_components,
             iaf_flow_length=5,
             cells_encoder=None,
             initializer='orthogonal',
@@ -417,7 +407,7 @@ class CVAE(Embedderer):
         )
         embedder.train(
             learning_rate=0.001,
-            num_steps=self.cvae_num_steps,
+            num_steps=self.num_steps,
             dropout_keep_prob=0.75,
             overwrite=True,
             test_every=100,
@@ -433,17 +423,19 @@ class CVAE(Embedderer):
         return arr_result
 
 
-
-class LocallyLinearDimReduc(Embedderer):
+class LocallyLinearDimReduc(Embedder):
     LLE_method: str = 'standard'
-    LLE_n_neighbors: int = 5
-    def _locally_linear_dim_reduc(self, df: pd.DataFrame) -> np.ndarray:
+    n_neighbors: int = 5
+    n_components: int = 2 # TODO: I have no reason to chose this!!!
+    n_jobs: int = 1 # TODO: Could be more??
+
+    def embed(self, df: pd.DataFrame) -> np.ndarray:
         logger.debug(f'Reducing dims using LocallyLinearEmbedding now...')
-        data_arr = df[list(self.all_features)].values
+        data_arr = df.values
         local_line = LocallyLinearEmbedding(
-            n_neighbors=self.LLE_n_neighbors,
-            n_components=self.tsne_n_components,
-            n_jobs=self.tsne_n_jobs,
+            n_neighbors=self.n_neighbors,
+            n_components=self.n_components,
+            n_jobs=self.n_jobs,
             random_state=self.random_state,
             reg=1E-3,
             eigen_solver='auto',
@@ -480,6 +472,7 @@ class LocallyLinearDimReduc(Embedderer):
 class Clusterer(WithRandomState, WithParams):
     """ Examples: gmm, dbscan, spectral_clustering """
     _model = None
+
     def train(self, df: pd.DataFrame):
         raise NotImplementedError()
 
@@ -489,56 +482,29 @@ class Clusterer(WithRandomState, WithParams):
 
 
 class GMM(Clusterer):
-
-    # TODO: Re-jigger parameter setting etc.
-    # GMM
-    gmm_n_components, gmm_covariance_type, gmm_tol, gmm_reg_covar = None, None, None, None
-    gmm_max_iter, gmm_n_init, gmm_init_params = None, None, None
-    gmm_verbose: int = config.gmm_verbose
-    gmm_verbose_interval: int = config.gmm_verbose_interval
-
-    def set_params(self, params):
-        """ Set params, use fallback dict if provided (for example provide the config dict as fallback) """
-        self.gmm_n_components = params.get('gmm_n_components') or self.gmm_n_components
-        self.gmm_covariance_type = params.get('gmm_covariance_type') or self.gmm_covariance_type
-        self.gmm_tol = params.get('gmm_tol') or self.gmm_tol
-        self.gmm_reg_covar = params.get('gmm_reg_covar') or self.gmm_reg_covar
-        self.gmm_max_iter = params.get('gmm_max_iter') or self.gmm_max_iter
-        self.gmm_n_init = params.get('gmm_n_init') or self.gmm_n_init
-        self.gmm_init_params = params.get('gmm_init_params') or self.gmm_init_params
-        self.gmm_verbose = params.get('gmm_verbose') or self.gmm_verbose
-        self.gmm_verbose_interval = params.get('gmm_verbose_interval') or self.gmm_verbose_interval
-
-    def get_params(self):
-        return {
-            'gmm_n_components': self.gmm_n_components,
-            'gmm_covariance_type': self.gmm_covariance_type,
-            'gmm_tol': self.gmm_tol,
-            'gmm_reg_covar': self.gmm_reg_covar,
-            'gmm_max_iter': self.gmm_max_iter,
-            'gmm_n_init': self.gmm_n_init,
-            'gmm_init_params': self.gmm_init_params,
-            'gmm_verbose': self.gmm_verbose,
-            'gmm_verbose_interval': self.gmm_verbose_interval,
-        }
+    n_components, covariance_type, tol, reg_covar = None, None, None, None
+    max_iter, n_init, init_params = None, None, None
+    verbose: int = config.GMM.verbose
+    verbose_interval: int = config.GMM.verbose_interval
 
     def train(self, df):
         self._model = GaussianMixture(
-            n_components=self.gmm_n_components,
-            covariance_type=self.gmm_covariance_type,
-            tol=self.gmm_tol,
-            reg_covar=self.gmm_reg_covar,
-            max_iter=self.gmm_max_iter,
-            n_init=self.gmm_n_init,
-            init_params=self.gmm_init_params,
-            verbose=self.gmm_verbose,
-            verbose_interval=self.gmm_verbose_interval,
+            n_components=self.n_components,
+            covariance_type=self.covariance_type,
+            tol=self.tol,
+            reg_covar=self.reg_covar,
+            max_iter=self.max_iter,
+            n_init=self.n_init,
+            init_params=self.init_params,
+            verbose=self.verbose,
+            verbose_interval=self.verbose_interval,
             random_state=self.random_state,
         ).fit(df.values)
 
 
 class SPECTRAL(Clusterer):
     pass
+
 
 class DBSCAN(Clusterer):
     pass
@@ -570,11 +536,9 @@ class CLF(WithRandomState, WithParams):
 
 
 class SVM(CLF):
-
-    # Classifier: SVM
-    classifier_verbose: int = config.CLASSIFIER_VERBOSE
-    svm_c, svm_gamma = config.svm_c, config.svm_gamma
-    svm_probability, svm_verbose = config.svm_probability, config.svm_verbose
+    classifier_verbose: int = config.CLASSIFIER.VERBOSE
+    c, gamma = config.SVM.c, config.SVM.gamma
+    probability, verbose = config.SVM.probability, config.SVM.verbose
 
     def train(self, X, y):
         """
@@ -583,9 +547,9 @@ class SVM(CLF):
         variable
         """
         clf = SVC(
-            C=self.svm_c,
-            gamma=self.svm_gamma,
-            probability=self.svm_probability,
+            C=self.c,
+            gamma=self.gamma,
+            probability=self.probability,
             verbose=bool(self.classifier_verbose),
             random_state=self.random_state,
             cache_size=500,  # TODO: LOW: add variable to CONFIG.INI later? Measured in MB.
@@ -595,15 +559,14 @@ class SVM(CLF):
 
 
 class RANDOMFOREST(CLF):
-    # Classifier: Random Forest
-    classifier_verbose: int = config.CLASSIFIER_VERBOSE
-    rf_n_estimators: int = config.rf_n_estimators
-    rf_n_jobs: int = config.rf_n_jobs
-    rf_verbose = config.rf_verbose
+    classifier_verbose: int = config.CLASSIFIER.VERBOSE
+    n_estimators: int = config.RANDOMFOREST.n_estimators
+    n_jobs: int = config.RANDOMFOREST.n_jobs
+    verbose = config.RANDOMFOREST.verbose
 
     def train(self, X, y):
         clf = RandomForestClassifier(
-            n_estimators=self.rf_n_estimators,
+            n_estimators=self.n_estimators,
             criterion='gini',
             max_depth=None,
             min_samples_split=2,
@@ -615,9 +578,9 @@ class RANDOMFOREST(CLF):
             min_impurity_split=None,
             bootstrap=True,
             oob_score=False,
-            n_jobs=self.rf_n_jobs,
+            n_jobs=self.n_jobs,
             random_state=self.random_state,
-            verbose=self.rf_verbose,
+            verbose=self.verbose,
             warm_start=False,
             class_weight=None,
             ccp_alpha=0.0,
@@ -627,6 +590,5 @@ class RANDOMFOREST(CLF):
         # Fit classifier to non-test data
         logger.debug(f'Training {self.__class__} classifier now...')
         clf.fit(X=X, y=y)
-        self._model=clf
-
+        self._model = clf
 
