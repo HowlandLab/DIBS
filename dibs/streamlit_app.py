@@ -314,7 +314,8 @@ Success! Your new project pipeline has been saved to disk to the following path:
             logger.debug(f'Open LOAD EXISTING option')
             st.markdown('## Load existing project pipeline')
 
-            existing_pipeline_files: List[str] = [''] + [file for file in os.listdir(config.PIPELINE_OUTPUT_PATH)]
+            existing_pipeline_files: List[str] = \
+                [config.default_pipeline_file_path_or_name] + [file for file in os.listdir(config.PIPELINE_OUTPUT_PATH)]
 
             input_text_path_to_pipeline_file = os.path.join(
                 config.PIPELINE_OUTPUT_PATH,
@@ -448,13 +449,18 @@ def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
     # Model check before displaying actions that could further change pipeline state.
     if p.is_in_inconsistent_state:
         st.markdown('')
-        st.info("""
+        st.info(fr"""
 The pipeline is detected to be in an inconsistent state. 
 
 Some common causes include adding/deleting training data or changing model 
 parameters without subsequently rebuilding the model.
 
-We recommend that you rebuild the model to avoid future problems. """.strip())
+We recommend that you rebuild the model to avoid future problems.
+
+Dev details:
+
+{p.get_inconsistent_state_repr()}
+""".strip())
 
     # # TODO: for below commented-out: add a CONFIRM button to confirm model re-build, then re-instate
 
@@ -513,16 +519,6 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
             session[key_button_add_predict_data_source] = False  # Close the menu for adding prediction data
         if session[key_button_add_train_data_source]:
             # # New implementation via tkinter (NOT WORKING YET - THREAD SAFE PROBS)
-            # st.markdown('')
-
-            # root = tk.Tk()
-            # root.withdraw()
-            # file_paths: Tuple[str] = tk.filedialog.askopenfilenames(initialdir=config.DIBS_BASE_PROJECT_PATH)
-            # root.destroy()
-
-            # uf = st.file_uploader('upload file')
-            # st.markdown(f'uf.name = {uf.name}')
-            # st.markdown(f'uf.label = {uf.label}')
 
             # p = p.add_train_data_source(*file_paths).save(os.path.dirname(pipeline_file_path))
             # st.success(f'Success! Refresh page to see changes')
@@ -536,7 +532,12 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
             # Original implementation below: dont delete yet!
             st.markdown(f"_Input a file path below to data which will be used to train the model._\n\n_You may input a file path or a path to a directory. If a directory is entered, all CSVs directly within will be added as training data_")
-            input_new_data_source = st.text_input('')
+            if config.DEFAULT_TRAIN_DATA_DIR:
+                input_new_data_source = st.selectbox('Select dataset to add: ', options=['']+[file for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)])
+                if input_new_data_source:
+                    input_new_data_source = os.path.join(config.DEFAULT_TRAIN_DATA_DIR, input_new_data_source)
+            else:
+                input_new_data_source = st.text_input('Past absolute path to data to add: ')
             if input_new_data_source:
                 # Check if file exists
                 if not os.path.isfile(input_new_data_source) and not os.path.isdir(input_new_data_source):
@@ -853,7 +854,10 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                     time.sleep(n)
                     st.experimental_rerun()
                 except Exception as e:
-                    err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}. SEE LOGS FOR DETAILS.'
+                    err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}.' \
+                          f'    \n'\
+                          f'    \nTraceback:' \
+                          f'    \n{traceback.format_exc()}.'
                     logger.error(err, exc_info=True)
                     st.error(err)
                     st.stop()

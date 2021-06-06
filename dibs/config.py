@@ -118,11 +118,15 @@ if 'NUMEXPR_MAX_THREADS' not in os.environ and configuration.get('APP', 'NUMEXPR
 
 
 ### STREAMLIT ############################################################
-default_pipeline_file_path = configuration.get('STREAMLIT', 'default_pipeline_location', fallback='')
+default_pipeline_file_path_or_name = configuration.get('STREAMLIT', 'default_pipeline_location', fallback='')
 STREAMLIT_DEFAULT_VIDEOS_FOLDER = configuration.get('STREAMLIT', 'STREAMLIT_DEFAULT_VIDEOS_FOLDER')
 
 ### STREAMLIT asserts
-if default_pipeline_file_path:
+if default_pipeline_file_path_or_name:
+    if os.path.isabs(default_pipeline_file_path_or_name):
+        default_pipeline_file_path = default_pipeline_file_path_or_name
+    else:
+        default_pipeline_file_path = os.path.join(PIPELINE_OUTPUT_PATH, default_pipeline_file_path_or_name)
     assert os.path.isfile(default_pipeline_file_path), f'Pipeline location could not be found: {default_pipeline_file_path}'
 if STREAMLIT_DEFAULT_VIDEOS_FOLDER:
     assert os.path.isdir(STREAMLIT_DEFAULT_VIDEOS_FOLDER), f'Streamlit config `DEFAULT_VIDEOS_FOLDER` Folder missing: {STREAMLIT_DEFAULT_VIDEOS_FOLDER}'

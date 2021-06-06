@@ -200,6 +200,12 @@ class BasePipelineAttributeHolder(object):
             or self._has_unengineered_predict_data \
             or self._has_modified_model_variables
 
+    def get_inconsistent_state_repr(self) -> str:
+        """ https://github.com/streamlit/streamlit/issues/868 require extra white space to make multi line """
+        return f'_is_training_data_set_different_from_model_input: {self._is_training_data_set_different_from_model_input}      \n' \
+               f'_has_unengineered_predict_data: {self._has_unengineered_predict_data}     \n' \
+               f'_has_modified_model_variables: {self._has_modified_model_variables}    \n'
+
     @property
     def num_training_data_points(self) -> int:
         df_train = self.df_features_train_scaled
@@ -379,18 +385,13 @@ class BasePipeline(BasePipelineAttributeHolder):
         check_arg.ensure_type(test_train_split_pct, float)
         self.test_train_split_pct = test_train_split_pct
 
-        # TODO: Accept dict of {algo: params}... NOTE: Should this be just algo names or should it be {type_of_algo: (algo_name, params)}
-        #       NOTE: params always a dict
-        ### TSNE ###
-        # TSNE implementation type
-        # TODO: Get TSNE params dict.  Then assign by calling set_params() on the thing downstream
+        ### MODEL PARAMS ###
         # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly redo?
-
         if new_feature_engineerer_tuple := kwargs.get('FEATURE_ENGINEERER'):
             new_feature_engineerer_name, new_feature_engineerer_params = new_feature_engineerer_tuple # params usually just RANDOM_STATE
             if new_feature_engineerer_name != self._feature_engineerer.__class__.__name__:
                 self._feature_engineerer = getattr(pipeline_pieces, new_feature_engineerer_name)(new_feature_engineerer_params.get('RANDOM_STATE', self._feature_engineerer.random_state))
-                # self._feature_engineerer.set_params(new_feature_engineerer_params)
+                # self._feature_engineerer.set_params(new_feature_engineerer_params) # TODO: Let feature engineerer take args, for example tau
 
         if new_embedder_tuple := kwargs.get('EMBEDDER'):
             new_embedder_name, new_embedder_params = new_embedder_tuple
@@ -779,6 +780,10 @@ class BasePipeline(BasePipelineAttributeHolder):
         This included transforming training data, predict data, training classifiers, and getting all results.
         Dev note: the skipping of accuracy scoring is mainly meant for debug purposes.
         """
+        if not len(self._df_features_train_raw) > 0:
+            err = 'No training data has been added to the pipeline yet.  Please add training data before building the model.'
+            logger.error(err)
+            raise RuntimeError(err)
         start = time.perf_counter()
         # Build model
         self._build_pipeline(force_reengineer_train_features=force_reengineer_train_features, skip_cross_val_scoring=skip_accuracy_score)
