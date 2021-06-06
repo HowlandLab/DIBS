@@ -29,11 +29,40 @@ class WithRandomState(object):
 
 
 class WithParams(object):
-    def set_params(self, params: Dict):
-        raise NotImplementedError()
 
-    def get_params(self):
-        raise NotImplementedError()
+    def set_params(self, params: Dict):
+
+        # TODO: Derive checker from type of previous value.
+        #       We can add custom checkers later if we need them.
+
+        # assert that only valid params have been specified
+        # old_params = self.get_params()
+
+        if self._expected_params:
+            # Allow specification of expected params and set of functions for checking values.
+            for param_name, checker in self._expected_params.items():
+                if param_name in params:
+                    value = params[param_name]
+                else:
+                    value = None
+
+                if callable(checker):
+                    # TODO: Automagically define the checker as well? We might want to use lambda...
+                    checker(value)
+                else:
+                    logger.warning(f'Expected callable value checker for param \'{param_name}\' when setting value for algorithm {self.__class__.__name__}.  Continuing without check.')
+
+                params.update(**{param_name: value})
+        else: # No expected params
+
+        for param_name, value in params.items():
+            # set the parameters as names on this class
+            self.__setattr__(param_name, value)
+
+    def get_params(self) -> Dict:
+        # Return all properties on this object that are not callable or hidden.
+        # All such names are assumed parameters to the model.
+        return {name: value for name, value in self.__dict__ if not name.startswith('_') and not callable(value)}
 
 
 class WithStreamlitParamDialog(object):
