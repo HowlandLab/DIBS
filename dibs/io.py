@@ -5,6 +5,7 @@ Functions related to opening/saving files should go here
 
 from typing import List
 import joblib
+import inspect
 import numpy as np
 import os
 import pandas as pd
@@ -13,6 +14,7 @@ import sys
 
 
 from dibs import check_arg, config, logging_enhanced, pipeline
+from dibs.logging_enhanced import get_current_function
 
 
 logger = config.initialize_logger(__name__)
@@ -152,7 +154,10 @@ def read_pipeline(path_to_file: str):
     check_arg.ensure_is_file(path_to_file)
     logger.debug(f'{logging_enhanced.get_current_function()}(): Trying to open: {path_to_file}')
     with open(path_to_file, 'rb') as file:
-        p = joblib.load(file)
+        # p = joblib.load(file)
+        # p = pickle.load(file)
+        import dill
+        p = dill.load(file)
     logger.debug(f'{logging_enhanced.get_current_function()}(): Pipeline at {path_to_file} opened successfully!')
     return p
 
@@ -181,6 +186,71 @@ def save_pipeline(pipeline_obj, dir_path: str = config.OUTPUT_PATH):
         logger.error(err)
         raise OSError(err)
     return read_pipeline(final_out_path)
+
+
+def generate_pipeline_filename(name: str):
+    """
+    Generates a pipeline file name given its name.
+
+    This is an effort to standardize naming for saving pipelines.
+    """
+    file_name = f'{name}.pipeline'
+    return file_name
+
+
+    # Saving and stuff
+def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False):
+    """
+    Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
+    :param output_path_dir: (str) an absolute path to a DIRECTORY where the pipeline will be saved.
+    """
+    # logger.debug(f'{inspect.stack()[0][3]}(): Attempting to save pipeline to the following folder: {output_path_dir}.')
+
+    # Check if valid directory
+    check_arg.ensure_is_dir(output_path_dir)
+
+    # Execute
+    final_out_path = os.path.join(output_path_dir, generate_pipeline_filename(p._name))
+    # Check if valid final path to be saved
+    check_arg.ensure_is_valid_path(final_out_path)
+    if not check_arg.is_pathname_valid(final_out_path):  # TODO: low: review
+        invalid_path_err = f'Invalid output path save: {final_out_path}'
+        logger.error(invalid_path_err)
+        raise ValueError(invalid_path_err)
+
+    logger.debug(f'{inspect.stack()[0][3]}(): Attempting to save pipeline to file: {final_out_path}.')
+
+    # Write to file
+    try:
+        with open(final_out_path, 'wb') as model_file:
+            # joblib.dump(self, model_file)
+            # pickle.dump(self, model_file)
+            import dill
+            # dill.detect.trace(True)
+            dill.dump(p, model_file, protocol=dill.HIGHEST_PROTOCOL, recurse=True)
+    except Exception as e:
+        err = f'{get_current_function()}(): An unexpected error occurred: {repr(e)}'
+        logger.error(err)
+        raise e
+
+    logger.debug(f'{inspect.stack()[0][3]}(): Pipeline ({p.name}) saved to: {final_out_path}')
+    if read_and_return:
+        return read_pipeline(final_out_path)
+    else:
+        return p
+
+def save_as(p, out_path):
+    """
+
+    :param out_path:
+    :return:
+    """
+    # Arg check
+    check_arg.ensure_is_valid_path(out_path)
+    check_arg.ensure_is_dir(os.path.split(out_path))
+    # Execute
+    # TODO: MED
+    raise NotImplementedError(f'implementation TBD')
 
 
 def clean_string(s):

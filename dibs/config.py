@@ -127,7 +127,9 @@ if default_pipeline_file_path_or_name:
         default_pipeline_file_path = default_pipeline_file_path_or_name
     else:
         default_pipeline_file_path = os.path.join(PIPELINE_OUTPUT_PATH, default_pipeline_file_path_or_name)
-    assert os.path.isfile(default_pipeline_file_path), f'Pipeline location could not be found: {default_pipeline_file_path}'
+    if not os.path.isfile(default_pipeline_file_path):
+        # f'Pipeline location could not be found: {default_pipeline_file_path}'
+        default_pipeline_file_path = ''
 else:
     default_pipeline_file_path = ''
 if STREAMLIT_DEFAULT_VIDEOS_FOLDER:

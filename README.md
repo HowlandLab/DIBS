@@ -116,3 +116,4 @@ the variables in [config.ini](config.ini) under the **[TESTING] section**
 ### Spare words. Ignore the below.
 
 - Run the following command to automate creation of the environment: `conda env create -n dibs -f env_windows.yml`
+

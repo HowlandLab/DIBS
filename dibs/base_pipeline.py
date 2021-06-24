@@ -52,11 +52,20 @@ class BasePipelineAttributeHolder(object):
     # TODO: Scalar??  Not sure what that is used for yet.
     _scaler = None
 
-    # Model objects.  Modular, so that we can swap out different parts of the algorithm independently.
-    _feature_engineerer: FeatureEngineerer = getattr(pipeline_pieces, config.FEATURE_ENGINEERER.DEFAULT)(config.FEATURE_ENGINEERER.RANDOM_STATE)
-    _embedder: Embedder = getattr(pipeline_pieces, config.EMBEDDER.DEFAULT)(config.EMBEDDER.RANDOM_STATE)
-    _clusterer: Clusterer = getattr(pipeline_pieces, config.CLUSTERER.DEFAULT)(config.CLUSTERER.RANDOM_STATE)
-    _clf: CLF = getattr(pipeline_pieces, config.CLASSIFIER.DEFAULT)(config.CLASSIFIER.RANDOM_STATE)
+    def __init__(self):
+        """ IMPORTANT: Nested objects seem to have to be strict instance variables, or at least not be
+        class variables with default initialization expressions...
+        Pickling failed when these were outside of __init__.  Could not find any explaination or
+        documentation. Could not reproduce with a smaller test case. """
+        # Model objects.  Modular, so that we can swap out different parts of the algorithm independently.
+        self._feature_engineerer: FeatureEngineerer = getattr(pipeline_pieces, config.FEATURE_ENGINEERER.DEFAULT)()
+        self._embedder: Embedder = getattr(pipeline_pieces, config.EMBEDDER.DEFAULT)()
+        self._clusterer: Clusterer = getattr(pipeline_pieces, config.CLUSTERER.DEFAULT)()
+        self._clf: CLF = getattr(pipeline_pieces, config.CLASSIFIER.DEFAULT)()
+
+    _embedder_is_built = False
+    _clusterer_is_built = False
+    _clf_is_built = False
 
     cross_validation_k = 10
     cross_validation_n_jobs = 2
@@ -65,14 +74,12 @@ class BasePipelineAttributeHolder(object):
     clusterer_assignment_col_name, clf_assignment_col_name, = 'clusterer_assignment', 'classifier_assignment'
 
     # Pipeline state-tracking variables
-    _is_built = False  # Is False until the classifiers are built then changes to True
     _is_training_data_set_different_from_model_input: bool = False  # Changes to True if new training data is added and classifiers not rebuilt.
     _has_unengineered_predict_data: bool = False  # Changes to True if new predict data is added. Changes to False if features are engineered.
-    _has_modified_model_variables: bool = False
 
     # Data
     test_col_name = 'is_test_data'
-    default_cols = ['frame', 'data_source', 'file_source', clusterer_assignment_col_name]  # ,  clf_assignment_col_name, clusterer_assignment_col_name]
+    default_cols = ['frame', 'data_source', 'file_source', clusterer_assignment_col_name, clf_assignment_col_name]  # ,  clf_assignment_col_name, clusterer_assignment_col_name]
     _df_features_train_raw = pd.DataFrame(columns=default_cols)
     _df_features_train = pd.DataFrame(columns=default_cols)
     _df_features_train_scaled_train_split_only = pd.DataFrame(columns=default_cols)
@@ -86,10 +93,6 @@ class BasePipelineAttributeHolder(object):
     video_fps: float = config.VIDEO_FPS
     average_over_n_frames: int = config.AVERAGE_OVER_N_FRAMES
     test_train_split_pct: float = config.HOLDOUT_PERCENT
-
-    # Column names # TODO: If runs remove!
-    # features_which_average_by_mean = ['DistFrontPawsTailbaseRelativeBodyLength', 'DistBackPawsBaseTailRelativeBodyLength', 'InterforepawDistance', 'BodyLength', ]
-    # features_which_average_by_sum = ['SnoutToTailbaseChangeInAngle', 'SnoutSpeed', 'TailbaseSpeed']
 
     # All label properties for respective assignments instantiated below to ensure no missing properties b/w Pipelines (aka: quick fix, not enough time to debug in full)
     label_0, label_1, label_2, label_3, label_4, label_5, label_6, label_7, label_8, label_9 = ['' for _ in range(10)]
@@ -157,7 +160,9 @@ class BasePipelineAttributeHolder(object):
             self._df_features_train_scaled_train_split_only[self.clusterer_assignment_col_name] != self.null_gmm_label
             ]
     @property
-    def df_embedder_embedding(self): return self._df_features_train_scaled_train_split_only.loc[self.dims_cols_names].copy()
+    def df_embedder_embedding(self):
+        """ Allows user to extract reduced data from pipeline. """
+        return self._df_features_train_scaled_train_split_only.loc[self.dims_cols_names].copy()
 
     @property
     def transition_matrix(self):
@@ -173,7 +178,7 @@ class BasePipelineAttributeHolder(object):
         return mat
 
     def plot_transition_matrix_heatmap(self, cmap=sns.color_palette("Blues", as_cmap=True),
-                                       save_name=None,
+                                       save_name='',
                                        save_format=config.DEFAULT_SAVED_GRAPH_FILE_FORMAT, **kwargs):
         # TODO: Add these options too stuff and things?
         # TODO: Add axis labels.  Change labels to reflect user labels
@@ -199,6 +204,10 @@ class BasePipelineAttributeHolder(object):
         return self._description
 
     @property
+    def _is_built(self):
+        return self._clf_is_built or self._clusterer_is_built or self._embedder_is_built
+
+    @property
     def is_in_inconsistent_state(self):
         """
         Useful for checking if training data has been added/removed from pipeline
@@ -206,13 +215,15 @@ class BasePipelineAttributeHolder(object):
         """
         return self._is_training_data_set_different_from_model_input \
             or self._has_unengineered_predict_data \
-            or self._has_modified_model_variables
+            or not self._is_built
 
     def get_inconsistent_state_repr(self) -> str:
         """ https://github.com/streamlit/streamlit/issues/868 require extra white space to make multi line """
         return f'_is_training_data_set_different_from_model_input: {self._is_training_data_set_different_from_model_input}      \n' \
                f'_has_unengineered_predict_data: {self._has_unengineered_predict_data}     \n' \
-               f'_has_modified_model_variables: {self._has_modified_model_variables}    \n'
+               f'_embedder_is_built: {self._embedder_is_built}    \n' \
+               f'_clusterer_is_built: {self._clusterer_is_built}    \n' \
+               f'_clf_is_built: {self._clf_is_built}    \n'
 
     @property
     def num_training_data_points(self) -> int:
@@ -231,29 +242,6 @@ class BasePipelineAttributeHolder(object):
         #     df_train = df_train.loc[~df_train[self.test_col_name]]
 
         return len(df_train)
-
-    def clf_predict(self, x: np.ndarray) -> np.ndarray:
-        """
-        An abstraction above using a raw classifier.predict() call in case invalid data is sent to the call.
-        In the case that invalid features are sent for prediction, in the future we can add a fill value
-        like "NaN" when a prediction is not possible.
-        :param x:
-        :return:
-        """
-        # TODO: low/med: add checks for NULL values in array
-        # predict = self.clf.predict(arr)
-        try:
-            prediction = self.clf.predict(x)
-        except ValueError:  # TODO: HIGH: change exception to correct one. AttributeError is a stand-in until we can confirm what a bad prediction error actually is. Likely a Value Error
-            # # TODO: med: consider a fill value response instead of error when done debugging
-            # err = f'{get_current_function()}(): Unexpected error: CHECK CODE FOR COMMENTS. NOTE THE EXCEPTION TYPE!!! You\'ll need it to replace things here later'
-            # logger.error(err)
-            # raise ae
-            prediction = np.NaN
-        return prediction
-
-    @property
-    def clf(self): return self._clf
 
     @property
     def is_built(self): return self._is_built
@@ -327,8 +315,6 @@ class BasePipelineAttributeHolder(object):
 
     @property
     def all_engineered_features(self) -> Tuple[str]: return self._feature_engineerer._all_engineered_features
-    # @property
-    # def all_engineered_features(self) -> Tuple[str]: return self.all_engineered_features
 
     @property
     def all_engineered_features_list(self) -> List[str]: return list(self.all_engineered_features)
@@ -377,6 +363,7 @@ class BasePipeline(BasePipelineAttributeHolder):
     # Init
     def __init__(self, name: str, **kwargs):
         # Pipeline name
+        super().__init__()
         logger.info(f'Received following params when initializing pipeline: {kwargs}')
         check_arg.ensure_type(name, str)
         self.set_name(name)
@@ -420,37 +407,55 @@ class BasePipeline(BasePipelineAttributeHolder):
         check_arg.ensure_type(test_train_split_pct, float)
         self.test_train_split_pct = test_train_split_pct
 
+        def _dict_is_subset_of(d1, d2):
+            """ d1 should be a subset of d2 """
+            return len(set(d1.items()) - set(d2.items())) == 0
+
         ### MODEL PARAMS ###
         # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly redo?
         if new_feature_engineerer_tuple := kwargs.get('FEATURE_ENGINEERER'):
             new_feature_engineerer_name, new_feature_engineerer_params = new_feature_engineerer_tuple # params usually just RANDOM_STATE
             if new_feature_engineerer_name != self._feature_engineerer.__class__.__name__:
-                self._feature_engineerer = getattr(pipeline_pieces, new_feature_engineerer_name)(new_feature_engineerer_params.get('RANDOM_STATE', self._feature_engineerer.random_state))
-                # self._feature_engineerer.set_params(new_feature_engineerer_params) # TODO: Let feature engineerer take args, for example tau
+                self._feature_engineerer = getattr(pipeline_pieces, new_feature_engineerer_name)()
+            # self._feature_engineerer.set_params(new_feature_engineerer_params) # TODO: Let feature engineerer take args, for example tau
+            self._is_training_data_set_different_from_model_input = True # Forces re-generation of engineered training datasets
+            self._has_unengineered_predict_data = True # Forces re-generation of engineered predict datasets
 
         if new_embedder_tuple := kwargs.get('EMBEDDER'):
             new_embedder_name, new_embedder_params = new_embedder_tuple
             if new_embedder_name != self._embedder.__class__.__name__:
-                self._embedder = getattr(pipeline_pieces, new_embedder_name)(new_embedder_params.get('RANDOM_STATE', self._embedder._random_state))
-                self._embedder.set_params(new_embedder_params)
+                logger.debug('Embedder name changed')
+                self._embedder = getattr(pipeline_pieces, new_embedder_name)(new_embedder_params)
+                self._embedder_is_built = False
+            else:
+                if not _dict_is_subset_of(new_embedder_params, self._embedder.get_params()):
+                    logger.debug('Embedder params changed')
+                    self._embedder.set_params(new_embedder_params)
+                    self._embedder_is_built = False
 
         if new_clusterer_tuple := kwargs.get('CLUSTERER'):
             new_clusterer_name, new_clusterer_params = new_clusterer_tuple
             if new_clusterer_name != self._clusterer.__class__.__name__:
-                self._clusterer = getattr(pipeline_pieces, new_clusterer_name)(new_clusterer_params.get('RANDOM_STATE', self._clusterer._random_state))
-                self._clusterer.set_params(new_clusterer_params)
+                logger.debug('Clusterer name changed')
+                self._clusterer = getattr(pipeline_pieces, new_clusterer_name)(new_clusterer_params)
+                self._clusterer_is_built = False
+            else:
+                if not _dict_is_subset_of(new_clusterer_params, self._clusterer.get_params()):
+                    logger.debug('Clusterer params changed')
+                    self._clusterer.set_params(new_clusterer_params)
+                    self._clusterer_is_built = False
 
         if new_clf_tuple := kwargs.get('CLF'):
             new_clf_name, new_clf_params = new_clf_tuple
             if new_clf_name != self._clf.__class__.__name__:
-                self._clf = getattr(pipeline_pieces, new_clf_name)(new_clf_params.get('RANDOM_STATE', self._clf._random_state))
-                self._clf.set_params(new_clf_params)
-
-        # if new_clf_tuple := kwargs.get('DimReducer'):
-        #     new_dimreducer_name, new_dimreducer_params = new_dimreducer_tuple
-        #     if new_dimreducer_name != self._dimreducer.__class__.__name__:
-        #         self._dimreducer = getattr(pipeline_pieces, new_dimreducer_name)(new_dimreducer_params.get('RANDOM_STATE', self._dimreducer._random_state))
-        #         self._dimreducer.set_params(new_dimreducer_params)
+                logger.debug('CLF name changed')
+                self._clf = getattr(pipeline_pieces, new_clf_name)(new_clf_params)
+                self._clf_is_built = False
+            else:
+                if not _dict_is_subset_of(new_clf_params, self._clf.get_params()):
+                    logger.debug('CLF params changed')
+                    self._clf.set_params(new_clf_params)
+                    self._clf_is_built = False
 
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
         # Source video FPS # TODO: NOT SURE IF VIDEO FPS SHOULD INVALIDATE MODELS OR NOT?? Probably not but I don't know for sure
@@ -461,10 +466,6 @@ class BasePipeline(BasePipelineAttributeHolder):
         average_over_n_frames = kwargs.get('average_over_n_frames', self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
         check_arg.ensure_type(average_over_n_frames, int)
         self.average_over_n_frames = average_over_n_frames
-
-        # TODO: We could mark all models that are invalid after params updated here!
-        # Fin
-        self._has_modified_model_variables = True
 
         return self
 
@@ -594,13 +595,12 @@ class BasePipeline(BasePipelineAttributeHolder):
         return self
 
     ## Engineer features
-    ## TODO: Had to temporarly default back to using the definitions on the pipeline objects
-    # def engineer_features(self, data: pd.DataFrame):
-    #     """
-    #     This function takes one data that is continuous in time and engineers all necessary features.
-    #     It *must* be overridden by all child classes for the respective child class to be considered valid.
-    #     """
-    #     return self._feature_engineerer.engineer_features(data)
+    def engineer_features(self, data: pd.DataFrame):
+        """
+        This function takes one data that is continuous in time and engineers all necessary features.
+        It *must* be overridden by all child classes for the respective child class to be considered valid.
+        """
+        return self._feature_engineerer.engineer_features(data, self.average_over_n_frames)
 
     def engineer_features_all_dfs(self, list_dfs_of_raw_data: List[pd.DataFrame]) -> pd.DataFrame:
         """
@@ -664,6 +664,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         Engineer features for the predicted data
         Splits data based on data_source, then sends the list of DataFrames by source to engineer_features().
         """
+        logger.debug(f'Engineering features on prediction data.')
         # Queue data
         list_dfs_raw_data = [self.df_features_predict_raw.loc[self.df_features_predict_raw['data_source'] == src]
                                  .sort_values('frame').copy()
@@ -721,6 +722,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         features = list(features)
         df_features_train = self.df_features_train.copy()
 
+        logger.debug(f'Scaling data now...')
         # Add train/test assignment col
         df_features_train = feature_engineering.attach_train_test_split_col(
             df_features_train,
@@ -748,6 +750,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         :return:
         """
         # Queue up data to use
+        logger.debug('Applying scale transform to predict data')
         if features is None:
             features = self.all_engineered_features
         features = list(features)
@@ -772,7 +775,8 @@ class BasePipeline(BasePipelineAttributeHolder):
     #     return self
 
     # Pipeline building
-    def _build_pipeline(self, force_reengineer_train_features: bool = False, skip_cross_val_scoring: bool = False):
+    def _build_pipeline(self, force_reengineer_train_features: bool = False,
+                        pipeline_file_path = None):
         """
         Builds the model for predicting behaviours.
         :param force_reengineer_train_features: (bool) If True, forces the training data to be re-engineered.
@@ -785,38 +789,33 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         # TODO: Time each step and log for the user.
         # Scale data
-        logger.debug(f'Scaling data now...')
         self._scale_training_data_and_add_train_test_split(create_new_scaler=True)
 
-        # TODO: Replace these with equivalent call
-        # TSNE -- create new dimensionally reduced data
-        # self._reduce_training_data_features_dimensions()
-        self._build_embedder()
+        # Rebuild any parts that require updating.
+        # These flags are set to False on initialization, when setting parameters,
+        # and if any previous piece of the pipeline has been changed.
+        if not self._embedder_is_built:
+            self._build_embedder()
+            if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
 
         # GMM + Classifier
-        # self._train_gmm_and_classifier()
-        self._build_clusterer()
-        self._build_classifier()
+        if not self._clusterer_is_built:
+            self._build_clusterer()
+            if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
 
-        # Circle back and apply labels to all data, train & test alike
-        self._label_data_with_classifier()
-
-        # Accuracy scoring
-        if skip_cross_val_scoring:
-            logger.debug(f'Accuracy/cross-validation scoring is being skipped.')
-        else:
-            self.generate_accuracy_scores()
+        if not self._clf_is_built:
+            self._build_classifier()
+            if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
 
         # Final touches. Save state of pipeline. # TODO: What if we fail half way?
-        self._is_built = True
         self._is_training_data_set_different_from_model_input = False
-        self._has_modified_model_variables = False
         self._last_built = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
         logger.debug(f'{get_current_function()}(): All done with building classifiers/model!')
 
         return self
 
-    def build(self, force_reengineer_train_features=False, reengineer_predict_features=False, skip_accuracy_score: bool = False):
+    def build(self, force_reengineer_train_features=False, reengineer_predict_features=False,
+              skip_accuracy_score: bool = False, pipeline_file_path=None):
         """
         Encapsulate entire build process from front to back.
         This included transforming training data, predict data, training classifiers, and getting all results.
@@ -828,33 +827,48 @@ class BasePipeline(BasePipelineAttributeHolder):
             raise RuntimeError(err)
         start = time.perf_counter()
         # Build model
-        self._build_pipeline(force_reengineer_train_features=force_reengineer_train_features, skip_cross_val_scoring=skip_accuracy_score)
+
+        # TODO :Remove after debugging
+        self._embedder_is_built = False
+        self._clusterer_is_built = False
+        self._clf_is_built = False
+
+        self._build_pipeline(force_reengineer_train_features=force_reengineer_train_features,
+                             pipeline_file_path=pipeline_file_path)
+
+        # Circle back and apply labels to all data, train & test alike
+        # TODO: Record if the labels are up to date
+        self._label_data_with_classifier()
+
+        # Accuracy scoring
+        if skip_accuracy_score:
+            logger.debug(f'Accuracy/cross-validation scoring is being skipped.')
+        else:
+            self.generate_accuracy_scores()
+
         # Get predict data
         self._generate_predict_data_assignments(reengineer_predict_features=reengineer_predict_features)
         # Wrap up
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
+        io.save_to_folder(self, pipeline_file_path)
         # logger.info(f'{get_current_function()}(): Total build time: {self.seconds_to_build} seconds. Rows of data: {len(self._df_features_train_scaled)} / tsne_n_jobs={self._embedder.n_jobs} / cross_validation_n_jobs = {self.cross_validation_n_jobs}')  # TODO: med: amend this line later. Has extra info for debugging purposes.
         return self
 
     # dimensionality reduction (embedding) TODO: low; Rename
     def _build_embedder(self):
-        logger.debug(f'Reducing feature dimensions now now...')
         # TODO: HIGH: make sure that grabbing the data for training is standardized <----------------------------
         # Grab train data
         df_train_data_for_tsne = self.df_features_train_scaled.loc[
             (~self.df_features_train_scaled[self.test_col_name])  # Train only
             & (~self.df_features_train_scaled[self.all_engineered_features_list].isnull().any(axis=1))  # Non-null features only
             ].copy()
-
-        # TODO: new implementation for dim reduc
-        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)  # Original
 
         check_arg.ensure_columns_in_DataFrame(df_train_data_for_tsne, self.all_engineered_features_list)
-        arr_tsne_result: np.ndarray = self._embedder.embed(df_train_data_for_tsne[list(self.all_engineered_features)])  # Original
-        # arr_tsne_result = self._train_cvae(df_train_data_for_tsne)  # CVAE
-        # arr_tsne_result = self._train_isomap(df_train_data_for_tsne)  # ISOMAP
-        # arr_tsne_result = self._locally_linear_dim_reduc(df_train_data_for_tsne)  # local lienar
+        logger.debug(f'Reducing feature dimensions now with {self._embedder.__class__.__name__}')
+        logger.debug(f'Params: {self._embedder.get_params()}')
+
+        arr_tsne_result: np.ndarray = self._embedder.embed(df_train_data_for_tsne[list(self.all_engineered_features)])
         check_arg.ensure_type(arr_tsne_result, np.ndarray)  # TODO: low: remove, debuggin effort for dim reduc approaches
 
         # Attach dimensionally reduced data, save
@@ -863,39 +877,11 @@ class BasePipeline(BasePipelineAttributeHolder):
             pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
         ], axis=1)
 
-        return self
-
-    def _reduce_training_data_features_dimensions(self):
-        """
-        Attach new reduced dimension columns to existing (scaled) features DataFrame
-        Post-condition: creates
-        :return: self
-        """
-        logger.debug(f'Reducing feature dimensions now now...')
-        # TODO: HIGH: make sure that grabbing the data for training is standardized <----------------------------
-        # Grab train data
-        df_train_data_for_tsne = self.df_features_train_scaled.loc[
-            (~self.df_features_train_scaled[self.test_col_name])  # Train only
-            & (~self.df_features_train_scaled[self.all_engineered_features_list].isnull().any(axis=1))  # Non-null features only
-            ].copy()
-
-        # TODO: new implementation for dim reduc
-        # arr_tsne_result: np.ndarray = self._train_tsne_get_dimension_reduced_data(df_train_data_for_tsne)  # Original
-        arr_tsne_result: np.ndarray = self._embedder.embed(df_train_data_for_tsne)  # Original
-        # arr_tsne_result = self._train_cvae(df_train_data_for_tsne)  # CVAE
-        # arr_tsne_result = self._train_isomap(df_train_data_for_tsne)  # ISOMAP
-        # arr_tsne_result = self._locally_linear_dim_reduc(df_train_data_for_tsne)  # local lienar
-        check_arg.ensure_type(arr_tsne_result, np.ndarray)  # TODO: low: remove, debuggin effort for dim reduc approaches
-
-        # Attach dimensionally reduced data, save
-        self._df_features_train_scaled_train_split_only = pd.concat([
-            df_train_data_for_tsne,
-            pd.DataFrame(arr_tsne_result, columns=self.dims_cols_names),
-        ], axis=1)
+        self._embedder_is_built = True
+        self._clusterer_is_built = False
+        self._clf_is_built = False
 
         return self
-
-
 
     # Clustering
     def clusterer_predict(self, x):
@@ -911,11 +897,12 @@ class BasePipeline(BasePipelineAttributeHolder):
         #     self.set_params(gmm_n_components=n_clusters)
         # TODO: Where do we reset the self._clusterer?? And the other models?? Where should we??
 
-        # Train GMM, get assignments
-        logger.debug(f'Training GMM now...')
         # data = self.df_features_train_scaled_train_split_only[self.dims_cols_names].values  # Old way
         df = self.df_features_train_scaled_train_split_only
         df = df.loc[~df[self.dims_cols_names].isnull().any(axis=1)][self.dims_cols_names]
+
+        logger.debug(f'Training {self._clusterer.__class__.__name__} now...')
+        logger.debug(f'Params: {self._clusterer.get_params()}')
         self._clusterer.train(df)
         # self._df_features_train_scaled_train_split_only[self.clusterer_assignment_col_name] = self.gmm_predict(self.df_features_train_scaled_train_split_only[self.dims_cols_names].values)
         # Get predictions
@@ -929,7 +916,16 @@ class BasePipeline(BasePipelineAttributeHolder):
             map(lambda x: self.null_gmm_label if x != x else x). \
             astype(int)
 
+        self._clusterer_is_built = True
+        self._clf_is_built = False
+
         return self
+
+    def clf_predict(self, data: np.array):
+        check_arg.ensure_type(data, np.ndarray)
+        d = np.copy(data)
+        d[~np.isfinite(d)] = 0 # TODO: HACK: Could handle NaNs better...
+        return np.array([int(x) if x == x else int(self.null_classifier_label) for x in self._clf.predict(d)])
 
     def _build_classifier(self):
         """ Train classifier, TODO: And apply labels to something? """
@@ -945,7 +941,14 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         X=df[list(self.all_engineered_features)]
         y=df[self.clusterer_assignment_col_name]
+
+        logger.debug(f'Training {self._clf.__class__.__name__} classifier now...')
+        logger.debug(f'Params: {self._clf.get_params()}')
         self._clf.train(X, y)
+        logger.debug(f'Finished training {self._clf.__class__.__name__} classifier!')
+
+        self._clf_is_built = True
+
         return self
 
     # AARONT: TODO: Where do these fit in exactly?
@@ -963,7 +966,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         # # Get cross-val accuracy scores
         try:
             self._cross_val_scores = cross_val_score(
-                self.clf._model,
+                self._clf._model,
                 df[self.all_engineered_features_list].values,
                 df[self.clf_assignment_col_name].values,
                 cv=self.cross_validation_k,
@@ -977,20 +980,31 @@ class BasePipeline(BasePipelineAttributeHolder):
         df_features_train_scaled_test_data = df.loc[df[self.test_col_name]]
 
         self._acc_score = accuracy_score(
-            y_pred=self.clf_predict(df_features_train_scaled_test_data[list(self.all_engineered_features)]),
+            y_pred=self.clf_predict(df_features_train_scaled_test_data[list(self.all_engineered_features)].values),
             y_true=df_features_train_scaled_test_data[self.clf_assignment_col_name].values)
+        logger.debug('Finished generating cross-validation scores')
         logger.debug(f'Pipeline train accuracy: {self.accuracy_score}')
         return self
 
     def _label_data_with_classifier(self):
         """
-
         :return:
         """
+        logger.debug('Labelling data with classifier now')
         # Set classifier predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_engineered_features_list].apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_engineered_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: self.null_classifier_label if x != x else x)
-        self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
+        # TODO: Remove after debugging
+        a = self._df_features_train_scaled[self.all_engineered_features_list].values
+        # a[~np.isfinite(a)] = 0 # HACKS: Should probably do something smarter with nans. Also: Why doesn't np.isnan work?
+        clf_labels = self.clf_predict(a)
+        self._df_features_train_scaled[self.clf_assignment_col_name] = clf_labels
+        assert self.clf_assignment_col_name in self._df_features_train_scaled.columns
+        assert self.clf_assignment_col_name in self.df_features_train_scaled.columns
+        # TODO: True passing all the things
+        # self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.all_engineered_features_list].\
+        #     apply(lambda series: self.clf_predict(series.values.reshape(1, len(self.all_engineered_features))), axis=1)  # self.clf_predict(self.df_features_train_scaled[list(self.all_features)].values)  # Get predictions
+        # logger.debug('Finished generating labels with classifier')
+        # self._df_features_train_scaled[self.clf_assignment_col_name] = self._df_features_train_scaled[self.clf_assignment_col_name].map(lambda x: self.null_classifier_label if x != x else x)
+        # self._df_features_train_scaled[self.clf_assignment_col_name] = self.df_features_train_scaled[self.clf_assignment_col_name].astype(int)  # Coerce into int
 
         return self
 
@@ -999,9 +1013,10 @@ class BasePipeline(BasePipelineAttributeHolder):
         """
         Runs after build(). Using terminology from old implementation. TODO: purpose
         """
+        logger.debug(f'Generating prediction data assignments')
 
         # Check that classifiers are built on the training data
-        if self._is_training_data_set_different_from_model_input or self._has_modified_model_variables:
+        if self._is_training_data_set_different_from_model_input or not self._is_built:
             # AARONT: TODO: Improve warning message and logging and match Killians style or remove this check all together.
             raise RuntimeError('Calling this funtion is not a good idea in the way that you are doing it.')
 
@@ -1012,9 +1027,9 @@ class BasePipeline(BasePipelineAttributeHolder):
             return self
 
         # Check if predict features have been engineered
-        # if reengineer_predict_features or self._has_unengineered_predict_data:
-        self._engineer_features_predict()
-        self._scale_transform_predict_data()
+        if reengineer_predict_features or self._has_unengineered_predict_data:
+            self._engineer_features_predict()
+            self._scale_transform_predict_data()
 
         # Add prediction labels
         if len(self.df_features_predict_scaled) > 0:
@@ -1023,6 +1038,7 @@ class BasePipeline(BasePipelineAttributeHolder):
             logger.debug(f'{get_current_function()}(): 0 records were detected '
                          f'for PREDICT data. No data was predicted with model.')
 
+        logger.debug('Finished generating prediction data assignments')
         return self
 
     # More data transformations
@@ -1048,54 +1064,6 @@ class BasePipeline(BasePipelineAttributeHolder):
         self._df_features_train_scaled = df_shuffled
         return self
 
-    # Saving and stuff
-    def save_to_folder(self, output_path_dir=config.OUTPUT_PATH):
-        """
-        Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
-        :param output_path_dir: (str) an absolute path to a DIRECTORY where the pipeline will be saved.
-        """
-        # logger.debug(f'{inspect.stack()[0][3]}(): Attempting to save pipeline to the following folder: {output_path_dir}.')
-
-        # Check if valid directory
-        check_arg.ensure_is_dir(output_path_dir)
-
-        # Execute
-        final_out_path = os.path.join(output_path_dir, generate_pipeline_filename(self._name))
-        # Check if valid final path to be saved
-        check_arg.ensure_is_valid_path(final_out_path)
-        if not check_arg.is_pathname_valid(final_out_path):  # TODO: low: review
-            invalid_path_err = f'Invalid output path save: {final_out_path}'
-            logger.error(invalid_path_err)
-            raise ValueError(invalid_path_err)
-
-        logger.debug(f'{inspect.stack()[0][3]}(): Attempting to save pipeline to file: {final_out_path}.')
-
-        # Write to file
-        try:
-            with open(final_out_path, 'wb') as model_file:
-                joblib.dump(self, model_file)
-        except Exception as e:
-            err = f'{get_current_function()}(): An unexpected error occurred: {repr(e)}'
-            logger.error(err)
-            raise e
-
-        logger.debug(f'{inspect.stack()[0][3]}(): Pipeline ({self.name}) saved to: {final_out_path}')
-        return io.read_pipeline(final_out_path)
-
-    def save_as(self, out_path):
-        """
-
-        :param out_path:
-        :return:
-        """
-        # Arg check
-        check_arg.ensure_is_valid_path(out_path)
-        check_arg.ensure_is_dir(os.path.split(out_path))
-        # Execute
-        # TODO: MED
-        raise NotImplementedError(f'implementation TBD')
-        # Return pipeline that was saved-as
-        return io.read_pipeline(out_path)
 
     # Video creation
     def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str, output_fps: float = config.OUTPUT_VIDEO_FPS):
@@ -1404,31 +1372,6 @@ all_engineered_features = {self.all_engineered_features}
     def __repr__(self) -> str:
         # TODO: low: flesh out how these are usually built. Add a last updated info?
         return f'{self.name}'
-
-    # def _add_test_train_split_col(self, df: pd.DataFrame, copy=False) -> pd.DataFrame:
-    #     raise DeprecationWarning('Deprecated. Now a feature engineering problem since solution not Pipeline dependent. ')
-    #     df = df.copy() if copy else df
-    #     df[self.test_col_name] = False
-    #     df_shuffled = sklearn_shuffle_dataframe(df)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
-    #     # TODO: med: fix setting with copy warning
-    #     df_shuffled.iloc[:round(len(df_shuffled) * self.test_train_split_pct), :][self.test_col_name] = True  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
-    #
-    #     df_shuffled = df_shuffled.sort_values(['data_source', 'frame'])
-    #
-    #     actual_split_pct = round(len(df_shuffled.loc[df_shuffled[self.test_col_name]]) / len(df_shuffled), 3)
-    #     logger.debug(f"Final test/train split is calculated to be: {actual_split_pct}")
-    #
-    #     return df
-
-
-def generate_pipeline_filename(name: str):
-    """
-    Generates a pipeline file name given its name.
-
-    This is an effort to standardize naming for saving pipelines.
-    """
-    file_name = f'{name}.pipeline'
-    return file_name
 
  # DistanceForepawLeftToNosetip  DistanceForepawRightToNosetip  DistanceForepawLeftToHindpawLeft  DistanceForepawRightToHindpawRight  DistanceAvgHindpawToNosetip  DistanceAvgForepawToNosetip  VelocityAvgForepaw  index          NoseTip_x           NoseTip_y       ForepawLeft_x      ForepawLeft_y      ForepawRight_x      ForepawRight_y       HindpawLeft_x     HindpawLeft_y      HindpawRight_x     HindpawRight_y        TailBase_x         TailBase_y                                         scorer                                                                                                    file_source                                              data_source  frame        AvgForepaw_x       AvgForepaw_y        AvgHindpaw_x       AvgHindpaw_y is_test_data      dim_1      dim_2    g
 # 0                      0.053019                       0.039239                          0.866732                            1.000000                     0.125995                     0.037744            0.000000    0.0                nan                 nan                 nan                nan                 nan                 nan                 nan               nan                 nan                nan               nan                nan  DLC_resnet50_Maternal_EPMDec28shuffle1_700000  C:\Users\killian\projects\DIBS\epm_data_csv_train\EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000.csv  EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000    0.0                 nan                nan                 nan                nan        False -27.276716  32.215048  [2]

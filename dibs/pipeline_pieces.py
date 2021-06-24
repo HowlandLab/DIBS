@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
 from typing import Union, Dict, List, Tuple, Optional
-from dibs import check_arg, config, feature_engineering
+from collections import defaultdict
+from dibs import check_arg, config
 from dibs.logging_enhanced import get_current_function
+from dibs.feature_engineering import distance_between_two_arrays, velocity_of_xy_feature
 
 # Models
 # from bhtsne import tsne as TSNE_bhtsne # Aaron on Ferrari; June 6th/2021: Does not want to install, but we don't use this anymore anyways
@@ -20,14 +22,6 @@ from dibs import logging_enhanced
 logger = config.initialize_logger(__name__)
 
 
-class WithRandomState(object):
-    def __init__(self, random_state):
-        self._random_state = random_state
-
-    @property
-    def random_state(self): return self._random_state
-
-
 class WithParams(object):
 
     # specify custom parameter checkers, especially useful if multiple types are valid, if only a certain range
@@ -35,6 +29,10 @@ class WithParams(object):
     _param_checkers = dict()
     # Turn of parameter type checking completely if you want
     _check_parameter_types = True
+
+    def __init__(self, params: Dict=None):
+        if params is not None:
+            self.set_params(params)
 
     def set_params(self, params: Dict):
         # The valid params are specified by all the attributes attached to the class that do not start with _
@@ -84,19 +82,18 @@ class WithStreamlitParamDialog(object):
         raise NotImplementedError()
 
 
-class FeatureEngineerer(WithRandomState):
+class FeatureEngineerer(object):
     """ Examples: Custom built feature engineering for each task"""
 
     _all_engineered_features = None # TODO: Force overriding _all_engineered_features
+    random_state = config.FEATURE_ENGINEERER.RANDOM_STATE # Controls train/test split.... TODO: Make this better
 
     def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames: int) -> pd.DataFrame:
         raise NotImplementedError()
 
 
-class HowlandFeatureEngineerer(FeatureEngineerer):
-    """
-    New features set created by the Howland Lab.
-    """
+class LegacyHowlandFeatureEngineering(FeatureEngineerer):
+
     # Feature names
     intermediate_bodypart_avgForepaw = 'AvgForepaw'
     intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
@@ -117,8 +114,7 @@ class HowlandFeatureEngineerer(FeatureEngineerer):
         feat_name_velocity_AvgForepaw,
     )
 
-    def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames) -> pd.DataFrame:
-        # TODO: WIP
+    def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames):
         """
         # Head dips
         1. d(forepaw left to nose)
@@ -133,6 +129,7 @@ class HowlandFeatureEngineerer(FeatureEngineerer):
         8. v(avgForepaw)
 
         """
+        from dibs import feature_engineering
         # Arg Checking
         check_arg.ensure_type(in_df, pd.DataFrame)
         # Execute
@@ -183,17 +180,57 @@ class HowlandFeatureEngineerer(FeatureEngineerer):
         #         logger.error(err_missing_col)
         #         raise KeyError(err_missing_col)
 
-        logger.debug(f'Done engineering features.')
         return df
 
 
+class NeoHowlandFeatureEngineering(FeatureEngineerer):
+    """
+    New features set created by the Howland Lab.
+    """
+
+    _intermediate_feature_specs = [
+        #
+    ]
+
+    _real_feature_specs = [
+        # 1
+        (distance_between_two_arrays, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT')),
+        # 7
+        (velocity_of_xy_feature, )
+    ]
+
+    # # 1
+    # # TODO: Create an 'attach_feature' method in 'feature_engineering' and that will be used in the generalized 'engineer_features' method.
+    # feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('NOSETIP'), self.feat_name_dist_forepawleft_nosetip)
+    # # 2
+    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_RIGHT'), config.get_part('NOSETIP'), self.feat_name_dist_forepawright_nosetip)
+    # # 3
+    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('HINDPAW_LEFT'), self.feat_name_dist_forepawLeft_hindpawLeft)
+    # # 4
+    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_RIGHT'), config.get_part('HINDPAW_RIGHT'), self.feat_name_dist_forepawRight_hindpawRight)
+    # # 5, 6
+    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgHindpaw, config.get_part('NOSETIP'), self.feat_name_dist_AvgHindpaw_Nosetip)
+
+    # # 7
+    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgForepaw, config.get_part('NOSETIP'), output_feature_name=self.feat_name_dist_AvgForepaw_NoseTip)
+
+    # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
+
+    # # Features
+    # intermediate_AvgForepaw = lambda ForepawLeft, ForepawRight: feature_engineering.attach_average_bodypart_xy
+    # df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgForepaw)
+    # intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
+    # df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('HINDPAW_LEFT'), config.get_part('HINDPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgHindpaw)
+
+    # feat_dist_forepawleft_nosetip = 'DistanceForepawLeftToNosetip'
+    # feat_dist_forepawright_nosetip = 'DistanceForepawRightToNosetip'
+    # feat_dist_forepawLeft_hindpawLeft = 'DistanceForepawLeftToHindpawLeft'
+    # feat_dist_forepawRight_hindpawRight = 'DistanceForepawRightToHindpawRight'
+    # feat_dist_AvgHindpaw_Nosetip = 'DistanceAvgHindpawToNosetip'
+    # feat_dist_AvgForepaw_NoseTip = 'DistanceAvgForepawToNosetip'
 
 
-
-
-
-
-class Embedder(WithRandomState, WithParams):
+class Embedder(WithParams):
     """ Examples: pca, tsne, umap """
     _model = None
 
@@ -228,6 +265,7 @@ class TSNE(Embedder):
     init: str = config.TSNE.INIT
     make_this_better_perplexity: Union[float, str] = config.TSNE.PERPLEXITY
     learning_rate: float = config.TSNE.LEARNING_RATE
+    random_state = config.EMBEDDER.RANDOM_STATE
 
     # Non settable.  Not considered by set_params/get_params
     _num_training_data_points: int = None # must be set at runtime
@@ -444,6 +482,7 @@ class LocallyLinearDimReducer(Embedder):
     n_neighbors: int = 5
     n_components: int = 2 # TODO: I have no reason to chose this!!!
     n_jobs: int = 1 # TODO: Could be more??
+    random_state = config.EMBEDDER.RANDOM_STATE
 
     def embed(self, df: pd.DataFrame) -> np.ndarray:
         logger.debug(f'Reducing dims using LocallyLinearEmbedding now...')
@@ -485,7 +524,7 @@ class LocallyLinearDimReducer(Embedder):
 
 
 
-class Clusterer(WithRandomState, WithParams):
+class Clusterer(WithParams):
     """ Examples: gmm, dbscan, spectral_clustering """
     _model = None
 
@@ -507,6 +546,7 @@ class GMM(Clusterer):
     init_params = config.GMM.init_params
     verbose: int = config.GMM.verbose
     verbose_interval: int = config.GMM.verbose_interval
+    random_state = config.CLUSTERER.RANDOM_STATE
 
     def train(self, df):
         self._model = GaussianMixture(
@@ -541,7 +581,7 @@ class DBSCAN(Clusterer):
 
 
 
-class CLF(WithRandomState, WithParams):
+class CLF(WithParams):
     """ Examples: SVM, random forest, neural network """
     _model = None
 
@@ -560,6 +600,7 @@ class SVM(CLF):
     classifier_verbose: int = config.CLASSIFIER.VERBOSE
     c, gamma = config.SVM.c, config.SVM.gamma
     probability, verbose = config.SVM.probability, config.SVM.verbose
+    random_state = config.CLASSIFIER.RANDOM_STATE
 
     def train(self, X, y):
         """
@@ -576,7 +617,7 @@ class SVM(CLF):
             cache_size=500,  # TODO: LOW: add variable to CONFIG.INI later? Measured in MB.
             max_iter=-1,
         )
-        self._model=clf
+        self._model = clf
 
     def predict(self, df):
         raise NotImplementedError()
@@ -587,12 +628,17 @@ class RANDOMFOREST(CLF):
     n_estimators: int = config.RANDOMFOREST.n_estimators
     n_jobs: int = config.RANDOMFOREST.n_jobs
     verbose = config.RANDOMFOREST.verbose
+    random_state = config.CLASSIFIER.RANDOM_STATE
 
     _param_checkers = dict(
         n_estimators=lambda v: check_arg.ensure_int(v) and v > 0,
         n_jobs=lambda v: check_arg.ensure_int(v) and v > 0,
         verbose=lambda v: check_arg.ensure_int(v) and v >= 0,
     )
+
+    def __init__(self, params=None):
+        super().__init__(params)
+        self._model = None
 
     def train(self, X, y):
         clf = RandomForestClassifier(
@@ -618,7 +664,6 @@ class RANDOMFOREST(CLF):
         )
 
         # Fit classifier to non-test data
-        logger.debug(f'Training {self.__class__} classifier now...')
         clf.fit(X=X, y=y)
         self._model = clf
 
@@ -643,6 +688,7 @@ class PrincipalComponents(Embedder):
 
     n_components = config.PrincipalComponents.n_components
     svd_solver = config.PrincipalComponents.svd_solver
+    random_state = config.EMBEDDER.RANDOM_STATE
 
     def embed(self, X):
         pca = PCA(
@@ -656,6 +702,6 @@ class PrincipalComponents(Embedder):
         return X_reduced
 
     def metrics(self):
-        return {'explained_variance':self._model.explained_variance_ratio_
-
-            }
+        return {
+            'explained_variance': self._model.explained_variance_ratio_
+        }
