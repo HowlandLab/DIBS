@@ -328,6 +328,8 @@ class BasePipelineAttributeHolder(object):
     # @property
     # def all_engineered_features(self) -> Tuple[str]: return self._feature_engineerer._all_engineered_features
     @property
+    # HACK: For now, we are going to have the pipeline class inheriting from the BasePipeline class to maintain
+    #       compatability with streamlit interface.  Switch this to using the ._feature_engineerer when possible
     def all_engineered_features(self) -> Tuple[str]: return self._all_engineered_features
 
     @property

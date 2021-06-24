@@ -30,7 +30,7 @@ import traceback
 # from tkinter import filedialog
 # from mttkinter import mtTkinter as tk
 
-from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state
+from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state, base_pipeline, pipeline_pieces
 from dibs.io import clean_string
 
 
@@ -67,6 +67,7 @@ key_selected_layout, initial_sidebar_state = 'key_selected_layout', 'initial_sid
 key_pipeline_path = 'key_pipeline_path'  # <- for saving pipe path when loaded??? ????
 key_open_pipeline_path = 'key_open_pipeline_path'  # For selecting a pipeline using hack dialog box
 default_n_seconds_sleep = 'default_n_seconds_wait_until_auto_refresh'
+key_button_change_feature_engineering = 'key_button_change_feature_engineering'
 key_button_show_adv_pipeline_information = 'key_button_show_more_pipeline_information'
 key_button_see_rebuild_options = 'key_button_see_model_options'
 key_button_see_advanced_options = 'key_button_see_advanced_options'
@@ -103,6 +104,7 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_iteration_page_refresh_count: 0,
     default_n_seconds_sleep: 3,
     checkbox_show_extra_text: False,
+    key_button_change_feature_engineering: False,
     key_button_show_adv_pipeline_information: False,
     key_button_see_rebuild_options: False,
     key_button_see_advanced_options: False,
@@ -243,74 +245,57 @@ def header(pipeline_file_path):
             st.markdown(f'## Create new project pipeline')
             st.markdown('')
 
-            select_pipe_type = st.selectbox('Select a pipeline implementation', options=[''] + list(pipeline_options.keys()))
-            st.markdown('')
-            if select_pipe_type:  # After selecting a Pipeline implementation...
-                pipeline_class = pipeline_options[select_pipe_type]
+            # Input parameters for new Pipeline
+            radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
+            st.markdown('*Note: the above decision is not final. Data can be added and removed at any time in a project.*')
+            # st.markdown('')
+            text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
+            input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.PIPELINE_OUTPUT_PATH)
+            button_project_info_submitted_is_clicked = st.button('Submit', key='SubmitNewProjectInfo')
 
-                # Show extra pipeline text if necessary
-                if session[checkbox_show_extra_text]:
-                    pipe_info = pipeline_class.__doc__ if str(pipeline_class.__doc__).strip() else f'No documentation detected for {pipeline_class.__name__}'
-                    st.info(pipe_info)
-                st.markdown('')
-                # Input parameters for new Pipeline
-                radio_select_create_method = st.radio('Would you like to pre-load data?', [text_bare_pipeline, text_dibs_data_pipeline, text_half_dibs_data_pipeline])
-                st.markdown('*Note: the above decision is not final. Data can be added and removed at any time in a project.*')
-                # st.markdown('')
-                text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
-                input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.PIPELINE_OUTPUT_PATH)
-                button_project_info_submitted_is_clicked = st.button('Submit', key='SubmitNewProjectInfo')
+            if button_project_info_submitted_is_clicked:
+                # Error checking first
+                if check_arg.has_invalid_chars_in_name_for_a_file(text_input_new_project_name):
+                    char_err = ValueError(f'Project name has invalid characters present. Re-submit project pipeline name. {text_input_new_project_name}')
+                    logger.error(char_err)
+                    st.error(char_err)
+                    st.stop()
+                if not os.path.isdir(input_path_to_pipeline_dir):
+                    dir_err = f'The following (in double quotes) is not a valid directory: "{input_path_to_pipeline_dir}"'
+                    logger.error(dir_err)
+                    st.error(NotADirectoryError(dir_err))
+                    st.stop()
 
-                if button_project_info_submitted_is_clicked:
-                    # Error checking first
-                    if check_arg.has_invalid_chars_in_name_for_a_file(text_input_new_project_name):
-                        char_err = ValueError(f'Project name has invalid characters present. Re-submit project pipeline name. {text_input_new_project_name}')
-                        logger.error(char_err)
-                        st.error(char_err)
-                        st.stop()
-                    if not os.path.isdir(input_path_to_pipeline_dir):
-                        dir_err = f'The following (in double quotes) is not a valid directory: "{input_path_to_pipeline_dir}"'
-                        logger.error(dir_err)
-                        st.error(NotADirectoryError(dir_err))
-                        st.stop()
-
-                    # If OK: create default pipeline, save, continue
-                    if select_pipe_type in pipeline_options:
-                        p = pipeline_class(text_input_new_project_name).save_to_folder(input_path_to_pipeline_dir)
-                        if radio_select_create_method == text_dibs_data_pipeline:
-                            with st.spinner('Instantiating pipeline with data now...'):
-                                p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
-                                p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
-                        elif radio_select_create_method == text_half_dibs_data_pipeline:
-                            with st.spinner('Instantiating pipeline with data now...'):
-                                all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
-                                half_files = all_files[:len(all_files)//2]
-                                p = p.add_train_data_source(*half_files)
-                                p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
-                        p = p.save_to_folder(input_path_to_pipeline_dir)
-                        pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename( text_input_new_project_name))
-                        session[key_pipeline_path] = pipeline_file_path
-                        st.balloons()
-                        st.success(f"""
+                # If OK: create default pipeline, save, continue
+                p = base_pipeline.BasePipeline(text_input_new_project_name).save_to_folder(input_path_to_pipeline_dir)
+                if radio_select_create_method == text_dibs_data_pipeline:
+                    with st.spinner('Instantiating pipeline with data now...'):
+                        p = p.add_train_data_source(config.DEFAULT_TRAIN_DATA_DIR)
+                        p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
+                elif radio_select_create_method == text_half_dibs_data_pipeline:
+                    with st.spinner('Instantiating pipeline with data now...'):
+                        all_files = [os.path.join(config.DEFAULT_TRAIN_DATA_DIR, file) for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)]
+                        half_files = all_files[:len(all_files)//2]
+                        p = p.add_train_data_source(*half_files)
+                        p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
+                p = p.save_to_folder(input_path_to_pipeline_dir)
+                pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename( text_input_new_project_name))
+                session[key_pipeline_path] = pipeline_file_path
+                st.balloons()
+                st.success(f"""
 Success! Your new project pipeline has been saved to disk to the following path: 
 
 {os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
 
 """.strip())
-                        n_secs_til_refresh = session[default_n_seconds_sleep]
-                        st.info(
-                            f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
-                        st.markdown('')
-                        st.markdown('')
-                        st.markdown('')
-                        time.sleep(n_secs_til_refresh)
-                        st.experimental_rerun()
-                    else:
-                        err = f'Something unexpected happened on instantiating new Pipeline. Selected pipeline = {select_pipe_type}'
-                        logger.error(err, exc_info=True)
-                        st.error(RuntimeError(err))
-                        st.info(f'traceback: {traceback.format_exc()}')
-                        st.stop()
+                n_secs_til_refresh = session[default_n_seconds_sleep]
+                st.info(
+                    f'The page will automatically refresh with your new pipeline in {n_secs_til_refresh} seconds...')
+                st.markdown('')
+                st.markdown('')
+                st.markdown('')
+                time.sleep(n_secs_til_refresh)
+                st.experimental_rerun()
 
         # Option 2/2: Load existing project
         elif start_select_option == load_existing_project_option_text:
@@ -373,6 +358,26 @@ Success! Your new project pipeline has been saved to disk to the following path:
         st.info(f'Stack trace for error: {str(traceback.extract_stack())}')
         logger.error(f'{repr(e)} // {str(traceback.extract_stack())}')
         return
+
+
+    feature_engineering_class = type(p._feature_engineerer)
+    # Show extra pipeline text if necessary
+    if session[checkbox_show_extra_text]:
+        feature_engineering_info = feature_engineering_class.__doc__ if str(feature_engineering_class.__doc__).strip() else f'No documentation detected for {feature_engineering_class.__name__}'
+        st.info(f'Current feature engineering set loaded: {feature_engineering_class.__name__}\n       {feature_engineering_info}')
+    st.markdown('')
+
+    button_change_feature_engineering_set = st.button('Change feature engineering set?', key=key_button_change_feature_engineering)
+    if button_change_feature_engineering_set:
+        session[key_button_change_feature_engineering] = not session[key_button_change_feature_engineering]
+    if session[key_button_change_feature_engineering]:
+        selected_feature_engineering = st.selectbox('Select a feature engineering set', options=[''] + list(config.valid_feature_engineerers))
+        st.markdown('')
+        if selected_feature_engineering:  # After selecting a Pipeline implementation...
+            p.set_params(FEATURE_ENGINEERER=(selected_feature_engineering, ())).save_to_folder(os.path.dirname(pipeline_file_path))
+            st.markdown('You have changed the engineered feature set!')
+
+
 
     if is_pipeline_loaded:
         logger.debug(f"Leaving home: pipeline_file_path = {pipeline_file_path}")

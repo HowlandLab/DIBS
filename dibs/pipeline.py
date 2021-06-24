@@ -567,7 +567,7 @@ class PipelineHowland(BasePipeline):
     feat_name_dist_AvgHindpaw_Nosetip = 'DistanceAvgHindpawToNosetip'
     feat_name_dist_AvgForepaw_NoseTip = 'DistanceAvgForepawToNosetip'
     feat_name_velocity_AvgForepaw = 'VelocityAvgForepaw'
-    _all_features = (
+    _all_engineered_features = (
         feat_name_dist_forepawleft_nosetip,
         feat_name_dist_forepawright_nosetip,
         feat_name_dist_forepawLeft_hindpawLeft,
@@ -647,45 +647,6 @@ class PipelineHowland(BasePipeline):
         return df
 
 
-class PipelineHowlandUMAP(PipelineHowland):
-
-    def _train_tsne_get_dimension_reduced_data(self, data):
-        logger.debug(f'Now logging with PIPELINESTANDIN with UMAP')
-        reducer = umap.UMAP(
-
-            n_neighbors=self.umap_n_neighbors,
-            n_components=self.tsne_n_components,
-            learning_rate=self.umap_learning_rate,
-            n_jobs=self.tsne_n_jobs,
-            low_memory=False,
-        )
-
-        arr_result = reducer.fit_transform(data[list(self.all_engineered_features)].values)
-        return arr_result
-
-
-class PipelineHowlandLLE(PipelineHowland):
-    def _train_tsne_get_dimension_reduced_data(self, data):
-        logger.debug(f'Now logging with PIPELINESTANDIN with LLE')
-
-        reducer = LocallyLinearEmbedding(
-            method=self.LLE_method,
-
-            n_neighbors=self.LLE_n_neighbors,
-            n_components=self.tsne_n_components,
-            reg=1E-3,
-            eigen_solver='auto', tol=1E-6, max_iter=100,
-            hessian_tol=1E-4, modified_tol=1E-12,
-            neighbors_algorithm='auto',
-
-            random_state=self.random_state,
-            n_jobs=self.tsne_n_jobs,
-        )
-
-        arr_result = reducer.fit_transform(data[list(self.all_engineered_features)].values)
-        return arr_result
-
-
 class PipelineKitchenSink(BasePipeline):
     """
     New features set created by the Howland Lab.
@@ -712,7 +673,7 @@ class PipelineKitchenSink(BasePipeline):
     feat_tail_base_speed = 'TailSpeed'  # 6
     feat_snout_tail_delta_angle = 'DeltaAngleTailToSnout'  # 7
 
-    _all_features = (
+    _all_engineered_features = (
         feat_name_dist_forepawleft_nosetip,
         feat_name_dist_forepawright_nosetip,
         feat_name_dist_forepawLeft_hindpawLeft,
@@ -885,7 +846,7 @@ class PipelineIBNS_first_one(BasePipeline):
     feat_dist_nose_obj6 = 'DistanceNosetipToObj6'
     feat_velocity_nose_obj6 = 'VelocityNosetipToObj6'
 
-    _all_features = (
+    _all_engineered_features = (
         feat_name_dist_forepawleft_nosetip,
         feat_name_dist_forepawright_nosetip,
         feat_name_dist_forepawLeft_hindpawLeft,
