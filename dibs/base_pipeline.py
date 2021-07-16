@@ -446,11 +446,11 @@ class BasePipeline(BasePipelineAttributeHolder):
                 self._clf = getattr(pipeline_pieces, new_clf_name)(new_clf_params.get('RANDOM_STATE', self._clf._random_state))
                 self._clf.set_params(new_clf_params)
 
-        if new_clf_tuple := kwargs.get('DimReducer'):
-            new_dimreducer_name, new_dimreducer_params = new_dimreducer_tuple
-            if new_dimreducer_name != self._dimreducer.__class__.__name__:
-                self._dimreducer = getattr(pipeline_pieces, new_dimreducer_name)(new_dimreducer_params.get('RANDOM_STATE', self._dimreducer._random_state))
-                self._dimreducer.set_params(new_dimreducer_params)
+        # if new_clf_tuple := kwargs.get('DimReducer'):
+        #     new_dimreducer_name, new_dimreducer_params = new_dimreducer_tuple
+        #     if new_dimreducer_name != self._dimreducer.__class__.__name__:
+        #         self._dimreducer = getattr(pipeline_pieces, new_dimreducer_name)(new_dimreducer_params.get('RANDOM_STATE', self._dimreducer._random_state))
+        #         self._dimreducer.set_params(new_dimreducer_params)
 
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
         # Source video FPS # TODO: NOT SURE IF VIDEO FPS SHOULD INVALIDATE MODELS OR NOT?? Probably not but I don't know for sure
