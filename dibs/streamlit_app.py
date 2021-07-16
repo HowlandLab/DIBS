@@ -703,16 +703,16 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
             input_tsne_n_components = embedder_params['n_components']
             input_tsne_n_iter = embedder_params['n_iter']
 
-            input_gmm_reg_covar = clusterer_params['reg_covar']
-            input_gmm_tol = clusterer_params['tol']
-            input_gmm_max_iter = clusterer_params['max_iter']
-            input_gmm_n_init = clusterer_params['n_init']
+        input_gmm_reg_covar = clusterer_params['reg_covar']
+        input_gmm_tol = clusterer_params['tol']
+        input_gmm_max_iter = clusterer_params['max_iter']
+        input_gmm_n_init = clusterer_params['n_init']
 
-            # TODO: REMOVE TEMP HACKS HERE!!  This whole thing needs to be generalized in some way.
-            select_classifier = p._clf.__class__
-            input_svm_c = clf_params.get('c')
-            input_svm_gamma = clf_params.get('gamma')
-            select_rf_n_estimators = clf_params.get('n_estimators')
+        # TODO: REMOVE TEMP HACKS HERE!!  This whole thing needs to be generalized in some way.
+        select_classifier = p._clf.__class__
+        input_svm_c = clf_params.get('c')
+        input_svm_gamma = clf_params.get('gamma')
+        select_rf_n_estimators = clf_params.get('n_estimators')
 
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
