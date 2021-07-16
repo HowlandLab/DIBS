@@ -694,23 +694,25 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
         input_average_over_n_frames = p.average_over_n_frames
 
-        # TODO: Streamline the streamlit stuff.  This is temporary
-        input_tsne_learning_rate = embedder_params['learning_rate']
-        input_tsne_perplexity = embedder_params['make_this_better_perplexity']
-        input_tsne_early_exaggeration = embedder_params['early_exaggeration']
-        input_tsne_n_components = embedder_params['n_components']
-        input_tsne_n_iter = embedder_params['n_iter']
+        # HACK: TODO: Fix.  Only show the dialog for TSNE
+        if p._embedder.__class__.__name__ == 'TSNE':
+            # TODO: Streamline the streamlit stuff.  This is temporary
+            input_tsne_learning_rate = embedder_params['learning_rate']
+            input_tsne_perplexity = embedder_params['make_this_better_perplexity']
+            input_tsne_early_exaggeration = embedder_params['early_exaggeration']
+            input_tsne_n_components = embedder_params['n_components']
+            input_tsne_n_iter = embedder_params['n_iter']
 
-        input_gmm_reg_covar = clusterer_params['reg_covar']
-        input_gmm_tol = clusterer_params['tol']
-        input_gmm_max_iter = clusterer_params['max_iter']
-        input_gmm_n_init = clusterer_params['n_init']
+            input_gmm_reg_covar = clusterer_params['reg_covar']
+            input_gmm_tol = clusterer_params['tol']
+            input_gmm_max_iter = clusterer_params['max_iter']
+            input_gmm_n_init = clusterer_params['n_init']
 
-        # TODO: REMOVE TEMP HACKS HERE!!  This whole thing needs to be generalized in some way.
-        select_classifier = p._clf.__class__
-        input_svm_c = clf_params.get('c')
-        input_svm_gamma = clf_params.get('gamma')
-        select_rf_n_estimators = clf_params.get('n_estimators')
+            # TODO: REMOVE TEMP HACKS HERE!!  This whole thing needs to be generalized in some way.
+            select_classifier = p._clf.__class__
+            input_svm_c = clf_params.get('c')
+            input_svm_gamma = clf_params.get('gamma')
+            select_rf_n_estimators = clf_params.get('n_estimators')
 
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
@@ -726,32 +728,35 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
             ### See advanced options for model ###
 
             # TSNE
-            st.markdown('### Advanced TSNE Parameters')
-            if session[checkbox_show_extra_text]:
-                st.info('See the original paper describing this algorithm for more details.'
-                        ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
-                        ' Section 2 includes perplexity.')
-            # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
-            input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=input_tsne_perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
-            # Extra info: tsne-perplexity
-            if session[checkbox_show_extra_text]:
-                st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')  # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
-            input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=input_tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
-            # Extra info: learning rate
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: learning rate')  # TODO: low
-            input_tsne_early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=input_tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
-            # Extra info: early exaggeration
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: early exaggeration')  # TODO: low
-            input_tsne_n_iter = st.number_input(label=f'TSNE N Iterations', value=input_tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
-            # Extra info: number of iterations
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: number of iterations')  # TODO: low
-            input_tsne_n_components = st.number_input(f'TSNE N Components/Dimensions', value=input_tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
-            # Extra info: number of components (dimensions)
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: number of components (dimensions)')  # TODO: low
+            # HACK: TODO: Fix.  Only show the dialog for TSNE
+            if p._embedder.__class__.__name__ == 'TSNE':
+
+                st.markdown('### Advanced TSNE Parameters')
+                if session[checkbox_show_extra_text]:
+                    st.info('See the original paper describing this algorithm for more details.'
+                            ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
+                            ' Section 2 includes perplexity.')
+                # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
+                input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=input_tsne_perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
+                # Extra info: tsne-perplexity
+                if session[checkbox_show_extra_text]:
+                    st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')  # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
+                input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=input_tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
+                # Extra info: learning rate
+                if session[checkbox_show_extra_text]:
+                    st.info('TODO: learning rate')  # TODO: low
+                input_tsne_early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=input_tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
+                # Extra info: early exaggeration
+                if session[checkbox_show_extra_text]:
+                    st.info('TODO: early exaggeration')  # TODO: low
+                input_tsne_n_iter = st.number_input(label=f'TSNE N Iterations', value=input_tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
+                # Extra info: number of iterations
+                if session[checkbox_show_extra_text]:
+                    st.info('TODO: number of iterations')  # TODO: low
+                input_tsne_n_components = st.number_input(f'TSNE N Components/Dimensions', value=input_tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
+                # Extra info: number of components (dimensions)
+                if session[checkbox_show_extra_text]:
+                    st.info('TODO: number of components (dimensions)')  # TODO: low
 
             st.markdown(f'### Advanced GMM parameters')
             input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=input_gmm_reg_covar, format='%f')
@@ -804,6 +809,22 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
             if session[key_button_rebuild_model_confirmation]:  # Rebuild model confirmed.
                 try:
                     with st.spinner('Building model. This could take a couple minutes...'):
+
+                        # HACK: TODO: Fix.  Only show the dialog for TSNE
+                        if p._embedder.__class__.__name__ == 'TSNE':
+                            _hack_embedder_params = (
+                                'TSNE', {
+                                    'perplexity': input_tsne_perplexity,
+                                    'learning_rate': input_tsne_learning_rate,
+                                    'early_exaggeration': input_tsne_early_exaggeration,
+                                    'n_iter': input_tsne_n_iter,
+                                    'n_components': input_tsne_n_components,
+                                }
+                            )
+                        else:
+                            _hack_embedder_params = (
+                                'Nothing', { 'not a param': 0 }
+                            )
                         model_vars = {
                             # General opts
                             'video_fps': input_video_fps,
@@ -812,15 +833,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
 
                             # TODO: Generalize this dict of params so that we can dynamically set algos
                             # Something like: {type_of_thing1: (selected_thing, selected_params_for_thing)}
-                            'EMBEDDER': (
-                                'TSNE', {
-                                    'perplexity': input_tsne_perplexity,
-                                    'learning_rate': input_tsne_learning_rate,
-                                    'early_exaggeration': input_tsne_early_exaggeration,
-                                    'n_iter': input_tsne_n_iter,
-                                    'n_components': input_tsne_n_components,
-                                }
-                            ),
+                            'EMBEDDER': _hack_embedder_params,
                             'CLUSTERER': (
                                 'GMM', {
                                     'n_components': slider_gmm_n_components,
