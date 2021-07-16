@@ -823,7 +823,7 @@ def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
                             )
                         else:
                             _hack_embedder_params = (
-                                'Nothing', { 'not a param': 0 }
+                                'PrincipalComponents', dict() # TODO: Allow params in GUI
                             )
                         model_vars = {
                             # General opts
