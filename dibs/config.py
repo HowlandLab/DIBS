@@ -327,7 +327,7 @@ class UMAP:
 
 
 ### PCA
-class PCA:
+class PrincipalComponents:
     n_components = configuration.get('PCA', 'n_components')
     svd_solver = configuration.get('PCA', 'svd_solver')
 

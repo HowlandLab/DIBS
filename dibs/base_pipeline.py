@@ -325,10 +325,10 @@ class BasePipelineAttributeHolder(object):
             return list(np.unique(self._df_features_train_scaled.loc[self._df_features_train_scaled[self.clf_assignment_col_name] != self.null_classifier_label][self.clf_assignment_col_name].values))
         return []
 
-    # @property
-    # def all_engineered_features(self) -> Tuple[str]: return self._feature_engineerer._all_engineered_features
     @property
-    def all_engineered_features(self) -> Tuple[str]: return self._all_engineered_features
+    def all_engineered_features(self) -> Tuple[str]: return self._feature_engineerer._all_engineered_features
+    # @property
+    # def all_engineered_features(self) -> Tuple[str]: return self.all_engineered_features
 
     @property
     def all_engineered_features_list(self) -> List[str]: return list(self.all_engineered_features)
@@ -445,6 +445,12 @@ class BasePipeline(BasePipelineAttributeHolder):
             if new_clf_name != self._clf.__class__.__name__:
                 self._clf = getattr(pipeline_pieces, new_clf_name)(new_clf_params.get('RANDOM_STATE', self._clf._random_state))
                 self._clf.set_params(new_clf_params)
+
+        if new_clf_tuple := kwargs.get('DimReducer'):
+            new_dimreducer_name, new_dimreducer_params = new_dimreducer_tuple
+            if new_dimreducer_name != self._dimreducer.__class__.__name__:
+                self._dimreducer = getattr(pipeline_pieces, new_dimreducer_name)(new_dimreducer_params.get('RANDOM_STATE', self._dimreducer._random_state))
+                self._dimreducer.set_params(new_dimreducer_params)
 
         # TODO: MED: ADD KWARGS OPTION FOR OVERRIDING VERBOSE in CONFIG.INI!!!!!!!! ?
         # Source video FPS # TODO: NOT SURE IF VIDEO FPS SHOULD INVALIDATE MODELS OR NOT?? Probably not but I don't know for sure

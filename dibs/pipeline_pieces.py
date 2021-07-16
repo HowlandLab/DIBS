@@ -12,6 +12,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import LocallyLinearEmbedding, Isomap, TSNE as TSNE_sklearn
 from sklearn.svm import SVC
 from sklearn.mixture import GaussianMixture
+from sklearn.decomposition import PCA
 import time
 
 from dibs import logging_enhanced
@@ -213,6 +214,8 @@ class Embedder(WithRandomState, WithParams):
         """
         raise NotImplementedError()
 
+    def metrics(self):
+        raise NotImplementedError()
 
 class TSNE(Embedder):
     # TSNE
@@ -621,3 +624,38 @@ class RANDOMFOREST(CLF):
 
     def predict(self, df):
         return self._model.predict(df)
+
+
+# class DimReducer(WithRandomState, WithParams):
+#     # Eg SVD, PCA, kPCA
+#     _model = None
+#     def st_params_dialogue(self):
+#         """ AARONT: TODO: Decide on streamlit interface with all the model parameters. """
+#         raise NotImplementedError()
+
+#     def train(self, X):
+#         raise NotImplementedError()
+    
+#     def explained_variance(self):
+#         raise NotImplementedError()
+
+class PrincipalComponents(Embedder):
+
+    n_components = config.PrincipalComponents.n_components
+    svd_solver = config.PrincipalComponents.svd_solver
+
+    def embed(self, X):
+        pca = PCA(
+            n_components=self.n_components,
+            svd_solver=self.svd_solver,
+            random_state=self.random_state
+        )
+        logger.debug(f'Training {self.__class__} Dimensionality Reducer now...')
+        X_reduced = pca.fit_transform(X)
+        self._model = pca
+        return X_reduced
+
+    def metrics(self):
+        return {'explained_variance':self._model.explained_variance_ratio_
+
+            }
