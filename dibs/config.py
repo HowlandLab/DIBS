@@ -326,6 +326,12 @@ class UMAP:
     min_dist = configuration.getfloat('UMAP', 'min_dist')
 
 
+### PCA
+class PCA:
+    n_components = configuration.get('PCA', 'n_components')
+    svd_solver = configuration.get('PCA', 'svd_solver')
+
+    
 ###### VIDEO PARAMETERS #####
 DEFAULT_FONT_SCALE: int = configuration.getint('VIDEO', 'DEFAULT_FONT_SCALE')
 # DEFAULT_TEXT_BGR: Tuple[int] = literal_eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BGR'))
