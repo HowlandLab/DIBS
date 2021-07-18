@@ -651,7 +651,7 @@ class PrincipalComponents(Embedder):
             random_state=self.random_state
         )
         logger.debug(f'Training {self.__class__} Dimensionality Reducer now...')
-        X_reduced = pca.fit_transform(X)
+        X_reduced = pca.fit_transform(X.values)
         self._model = pca
         return X_reduced
 
