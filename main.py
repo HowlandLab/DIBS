@@ -11,7 +11,7 @@ import argparse
 import streamlit as st  # Do not remove this
 
 import dibs
-from dibs.pipeline import *  # This line is required for Streamlit to load Pipeline objects. Do not delete. For a more robust solution, consider: https://rebeccabilbro.github.io/module-main-has-no-attribute/
+from dibs.base_pipeline import *  # This line is required for Streamlit to load Pipeline objects. Do not delete. For a more robust solution, consider: https://rebeccabilbro.github.io/module-main-has-no-attribute/
 
 logger = dibs.config.initialize_logger(__name__)
 

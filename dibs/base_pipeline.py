@@ -183,6 +183,7 @@ class BasePipelineAttributeHolder(object):
         # TODO: Add these options too stuff and things?
         # TODO: Add axis labels.  Change labels to reflect user labels
         # sns.set(rc={'figure.figsize':(11.7, 8.27)})
+        plt.clf()
         hm=sns.heatmap(
             self.transition_matrix,
             cmap=cmap,
@@ -410,6 +411,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         def _dict_is_subset_of(d1, d2):
             """ d1 should be a subset of d2 """
             return len(set(d1.items()) - set(d2.items())) == 0
+
 
         ### MODEL PARAMS ###
         # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly redo?
@@ -798,7 +800,6 @@ class BasePipeline(BasePipelineAttributeHolder):
             self._build_embedder()
             if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
 
-        # GMM + Classifier
         if not self._clusterer_is_built:
             self._build_clusterer()
             if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
@@ -828,7 +829,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         start = time.perf_counter()
         # Build model
 
-        # TODO :Remove after debugging
+        # HACK: TODO: Remove after debugging
         self._embedder_is_built = False
         self._clusterer_is_built = False
         self._clf_is_built = False
@@ -891,7 +892,7 @@ class BasePipeline(BasePipelineAttributeHolder):
             prediction = np.NaN
         return prediction
 
-    def _build_clusterer(self, n_clusters: int = None):
+    def _build_clusterer(self):
         """"""
         # if n_clusters is not None: # TODO: Remove??
         #     self.set_params(gmm_n_components=n_clusters)

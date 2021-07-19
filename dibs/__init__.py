@@ -16,7 +16,6 @@ from . import (
     feature_engineering,
     io,
     logging_enhanced,
-    pipeline,
     statistics,
     streamlit_app,
     streamlit_session_state,

@@ -13,7 +13,7 @@ import re
 import sys
 
 
-from dibs import check_arg, config, logging_enhanced, pipeline
+from dibs import check_arg, config, logging_enhanced
 from dibs.logging_enhanced import get_current_function
 
 
@@ -95,6 +95,7 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
         new_column_names += [new_col, ]
     df.columns = new_column_names
 
+    # TODO: Revert to supporting the same data model as dlc, with the multi index.  It was very nice.
     # Remove next two rows (just column names, no data here) now that columns names are instantiated
     df = df.iloc[2:, :]
 
@@ -121,81 +122,6 @@ def read_h5(data_file_path, **kwargs) -> pd.DataFrame:
     # TODO: HIGH IMPLEMENT! :)
     raise NotImplementedError(f'')
     return
-
-
-def read_dlc_data(data_file_path: str, **kwargs) -> pd.DataFrame:
-    """
-
-    :param data_file_path:
-    :param kwargs:
-    :return:
-    """
-    check_arg.ensure_is_file(data_file_path)
-    file_extension = data_file_path.split('.')[-1]
-
-    if file_extension == 'csv':
-        return read_csv(data_file_path)
-    elif file_extension == 'h5':
-        return read_h5(data_file_path)
-    else:
-        invalid_ext_err = f'{logging_enhanced.get_current_function()}(): the input DLC data file had ' \
-                          f'an unexpected extension. Please check file path: {data_file_path}'
-        logger.error(invalid_ext_err)
-        raise ValueError(invalid_ext_err)
-
-
-def read_pipeline(path_to_file: str):
-    """
-    With a valid path, read in an existing pipeline
-    :param path_to_file:
-    :return:
-    """
-    # TODO: low: do final checks on this function
-    check_arg.ensure_is_file(path_to_file)
-    logger.debug(f'{logging_enhanced.get_current_function()}(): Trying to open: {path_to_file}')
-    with open(path_to_file, 'rb') as file:
-        # p = joblib.load(file)
-        # p = pickle.load(file)
-        import dill
-        p = dill.load(file)
-    logger.debug(f'{logging_enhanced.get_current_function()}(): Pipeline at {path_to_file} opened successfully!')
-    return p
-
-
-def save_pipeline(pipeline_obj, dir_path: str = config.OUTPUT_PATH):
-    """
-    With a valid path, save an existing pipeline
-    :param pipeline_obj:
-    :param dir_path:
-    :return:
-    """
-    # Arg checking
-    check_arg.ensure_type(dir_path, str)
-    check_arg.ensure_is_valid_path(dir_path)
-    did_not_delete_file = False
-    final_out_path = os.path.join(
-        dir_path,
-        pipeline.generate_pipeline_filename_from_pipeline(pipeline_obj)
-    )
-
-    with open(final_out_path, 'wb') as file:
-        joblib.dump(pipeline_obj, file)
-    logger.debug(f'Pipeline saved to: {final_out_path}')
-    if did_not_delete_file:
-        err = f'TODO: elaborate. After destroying file with os.remove, the file still existed. Not good!'
-        logger.error(err)
-        raise OSError(err)
-    return read_pipeline(final_out_path)
-
-
-def generate_pipeline_filename(name: str):
-    """
-    Generates a pipeline file name given its name.
-
-    This is an effort to standardize naming for saving pipelines.
-    """
-    file_name = f'{name}.pipeline'
-    return file_name
 
 
     # Saving and stuff
@@ -226,7 +152,11 @@ def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False)
             # joblib.dump(self, model_file)
             # pickle.dump(self, model_file)
             import dill
-            # dill.detect.trace(True)
+            # dill.detect.trace(True) # Debugging trace.
+            # IMPORTANT: protocol=dill.HIGHEST_PROTOCOL is necessary.  If this argument is not provided,
+            #            the oldest compatible protocol will be used, and that will be inefficient as well
+            #            as not supporting some required features.
+            #            recurse=True may not be required, but improves performance.
             dill.dump(p, model_file, protocol=dill.HIGHEST_PROTOCOL, recurse=True)
     except Exception as e:
         err = f'{get_current_function()}(): An unexpected error occurred: {repr(e)}'
@@ -239,18 +169,34 @@ def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False)
     else:
         return p
 
-def save_as(p, out_path):
-    """
 
-    :param out_path:
+def read_pipeline(path_to_file: str):
+    """
+    With a valid path, read in an existing pipeline
+    :param path_to_file:
     :return:
     """
-    # Arg check
-    check_arg.ensure_is_valid_path(out_path)
-    check_arg.ensure_is_dir(os.path.split(out_path))
-    # Execute
-    # TODO: MED
-    raise NotImplementedError(f'implementation TBD')
+    check_arg.ensure_is_file(path_to_file)
+    logger.debug(f'{logging_enhanced.get_current_function()}(): Trying to open: {path_to_file}')
+    with open(path_to_file, 'rb') as file:
+        # p = joblib.load(file)
+        # p = pickle.load(file)
+        import dill # Dill may not be strictly required, but allows for much more robust serialization.
+                    # If dill fails in the future, a fallback to pickle should be okay, but any lambdas
+                    # (amoung other exotic python constructs) will not be serializable without dill.
+        p = dill.load(file)
+    logger.debug(f'{logging_enhanced.get_current_function()}(): Pipeline at {path_to_file} opened successfully!')
+    return p
+
+
+def generate_pipeline_filename(name: str):
+    """
+    Generates a pipeline file name given its name.
+
+    This is an effort to standardize naming for saving pipelines.
+    """
+    file_name = f'{name}.pipeline'
+    return file_name
 
 
 def clean_string(s):

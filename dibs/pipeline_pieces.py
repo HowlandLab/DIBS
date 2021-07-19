@@ -4,7 +4,7 @@ from typing import Union, Dict, List, Tuple, Optional
 from collections import defaultdict
 from dibs import check_arg, config
 from dibs.logging_enhanced import get_current_function
-from dibs.feature_engineering import distance_between_two_arrays, velocity_of_xy_feature
+from dibs.feature_engineering import distance, velocity, average
 
 # Models
 # from bhtsne import tsne as TSNE_bhtsne # Aaron on Ferrari; June 6th/2021: Does not want to install, but we don't use this anymore anyways
@@ -18,6 +18,7 @@ from sklearn.decomposition import PCA
 import time
 
 from dibs import logging_enhanced
+from dibs.feature_engineering import integrate_df_feature_into_bins
 
 logger = config.initialize_logger(__name__)
 
@@ -85,102 +86,104 @@ class WithStreamlitParamDialog(object):
 class FeatureEngineerer(object):
     """ Examples: Custom built feature engineering for each task"""
 
-    _all_engineered_features = None # TODO: Force overriding _all_engineered_features
-    random_state = config.FEATURE_ENGINEERER.RANDOM_STATE # Controls train/test split.... TODO: Make this better
+    random_state = config.FEATURE_ENGINEERER.random_state # Controls train/test split.... TODO: Make this better
 
-    def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames: int) -> pd.DataFrame:
-        raise NotImplementedError()
+    @property
+    def _intermediate_feature_specs(self): return [] # empty list if user doesn't specify
+
+    @property
+    def _real_feature_specs(self): raise NotImplementedError('You must specify a list of _real_feature_specs when you implement a feature engineering class')
+
+    @property
+    def _kwargs(self): return dict() # Use to pass any args to feature eng functions TODO: Might have to allow more flexible args
+    # Empty dict if user does not define
+
+    def __init__(self):
+        self._map_feature_to_integrate_method = dict() # Map of aggregators, populated by engineer_features method
+
+    @property
+    def _all_engineered_features(self):
+        return (self._extract_name_from_spec(spec) for spec in self._real_feature_specs)
+
+    @staticmethod
+    def _extract_name_from_spec(spec, intermediate=False):
+        func = spec[0]
+        arg_names = spec[1:]
+        arg_names_formatted = '_'.join(arg_names)
+        basename = f'{func.__name__}_{arg_names_formatted}'
+        if intermediate:
+            return 'intermediate_feat_'+basename
+        else:
+            return basename
+
+    def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames: int = -1) -> pd.DataFrame:
+
+        def _compile_feature_def(output_col_name, func, arg_names, intermediate_feature=False):
+            if not callable(func):
+                if intermediate_feature:
+                    msg = f'Failed to engineer intermediate feature {output_col_name}. ' \
+                          f'Second part of an _intermediate_feature_specs entry should be a callable (a function object)'
+                else:
+                    msg = f'Failed to engineer feature {output_col_name}. ' \
+                          f'First part of a _real_feature_specs entry should be a callable (a function object)'
+                logger.error(msg)
+                raise RuntimeError(msg)
+            logger.debug(f'Engineering model input feature: {output_col_name}. Function {func.__name__} will be applied to columns: {arg_names}')
+
+            #     logger.error(msg)
+            #     raise RuntimeError(msg)
+            # logger.debug(f'Engineering intermediate feature: {output_col_name}')
+
+            # args = (in_df[name].values for name in arg_names)
+            # HACK: Have to extract the real x/y arg names because of how things are done earlier
+            args = []
+            for arg_name in arg_names:
+                if arg_name in in_df:
+                    args.append(in_df[arg_name].values)
+                elif (x_name := arg_name+'_x') in in_df and (y_name := arg_name+'_y') in in_df:
+                    args.append(in_df[[x_name, y_name]].values)
+                else:
+                    msg = 'When engineering a feature, all supplied arguments should refer to columns in the source data frame (the input data).\n' \
+                          f'\tProvided columns: {arg_names} \n' \
+                          f'\tValid columns: {in_df.columns}'
+                    logger.error(msg)
+                    raise RuntimeError(msg)
 
 
-class LegacyHowlandFeatureEngineering(FeatureEngineerer):
+            # arr, aggregate_strat = func(*args, **self._kwargs)
+            arr, aggregate_strat = func(*args) #, kwargs=self._kwargs) # TODO: Pass kwargs
+            # HACK: Add the '_x' '_y' ...
+            if len(arr.shape) >= 2 and arr.shape[1] == 2:
+                output_col_name = [output_col_name+'_x', output_col_name+'_y']
+            in_df[output_col_name] = arr
+            # HACK: Have to use tuple in case this is a list
+            #       SUPER JANK!
+            if isinstance(output_col_name, list):
+                for output_col_name in output_col_name:
+                    self._map_feature_to_integrate_method[output_col_name] = aggregate_strat
+            else:
+                self._map_feature_to_integrate_method[output_col_name] = aggregate_strat
 
-    # Feature names
-    intermediate_bodypart_avgForepaw = 'AvgForepaw'
-    intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
-    feat_name_dist_forepawleft_nosetip = 'DistanceForepawLeftToNosetip'
-    feat_name_dist_forepawright_nosetip = 'DistanceForepawRightToNosetip'
-    feat_name_dist_forepawLeft_hindpawLeft = 'DistanceForepawLeftToHindpawLeft'
-    feat_name_dist_forepawRight_hindpawRight = 'DistanceForepawRightToHindpawRight'
-    feat_name_dist_AvgHindpaw_Nosetip = 'DistanceAvgHindpawToNosetip'
-    feat_name_dist_AvgForepaw_NoseTip = 'DistanceAvgForepawToNosetip'
-    feat_name_velocity_AvgForepaw = 'VelocityAvgForepaw'
-    _all_engineered_features = (
-        feat_name_dist_forepawleft_nosetip,
-        feat_name_dist_forepawright_nosetip,
-        feat_name_dist_forepawLeft_hindpawLeft,
-        feat_name_dist_forepawRight_hindpawRight,
-        feat_name_dist_AvgHindpaw_Nosetip,
-        feat_name_dist_AvgForepaw_NoseTip,
-        feat_name_velocity_AvgForepaw,
-    )
+        for spec in self._intermediate_feature_specs:
+            # user should ensure _intermediate_feautre_specs are topo ordered
+            output_col_name = self._extract_name_from_spec(spec, intermediate=True)
+            func = spec[0]
+            arg_names = spec[1:]
+            _compile_feature_def(output_col_name, func, arg_names, intermediate_feature=True)
 
-    def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames):
-        """
-        # Head dips
-        1. d(forepaw left to nose)
-        2. d(forepaw right to nose)
-        # Rears
-        3. d(forepaw left to hindpaw left)
-        4. d(forepaw right to hindpaw right)
-        5. d(nose to avg hindpaw)
-        # Stretch attends
-        6. d(avg hindpaw to nose) - same as #5
-        7. d(avg forepaw to nose)
-        8. v(avgForepaw)
+        for spec in self._real_feature_specs:
+            output_col_name = self._extract_name_from_spec(spec)
+            func = spec[0]
+            arg_names = spec[1:] # Should be in df
+            _compile_feature_def(output_col_name, func, arg_names)
 
-        """
-        from dibs import feature_engineering
-        # Arg Checking
-        check_arg.ensure_type(in_df, pd.DataFrame)
-        # Execute
-        logger.debug(f'Engineering features for one data set...')
-        df = in_df.astype({'frame': int}).sort_values('frame').copy()
-        # Filter
-        df, _ = feature_engineering.adaptively_filter_dlc_output(df)
-        # Engineer features
-        # 1
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('NOSETIP'), self.feat_name_dist_forepawleft_nosetip)
-        # 2
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_RIGHT'), config.get_part('NOSETIP'), self.feat_name_dist_forepawright_nosetip)
-        # 3
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('HINDPAW_LEFT'), self.feat_name_dist_forepawLeft_hindpawLeft)
-        # 4
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_RIGHT'), config.get_part('HINDPAW_RIGHT'), self.feat_name_dist_forepawRight_hindpawRight)
-        # 5, 6
-        df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgForepaw)
-        df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('HINDPAW_LEFT'), config.get_part('HINDPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgHindpaw)
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgHindpaw, config.get_part('NOSETIP'), self.feat_name_dist_AvgHindpaw_Nosetip)
+        if average_over_n_frames > 0:
+            check_arg.ensure_int(average_over_n_frames)
+            logger.debug(f'{get_current_function()}(): # of rows in DataFrame before binning = {len(in_df)}')
+            in_df = integrate_df_feature_into_bins(in_df, self._map_feature_to_integrate_method, average_over_n_frames)
+            logger.debug(f'{get_current_function()}(): # of rows in DataFrame after binning = {len(in_df)}')
 
-        # 7
-        df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgForepaw, config.get_part('NOSETIP'), output_feature_name=self.feat_name_dist_AvgForepaw_NoseTip)
-
-        # 8
-        # df = feature_engineering.attach_velocity_of_feature(df, 'AvgForepaw', 1/config.VIDEO_FPS, self.feat_name_velocity_AvgForepaw)
-        df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
-
-        # Binning
-        map_feature_to_integrate_method = {
-            self.feat_name_dist_forepawleft_nosetip: 'avg',
-            self.feat_name_dist_forepawright_nosetip: 'avg',
-            self.feat_name_dist_forepawLeft_hindpawLeft: 'avg',
-            self.feat_name_dist_forepawRight_hindpawRight: 'avg',
-            self.feat_name_dist_AvgHindpaw_Nosetip: 'avg',
-            self.feat_name_dist_AvgForepaw_NoseTip: 'avg',
-            self.feat_name_velocity_AvgForepaw: 'sum',
-        }
-        logger.debug(f'{get_current_function()}(): # of rows in DataFrame before binning = {len(df)}')
-        df = feature_engineering.integrate_df_feature_into_bins(df, map_feature_to_integrate_method, average_over_n_frames)
-        logger.debug(f'{get_current_function()}(): # of rows in DataFrame after binning = {len(df)}')
-
-        # # Debug effort/check: ensure columns don't get dropped by accident
-        # for col in in_df.columns:
-        #     if col not in list(df.columns):
-        #         err_missing_col = f'Missing col should not have been lost in feature engineering but was. ' \
-        #                           f'Column = {col}. (df={df.head().to_string()})'  # TODO: low: improve err message
-        #         logger.error(err_missing_col)
-        #         raise KeyError(err_missing_col)
-
-        return df
+        return in_df
 
 
 class NeoHowlandFeatureEngineering(FeatureEngineerer):
@@ -188,46 +191,40 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
     New features set created by the Howland Lab.
     """
 
+    class c:
+        FOREPAW_LEFT = config.get_part('FOREPAW_LEFT')
+        FOREPAW_RIGHT = config.get_part('FOREPAW_RIGHT')
+        HINDPAW_LEFT = config.get_part('HINDPAW_LEFT')
+        HINDPAW_RIGHT = config.get_part('HINDPAW_RIGHT')
+        NOSETIP = config.get_part('NOSETIP')
+
     _intermediate_feature_specs = [
-        #
+        # 1
+        (average, c.FOREPAW_LEFT, c.FOREPAW_RIGHT),
+        # 2
+        (average, c.HINDPAW_LEFT, c.HINDPAW_RIGHT),
+        # 3...
     ]
+
+    inter_names = [FeatureEngineerer._extract_name_from_spec(spec, intermediate=True)
+                   for spec in _intermediate_feature_specs]
 
     _real_feature_specs = [
-        # 1
-        (distance_between_two_arrays, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT')),
-        # 7
-        (velocity_of_xy_feature, )
+        (distance, c.FOREPAW_LEFT, c.FOREPAW_RIGHT),
+
+        (distance, c.FOREPAW_LEFT, c.NOSETIP),
+        (distance, c.FOREPAW_RIGHT, c.NOSETIP),
+
+        (distance, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT),
+        (distance, c.FOREPAW_LEFT, c.HINDPAW_RIGHT),
+
+        (distance, inter_names[0], c.NOSETIP), # avg of fore paws
+        (distance, inter_names[1], c.NOSETIP), # avg of hind paws
+
+        # TODO: velocity
+        # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
+
     ]
-
-    # # 1
-    # # TODO: Create an 'attach_feature' method in 'feature_engineering' and that will be used in the generalized 'engineer_features' method.
-    # feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('NOSETIP'), self.feat_name_dist_forepawleft_nosetip)
-    # # 2
-    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_RIGHT'), config.get_part('NOSETIP'), self.feat_name_dist_forepawright_nosetip)
-    # # 3
-    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_LEFT'), config.get_part('HINDPAW_LEFT'), self.feat_name_dist_forepawLeft_hindpawLeft)
-    # # 4
-    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, config.get_part('FOREPAW_RIGHT'), config.get_part('HINDPAW_RIGHT'), self.feat_name_dist_forepawRight_hindpawRight)
-    # # 5, 6
-    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgHindpaw, config.get_part('NOSETIP'), self.feat_name_dist_AvgHindpaw_Nosetip)
-
-    # # 7
-    # df = feature_engineering.attach_feature_distance_between_2_bodyparts(df, self.intermediate_bodypart_avgForepaw, config.get_part('NOSETIP'), output_feature_name=self.feat_name_dist_AvgForepaw_NoseTip)
-
-    # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
-
-    # # Features
-    # intermediate_AvgForepaw = lambda ForepawLeft, ForepawRight: feature_engineering.attach_average_bodypart_xy
-    # df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('FOREPAW_LEFT'), config.get_part('FOREPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgForepaw)
-    # intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
-    # df = feature_engineering.attach_average_bodypart_xy(df, config.get_part('HINDPAW_LEFT'), config.get_part('HINDPAW_RIGHT'), output_bodypart=self.intermediate_bodypart_avgHindpaw)
-
-    # feat_dist_forepawleft_nosetip = 'DistanceForepawLeftToNosetip'
-    # feat_dist_forepawright_nosetip = 'DistanceForepawRightToNosetip'
-    # feat_dist_forepawLeft_hindpawLeft = 'DistanceForepawLeftToHindpawLeft'
-    # feat_dist_forepawRight_hindpawRight = 'DistanceForepawRightToHindpawRight'
-    # feat_dist_AvgHindpaw_Nosetip = 'DistanceAvgHindpawToNosetip'
-    # feat_dist_AvgForepaw_NoseTip = 'DistanceAvgForepawToNosetip'
 
 
 class Embedder(WithParams):
@@ -256,16 +253,16 @@ class Embedder(WithParams):
 
 class TSNE(Embedder):
     # TSNE
-    tsne_implementation: str = config.TSNE.IMPLEMENTATION
-    n_components: int = config.TSNE.N_COMPONENTS
-    n_iter: int = config.TSNE.N_ITER
-    early_exaggeration: float = config.TSNE.EARLY_EXAGGERATION
-    n_jobs: int = config.TSNE.N_JOBS  # n cores used during process
-    verbose: int = config.TSNE.VERBOSE
-    init: str = config.TSNE.INIT
-    make_this_better_perplexity: Union[float, str] = config.TSNE.PERPLEXITY
-    learning_rate: float = config.TSNE.LEARNING_RATE
-    random_state = config.EMBEDDER.RANDOM_STATE
+    implementation: str = config.TSNE.implementation
+    n_components: int = config.TSNE.n_components
+    n_iter: int = config.TSNE.n_iter
+    early_exaggeration: float = config.TSNE.early_exaggeration
+    n_jobs: int = config.TSNE.n_jobs  # n cores used during process
+    verbose: int = config.TSNE.verbose
+    init: str = config.TSNE.init
+    make_this_better_perplexity: Union[float, str] = config.TSNE.perplexity
+    learning_rate: float = config.TSNE.learning_rate
+    random_state = config.EMBEDDER.random_state
 
     # Non settable.  Not considered by set_params/get_params
     _num_training_data_points: int = None # must be set at runtime
@@ -287,8 +284,8 @@ class TSNE(Embedder):
         logger.debug(f'Pre-TSNE info: Perplexity={self.perplexity} / Raw perplexity={self.make_this_better_perplexity} / num_training_data_points={self._num_training_data_points} / number of df_features_train={self._num_training_features} / number of df_features_train_scaled=TODO: Is this value meaningful?')
         # Execute
         start_time = time.perf_counter()
-        logger.debug(f'Now reducing data with {self.tsne_implementation} implementation...')
-        if self.tsne_implementation == 'SKLEARN':
+        logger.debug(f'Now reducing data with {self.implementation} implementation...')
+        if self.implementation == 'SKLEARN':
             arr_result = TSNE_sklearn(
                 n_components=self.n_components,
                 perplexity=self.perplexity,
@@ -313,7 +310,7 @@ class TSNE(Embedder):
         #         theta=0.5,
         #         rand_seed=self.random_state,
         #     )
-        elif self.tsne_implementation == 'OPENTSNE':
+        elif self.implementation == 'OPENTSNE':
             tsne = OpenTsneObj(
                 **{
                     k:v for k,v in dict(
@@ -347,11 +344,11 @@ class TSNE(Embedder):
             )
             arr_result = tsne.fit(df.values)
         else:
-            err = f'Invalid TSNE source type fell through the cracks: {self.tsne_implementation}'
+            err = f'Invalid TSNE source type fell through the cracks: {self.implementation}'
             logger.error(err)
             raise RuntimeError()
         end_time = time.perf_counter()
-        logger.info(f'Number of seconds it took to train TSNE ({self.tsne_implementation}): '
+        logger.info(f'Number of seconds it took to train TSNE ({self.implementation}): '
                     f'{round(end_time- start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
         return arr_result
 
@@ -482,7 +479,7 @@ class LocallyLinearDimReducer(Embedder):
     n_neighbors: int = 5
     n_components: int = 2 # TODO: I have no reason to chose this!!!
     n_jobs: int = 1 # TODO: Could be more??
-    random_state = config.EMBEDDER.RANDOM_STATE
+    random_state = config.EMBEDDER.random_state
 
     def embed(self, df: pd.DataFrame) -> np.ndarray:
         logger.debug(f'Reducing dims using LocallyLinearEmbedding now...')
@@ -546,7 +543,7 @@ class GMM(Clusterer):
     init_params = config.GMM.init_params
     verbose: int = config.GMM.verbose
     verbose_interval: int = config.GMM.verbose_interval
-    random_state = config.CLUSTERER.RANDOM_STATE
+    random_state = config.CLUSTERER.random_state
 
     def train(self, df):
         self._model = GaussianMixture(
@@ -597,10 +594,10 @@ class CLF(WithParams):
 
 
 class SVM(CLF):
-    classifier_verbose: int = config.CLASSIFIER.VERBOSE
+    classifier_verbose: int = config.CLASSIFIER.verbose
     c, gamma = config.SVM.c, config.SVM.gamma
     probability, verbose = config.SVM.probability, config.SVM.verbose
-    random_state = config.CLASSIFIER.RANDOM_STATE
+    random_state = config.CLASSIFIER.random_state
 
     def train(self, X, y):
         """
@@ -624,11 +621,10 @@ class SVM(CLF):
 
 
 class RANDOMFOREST(CLF):
-    classifier_verbose: int = config.CLASSIFIER.VERBOSE
     n_estimators: int = config.RANDOMFOREST.n_estimators
     n_jobs: int = config.RANDOMFOREST.n_jobs
     verbose = config.RANDOMFOREST.verbose
-    random_state = config.CLASSIFIER.RANDOM_STATE
+    random_state = config.CLASSIFIER.random_state
 
     _param_checkers = dict(
         n_estimators=lambda v: check_arg.ensure_int(v) and v > 0,
@@ -688,7 +684,7 @@ class PrincipalComponents(Embedder):
 
     n_components = config.PrincipalComponents.n_components
     svd_solver = config.PrincipalComponents.svd_solver
-    random_state = config.EMBEDDER.RANDOM_STATE
+    random_state = config.EMBEDDER.random_state
 
     def embed(self, X):
         pca = PCA(

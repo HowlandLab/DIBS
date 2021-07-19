@@ -30,7 +30,7 @@ import traceback
 # from tkinter import filedialog
 # from mttkinter import mtTkinter as tk
 
-from dibs import check_arg, config, io, logging_enhanced, pipeline, streamlit_session_state, base_pipeline, pipeline_pieces
+from dibs import check_arg, config, io, logging_enhanced, streamlit_session_state, base_pipeline, pipeline_pieces
 from dibs.io import clean_string, save_to_folder
 
 
@@ -46,18 +46,6 @@ valid_video_extensions = {'avi', 'mp4', }
 start_new_project_option_text, load_existing_project_option_text = 'Create new', 'Load existing'
 text_bare_pipeline, text_dibs_data_pipeline = 'Create bare pipeline', 'Create a pipeline with pre-loaded training and test data (according to DIBS specs)'
 text_half_dibs_data_pipeline = 'DEBUG OPTION: Create a pipeline with HALF of the pre-loaded training and test data (according to DIBS specs). Useful for new users to reduce training times for TSNE param optimization'  # TODO: med: temporary option. Delete on release.
-pipeline_options = {  # Key=Pipeline name + optional description. Value=Pipeline class
-    # 'PipelineCHBO: the Change Blindness Odor Test pipeline': pipeline.PipelineCHBO,
-    # 'PipelineEPM: Elevated Plus Maze': pipeline.PipelineEPM,
-    'PipelineHowland: a pipeline aimed at generalized behaviour recognition': pipeline.PipelineHowland,
-    # 'PipelinePrime': pipeline.PipelinePrime,
-    'PipelineMimic: a pipeline that mimics the B-SOiD implementation for Open Field': pipeline.PipelineMimic,
-    # 'PipelineTim: A novel feature set attempt at behaviour segmentation': pipeline.PipelineTim,
-    'PipelineKitchenSink: a debug pipeline for too many features': pipeline.PipelineKitchenSink,
-    # 'PipelineIBNS'
-    'PipelineIBNS: CHBO object exploration pipeline': pipeline.PipelineIBNS_first_one,
-    'PipelineISBN_second_with_time_shifting': pipeline.PipelineIBNS_second_with_time_shifting,
-}
 valid_layouts = {'centered', 'wide'}
 training_data_option, predict_data_option = 'Training Data', 'Predict Data'
 key_iteration_page_refresh_count = 'key_iteration_page_refresh_count'  # A debugging effort. Remove when done debugging.
@@ -280,7 +268,7 @@ def header(pipeline_file_path):
                         p = p.add_train_data_source(*half_files)
                         p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
                 save_to_folder(p, input_path_to_pipeline_dir)
-                pipeline_file_path = os.path.join(input_path_to_pipeline_dir, pipeline.generate_pipeline_filename( text_input_new_project_name))
+                pipeline_file_path = os.path.join(input_path_to_pipeline_dir, io.generate_pipeline_filename( text_input_new_project_name))
                 session[key_pipeline_path] = pipeline_file_path
                 st.balloons()
                 st.success(f"""
@@ -390,7 +378,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
         show_pipeline_info(p, pipeline_file_path)
 
 
-def show_pipeline_info(p: pipeline.BasePipeline, pipeline_path):
+def show_pipeline_info(p: base_pipeline.BasePipeline, pipeline_path):
 
     """  """
     # logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
@@ -478,7 +466,7 @@ Dev details:
     return show_actions(p, pipeline_path)
 
 
-def show_actions(p: pipeline.BasePipeline, pipeline_file_path):
+def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
     """ Show basic actions that we can perform on the model """
     ### SIDEBAR ###
 
@@ -671,6 +659,21 @@ Clusterer params: {p._clusterer.get_params()}
 CLF: {p._clf.__class__.__name__}
 CLF params: {p._clf.get_params()}
 ''')
+        # st.markdown('')
+        # if st.button('Reload from config?'):
+        #     # HACK: Doesn't work because we can't re-initialize the config.py module at runtime...
+        #     #       AHHHH.... Will just do a streamlit thing instead.....
+        #     import runpy
+        #     runpy._run_module_as_main(config)
+        #
+        #     def class_to_dict(d):
+        #         return {k:v for k,v in d.__dict__.items() if not k.startswith('__')}
+        #
+        #     p.set_params(
+        #         EMBEDDER=(config.EMBEDDER.DEFAULT, class_to_dict(getattr(config, config.EMBEDDER.DEFAULT))),
+        #         CLUSTERER=(config.CLUSTERER.DEFAULT, class_to_dict(getattr(config, config.CLUSTERER.DEFAULT))),
+        #         CLASSIFIER=(config.CLASSIFIER.DEFAULT, class_to_dict(getattr(config, config.CLASSIFIER.DEFAULT)))
+        #     )
         st.markdown('')
         st.markdown('## Model Parameters')
         st.markdown(f'### General parameters')
@@ -884,7 +887,13 @@ CLF params: {p._clf.get_params()}
                             st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
                             st.stop()
                         # Build, save at each intermediate step, in case of errors later.
-                        p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
+                        try:
+                            p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
+                        except:
+                            # HACK: Force rebuild
+                            p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path),
+                                        force_reengineer_train_features=True,
+                                        reengineer_predict_features=True)
                         session[key_button_rebuild_model_confirmation] = False
                     st.balloons()
                     session[key_button_see_rebuild_options] = False
@@ -914,7 +923,7 @@ CLF params: {p._clf.get_params()}
     return see_model_diagnostics(p, pipeline_file_path)
 
 
-def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
+def see_model_diagnostics(p: base_pipeline.BasePipeline, pipeline_file_path):
     ######################################### MODEL DIAGNOSTICS ########################################################
 
     ### SIDEBAR
@@ -1009,7 +1018,7 @@ def see_model_diagnostics(p: pipeline.BasePipeline, pipeline_file_path):
     return review_behaviours(p, pipeline_file_path)
 
 
-def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
+def review_behaviours(p: base_pipeline.BasePipeline, pipeline_file_path):
     """"""
     # Debugging effort
     if not os.path.isfile(pipeline_file_path):
@@ -1135,7 +1144,7 @@ def review_behaviours(p: pipeline.BasePipeline, pipeline_file_path):
     return results_section(p, pipeline_file_path)
 
 
-def results_section(p: pipeline.BasePipeline, pipeline_file_path):
+def results_section(p: base_pipeline.BasePipeline, pipeline_file_path):
     if not os.path.isfile(pipeline_file_path):
         st.error(f'An unexpected error occurred. Your pipeline file path was lost along the way. '
                  f'Currently, your pipeline file path reads as: "{pipeline_file_path}"')
@@ -1186,7 +1195,7 @@ def results_section(p: pipeline.BasePipeline, pipeline_file_path):
     return export_data(p, pipeline_file_path)
 
 
-def export_data(p: pipeline.BasePipeline, pipeline_file_path):
+def export_data(p: base_pipeline.BasePipeline, pipeline_file_path):
     ### Sidebar
     # TODO: HIGH: ensure that all export buttons work! Test them!
     ### Main
@@ -1436,7 +1445,7 @@ def export_data(p: pipeline.BasePipeline, pipeline_file_path):
     return display_footer(p, pipeline_file_path)
 
 
-def display_footer(p: pipeline.BasePipeline, pipeline_file_path, *args, **kwargs):
+def display_footer(p: base_pipeline.BasePipeline, pipeline_file_path, *args, **kwargs):
     """ Footer of Streamlit page """
     # TODO: low: consider: add link to GitHub page and/or credits?
     st.markdown('')

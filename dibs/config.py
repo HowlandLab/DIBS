@@ -27,6 +27,19 @@ import time
 
 from dibs import logging_enhanced
 
+# if __name__ == '__main__':
+#     # print(get_config_str())
+#     # print(f'bodyparts: {bodyparts}')
+#     # print()
+#     # print(f'max_rows_to_read_in_from_csv = {max_rows_to_read_in_from_csv}')
+#     # print(f'VIDEO_FPS = {VIDEO_FPS}')
+#     # print(f'runtime_timestr = {runtime_timestr}')
+#     # print(f'log_file_folder_path = {log_file_folder_path}')
+#     # print(type(RANDOM_STATE))
+#     # print(VIDEO_TO_LABEL_PATH)
+#     # print('OUTPUT_VIDEO_FPS', OUTPUT_VIDEO_FPS)
+#     # print(f'DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH = {DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH}')
+#     # print(DEFAULT_TRAIN_DATA_DIR)
 
 ### Debug options
 pd.set_option('display.max_rows', 1_000)
@@ -213,23 +226,23 @@ assert os.path.isfile(TEST_FILE__PipelineMimic__CSV__PREDICT_DATA_FILE_PATH), f'
 ### GENERAL CLASSIFIER VARIABLES ###
 class FEATURE_ENGINEERER:
     DEFAULT: str = configuration.get('FEATURE_ENGINEERER', 'DEFAULT')
-    RANDOM_STATE: int = configuration.getint('FEATURE_ENGINEERER', 'RANDOM_STATE')
+    random_state: int = configuration.getint('FEATURE_ENGINEERER', 'RANDOM_STATE')
 
 
 class EMBEDDER:
     DEFAULT: str = configuration.get('EMBEDDER', 'DEFAULT')
-    RANDOM_STATE: int = configuration.getint('EMBEDDER', 'RANDOM_STATE')
+    random_state: int = configuration.getint('EMBEDDER', 'RANDOM_STATE')
 
 
 class CLUSTERER:
     DEFAULT: str = configuration.get('CLUSTERER', 'DEFAULT')
-    RANDOM_STATE: int = configuration.getint('CLUSTERER', 'RANDOM_STATE')
+    random_state: int = configuration.getint('CLUSTERER', 'RANDOM_STATE')
 
 
 class CLASSIFIER:
     DEFAULT: str = configuration.get('CLASSIFIER', 'DEFAULT')
-    RANDOM_STATE: int = configuration.getint('CLASSIFIER', 'RANDOM_STATE')
-    VERBOSE: int = configuration.getint('CLASSIFIER', 'VERBOSE')
+    random_state: int = configuration.getint('CLASSIFIER', 'RANDOM_STATE')
+    verbose: int = configuration.getint('CLASSIFIER', 'VERBOSE')
 
 # TODO: Dynamically parse valid embedders, clusterers, and classifiers from modules
 
@@ -290,31 +303,31 @@ class SVM:
 #   the missing perplexity is scaled with data size (1% of data for nearest neighbors)
 
 class TSNE:
-    EARLY_EXAGGERATION: float = configuration.getfloat('TSNE', 'early_exaggeration')
-    IMPLEMENTATION: str = configuration.get('TSNE', 'implementation')
-    INIT: str = configuration.get('TSNE', 'init')
-    LEARNING_RATE: float = configuration.getfloat('TSNE', 'learning_rate')
-    N_COMPONENTS: int = configuration.getint('TSNE', 'n_components')
-    N_ITER: int = configuration.getint('TSNE', 'n_iter')
-    N_JOBS: int = configuration.getint('TSNE', 'n_jobs')
-    PERPLEXITY: Union[str, float] = configuration.get('TSNE', 'perplexity')
+    early_exaggeration: float = configuration.getfloat('TSNE', 'early_exaggeration')
+    implementation: str = configuration.get('TSNE', 'implementation')
+    init: str = configuration.get('TSNE', 'init')
+    learning_rate: float = configuration.getfloat('TSNE', 'learning_rate')
+    n_components: int = configuration.getint('TSNE', 'n_components')
+    n_iter: int = configuration.getint('TSNE', 'n_iter')
+    n_jobs: int = configuration.getint('TSNE', 'n_jobs')
+    perplexity: Union[str, float] = configuration.get('TSNE', 'perplexity')
     try:
-        PERPLEXITY = float(PERPLEXITY)
+        perplexity = float(perplexity)
     except ValueError:
         pass
-    THETA: float = configuration.getfloat('TSNE', 'theta')
-    VERBOSE: int = configuration.getint('TSNE', 'verbose')
+    # theta: float = configuration.getfloat('TSNE', 'theta')
+    verbose: int = configuration.getint('TSNE', 'verbose')
 
 ### TSNE asserts
 valid_tsne_initializations = {'random', 'pca'}
 valid_tsne_implementations = {'SKLEARN', 'BHTSNE', 'OPENTSNE'}
 minimum_tsne_n_iter = 250
-assert TSNE.INIT in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
-                                                f'Parameter is currently: {TSNE.INIT}.'
-assert TSNE.IMPLEMENTATION in valid_tsne_implementations, f''
-assert isinstance(TSNE.N_ITER, int) and TSNE.N_ITER >= minimum_tsne_n_iter, \
+assert TSNE.init in valid_tsne_initializations, f'TSNE INIT parameters was not valid.' \
+                                                f'Parameter is currently: {TSNE.init}.'
+assert TSNE.implementation in valid_tsne_implementations, f''
+assert isinstance(TSNE.n_iter, int) and TSNE.n_iter >= minimum_tsne_n_iter, \
     f'TSNE_N_ITER should be an integer above {minimum_tsne_n_iter} but was found ' \
-    f'to be: {TSNE.N_ITER} (type: {type(TSNE.N_ITER)})'
+    f'to be: {TSNE.n_iter} (type: {type(TSNE.n_iter)})'
 # assert isinstance(TSNE_PERPLEXITY, float) \
 #     or isinstance(TSNE_PERPLEXITY, int) \
 #     or isinstance(TSNE_PERPLEXITY, str), \
@@ -333,7 +346,7 @@ class PrincipalComponents:
     n_components = configuration.getint('PCA', 'n_components')
     svd_solver = configuration.get('PCA', 'svd_solver')
 
-    
+
 ###### VIDEO PARAMETERS #####
 DEFAULT_FONT_SCALE: int = configuration.getint('VIDEO', 'DEFAULT_FONT_SCALE')
 # DEFAULT_TEXT_BGR: Tuple[int] = literal_eval(configuration.get('VIDEO', 'DEFAULT_TEXT_BGR'))
@@ -465,23 +478,9 @@ assert CLUSTERER.DEFAULT in valid_clusterers, f'An invalid clusterer was specifi
 assert CLASSIFIER.DEFAULT in valid_classifiers, f'An invalid classifer was detected: "{CLASSIFIER.DEFAULT}". ' \
                                                 f'Valid classifier values include: {valid_classifiers}'
 # assert CLASSIFIER_N_JOBS
-assert CLASSIFIER.VERBOSE >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER.VERBOSE}'
+assert CLASSIFIER.verbose >= 0, f'Invalid verbosity integer submitted. CLASSIFIER_VERBOSE value = {CLASSIFIER.verbose}'
 
 
 
 
 
-if __name__ == '__main__':
-    # print(get_config_str())
-    # print(f'bodyparts: {bodyparts}')
-    # print()
-    # print(f'max_rows_to_read_in_from_csv = {max_rows_to_read_in_from_csv}')
-    # print(f'VIDEO_FPS = {VIDEO_FPS}')
-    # print(f'runtime_timestr = {runtime_timestr}')
-    # print(f'log_file_folder_path = {log_file_folder_path}')
-    # print(type(RANDOM_STATE))
-    # print(VIDEO_TO_LABEL_PATH)
-    # print('OUTPUT_VIDEO_FPS', OUTPUT_VIDEO_FPS)
-    # print(f'DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH = {DEFAULT_PIPELINE__PRIME__CSV_TEST_FILE_PATH}')
-    # print(DEFAULT_TRAIN_DATA_DIR)
-    pass
