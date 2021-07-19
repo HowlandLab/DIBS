@@ -18,6 +18,7 @@ from sklearn.decomposition import PCA
 import time
 
 from dibs import logging_enhanced
+from dibs.feature_engineering import integrate_df_feature_into_bins
 
 logger = config.initialize_logger(__name__)
 
@@ -85,15 +86,58 @@ class WithStreamlitParamDialog(object):
 class FeatureEngineerer(object):
     """ Examples: Custom built feature engineering for each task"""
 
-    _all_engineered_features = None # TODO: Force overriding _all_engineered_features
     random_state = config.FEATURE_ENGINEERER.RANDOM_STATE # Controls train/test split.... TODO: Make this better
 
-    def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames: int) -> pd.DataFrame:
-        raise NotImplementedError()
+    _intermediate_feature_specs = None
+    _real_feature_specs = None
+    _kwargs = None # Use to pass any args to feature eng functions TODO: Might have to allow more flexible args
+    _map_feature_to_integrate_method = None # Map of aggregators
+
+    @property
+    def _all_engineered_features(self):
+        return (self._extract_name_from_spec(spec) for spec in self._real_feature_specs)
+
+    @staticmethod
+    def _extract_name_from_spec(spec):
+        func = spec[0]
+        arg_names = spec[1:]
+        arg_names_formatted = '_'.join(arg_names)
+        return f'{func.__name__}_{arg_names_formatted}'
+
+    def engineer_features(self, in_df: pd.DataFrame, average_over_n_frames: int = -1) -> pd.DataFrame:
+        for spec in self._intermediate_feature_specs:
+            # user should ensure _intermediate_feautre_specs are topo ordered
+            col_name = spec[0] # allow user specified col name so they can more easily reference them later
+            func = spec[1]
+            assert callable(func), f'Second part of _intermediate_'
+            arg_names = spec[2:]
+            assert all(arg_name in in_df.columns for arg_name in arg_names), 'All supplied arg names should be in the supplied data frame'
+            args = (in_df[name] for name in arg_names)
+            arr, aggregate_strat = func(*args, self._kwargs)
+            in_df[col_name] = arr
+            self._map_feature_to_integrate_method[col_name] = aggregate_strat
+
+        for spec in self._real_feature_specs:
+            col_name = self._extract_name_from_spec(spec)
+            func = spec[0]
+            assert callable(func), f'First part of _real_feature_specs spec should be a function'
+            arg_names = spec[1:] # Should be in df
+            assert all(arg_name in in_df.columns for arg_name in arg_names), 'All supplied arg names should be in the supplied data frame'
+            args = (in_df[name] for name in arg_names)
+            arr, aggregate_strat = func(*args, self._kwargs)
+            in_df[col_name] = arr
+            self._map_feature_to_integrate_method[col_name] = aggregate_strat
+
+        if average_over_n_frames > 0:
+            logger.debug(f'{get_current_function()}(): # of rows in DataFrame before binning = {len(in_df)}')
+            in_df = integrate_df_feature_into_bins(in_df, self._map_feature_to_integrate_method, average_over_n_frames)
+            logger.debug(f'{get_current_function()}(): # of rows in DataFrame after binning = {len(in_df)}')
+
+        return in_df
+
 
 
 class LegacyHowlandFeatureEngineering(FeatureEngineerer):
-
     # Feature names
     intermediate_bodypart_avgForepaw = 'AvgForepaw'
     intermediate_bodypart_avgHindpaw = 'AvgHindpaw'
