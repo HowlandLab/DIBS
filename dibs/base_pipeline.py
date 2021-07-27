@@ -829,10 +829,10 @@ class BasePipeline(BasePipelineAttributeHolder):
         start = time.perf_counter()
         # Build model
 
-        # HACK: TODO: Remove after debugging
-        self._embedder_is_built = False
-        self._clusterer_is_built = False
-        self._clf_is_built = False
+        # # HACK: TODO: Remove after debugging
+        # self._embedder_is_built = False
+        # self._clusterer_is_built = False
+        # self._clf_is_built = False
 
         self._build_pipeline(force_reengineer_train_features=force_reengineer_train_features,
                              pipeline_file_path=pipeline_file_path)
@@ -888,6 +888,7 @@ class BasePipeline(BasePipelineAttributeHolder):
     def clusterer_predict(self, x):
         try:
             prediction = self._clusterer.predict(x)
+            # TODO: prediction = self._clusterer.predict_proba(x)
         except ValueError:
             prediction = np.NaN
         return prediction
@@ -1319,7 +1320,11 @@ class BasePipeline(BasePipelineAttributeHolder):
         return visuals.plot_cross_validation_scores(self._cross_val_scores)
 
     def plot_confusion_matrix(self) -> np.ndarray:
-        fig = sns.heatmap(self.generate_confusion_matrix()).get_figure()
+        fig = sns.heatmap(
+            self.generate_confusion_matrix(),
+            annot=True,
+            fmt='d'
+        ).get_figure()
         return fig
 
     def generate_confusion_matrix(self) -> np.ndarray:

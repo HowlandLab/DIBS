@@ -6,6 +6,8 @@ from dibs import check_arg, config
 from dibs.logging_enhanced import get_current_function
 from dibs.feature_engineering import distance, velocity, average
 
+import streamlit as st
+
 # Models
 # from bhtsne import tsne as TSNE_bhtsne # Aaron on Ferrari; June 6th/2021: Does not want to install, but we don't use this anymore anyways
 # from cvae import cvae
@@ -13,7 +15,6 @@ from openTSNE import TSNE as OpenTsneObj
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import LocallyLinearEmbedding, Isomap, TSNE as TSNE_sklearn
 from sklearn.svm import SVC
-from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
 import time
 
@@ -27,7 +28,7 @@ class WithParams(object):
 
     # specify custom parameter checkers, especially useful if multiple types are valid, if only a certain range
     # for a numerical value is valid, or if only a specific set of strings is valid
-    _param_checkers = dict()
+    _param_checkers = False # HACK: TODO: Was causing issues with dill!!
     # Turn of parameter type checking completely if you want
     _check_parameter_types = True
 
@@ -46,7 +47,7 @@ class WithParams(object):
                 if param_name in params:
                     value = params[param_name]
                     # check that new param has same type as old param?
-                    if checker := self._param_checkers.get(param_name):
+                    if self._param_checkers and (checker := self._param_checkers.get(param_name)):
                         if callable(checker):
                             checker(value)
                         else:
@@ -72,15 +73,31 @@ class WithParams(object):
         return '\n'.join([f'{name}: value' for name, value in self.get_params().items()])
 
 
-class WithStreamlitParamDialog(object):
-    def st_param_dialogue(self):
+class WithStreamlitParamsDialog(WithParams):
+    def st_params_dialogue(self, show_extra_info: bool):
         """ TODO: Implement default streamlit dialogue that says 'sorry, but we can only read the config',
                   and put a button here to read the config again...? Yes?? """
         # 0. Does this work at all?  Do this without crashing.
         # 1. Get parameter values from this class.  Those are the defaults.  GET THE DEFAULTS FROM A NEW INSTANTIATION. Lol
         # 2. Display the name of each, and a dialog for entering new values
         # 3. BONUS: Can we pick up doc strings attached to parameters and display these as extra info?
-        raise NotImplementedError()
+        st.markdown(f'## {self.__class__.__name__} Parameters:')
+        self._st_params_dialogue(show_extra_info)
+
+    def _st_params_dialogue(self, show_extra_info):
+        # Generic implementeation:
+        for name, value in self.get_params().items():
+            if isinstance(value, float):
+                new_value = st.number_input(f'{name}', value=value)
+                setattr(self, name, new_value)
+            elif isinstance(value, int):
+                new_value = st.number_input(f'{name}', value=value)
+                setattr(self, name, int(new_value))
+            elif isinstance(value, str):
+                new_value = st.text_input(f'{name}', value=value)
+                setattr(self, name, new_value)
+            else:
+                st.markdown(f'We do not currently know how to accept input for this data type: {name}: {value};; {type(value)}')
 
 
 class FeatureEngineerer(object):
@@ -135,7 +152,7 @@ class FeatureEngineerer(object):
             # logger.debug(f'Engineering intermediate feature: {output_col_name}')
 
             # args = (in_df[name].values for name in arg_names)
-            # HACK: Have to extract the real x/y arg names because of how things are done earlier
+            # HACK: TODO: Have to extract the real x/y arg names because of how things are done earlier
             args = []
             for arg_name in arg_names:
                 if arg_name in in_df:
@@ -152,12 +169,12 @@ class FeatureEngineerer(object):
 
             # arr, aggregate_strat = func(*args, **self._kwargs)
             arr, aggregate_strat = func(*args) #, kwargs=self._kwargs) # TODO: Pass kwargs
-            # HACK: Add the '_x' '_y' ...
+            # HACK: TODO: Add the '_x' '_y' ...
             if len(arr.shape) >= 2 and arr.shape[1] == 2:
                 output_col_name = [output_col_name+'_x', output_col_name+'_y']
             in_df[output_col_name] = arr
-            # HACK: Have to use tuple in case this is a list
-            #       SUPER JANK!
+            # HACK: TODO: Have to use tuple in case this is a list
+            #       TODO: SUPER JANK!
             if isinstance(output_col_name, list):
                 for output_col_name in output_col_name:
                     self._map_feature_to_integrate_method[output_col_name] = aggregate_strat
@@ -227,9 +244,11 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
     ]
 
 
-class Embedder(WithParams):
+class Embedder(WithStreamlitParamsDialog):
     """ Examples: pca, tsne, umap """
-    _model = None
+    def __init__(self, params=None):
+        super().__init__(params)
+        self._model = None
 
     @property
     def n_components(self) -> int:
@@ -267,6 +286,30 @@ class TSNE(Embedder):
     # Non settable.  Not considered by set_params/get_params
     _num_training_data_points: int = None # must be set at runtime
     _num_training_features: int = None
+
+    def _st_params_dialogue(self, show_extra_info: bool):
+        st.markdown('### Advanced TSNE Parameters')
+        if show_extra_info:
+            st.info('See the original paper describing this algorithm for more details.'
+                    ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
+                    ' Section 2 includes perplexity.')
+        # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
+        input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=self.perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
+        # Extra info: tsne-perplexity
+        if show_extra_info:
+            st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')  # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
+        learning_rate = st.number_input(label=f'TSNE Learning Rate', value=self.learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
+        # Extra info: learning rate
+        early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=self.early_exaggeration, min_value=0., step=0.1, format='%.2f')
+        # Extra info: early exaggeration
+        n_iter = st.number_input(label=f'TSNE N Iterations', value=self.n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
+        # Extra info: number of iterations
+        n_components = st.number_input(f'TSNE N Components/Dimensions', value=self.n_components, min_value=2, max_value=3, step=1, format='%i')
+        # Extra info: number of components (dimensions)
+        self.learning_rate = learning_rate
+        self.early_exaggeration = early_exaggeration
+        self.n_iter = n_iter
+        self.n_components = n_components
 
     # TSNE Transformations
     # TODO: Original name, remove #def _train_tsne_get_dimension_reduced_data(self, df: pd.DataFrame) -> np.ndarray:
@@ -521,9 +564,11 @@ class LocallyLinearDimReducer(Embedder):
 
 
 
-class Clusterer(WithParams):
+class Clusterer(WithStreamlitParamsDialog):
     """ Examples: gmm, dbscan, spectral_clustering """
-    _model = None
+    def __init__(self, params=None):
+        super().__init__(params)
+        self._model = None
 
     def train(self, df: pd.DataFrame):
         raise NotImplementedError()
@@ -531,6 +576,61 @@ class Clusterer(WithParams):
     def predict(self, df: pd.DataFrame) -> np.ndarray: # TODO: array or df??
         """ TODO: Is input df or np.ndarray?? """
         return self._model.predict(df)
+
+
+class BayesianGMM(Clusterer):
+    """ Uses Bayesian inference to determine the effective number of components.
+    n_components is more of a suggestion here, it acts as an upper bound. """
+    n_components = config.GMM.n_components
+    covariance_type = config.GMM.covariance_type
+    tol = config.GMM.tol
+    reg_covar = config.GMM.reg_covar
+    max_iter = config.GMM.max_iter
+    n_init = config.GMM.n_init
+    init_params = config.GMM.init_params
+    verbose: int = config.GMM.verbose
+    verbose_interval: int = config.GMM.verbose_interval
+    random_state = config.CLUSTERER.random_state
+
+    def _st_params_dialogue(self, show_extra_info):
+        st.markdown(f'### Advanced GMM parameters')
+        reg_covar = st.number_input(f'GMM "reg. covariance" ', value=self.reg_covar, format='%f')
+        # Extra info: reg covar
+        tol = st.number_input(f'GMM tolerance', value=self.tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
+        # Extra info: GMM tolerance
+        max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1, format='%i')
+        # Extra info: GMM max iterations
+        n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
+                                 value=self.n_init, min_value=1, step=1, format="%i")
+
+        n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2, max_value=40, step=1)
+        self.n_components = n_components
+        st.markdown(f'_You have currently selected __{self.n_components}__ clusters_')
+        if show_extra_info:
+            st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
+                    ' are labeled in the final output.')
+
+        # Extra info: GMM number of initializations
+        self.reg_covar = reg_covar
+        self.tol = tol
+        self.max_iter = max_iter
+        self.n_init = n_init
+
+    def train(self, df):
+        """ TODO: Try this out, whats the diff?"""
+        from sklearn.mixture import BayesianGaussianMixture
+        self._model = BayesianGaussianMixture(
+            n_components=self.n_components,
+            covariance_type=self.covariance_type,
+            tol=self.tol,
+            reg_covar=self.reg_covar,
+            max_iter=self.max_iter,
+            n_init=self.n_init,
+            init_params=self.init_params,
+            verbose=self.verbose,
+            verbose_interval=self.verbose_interval,
+            random_state=self.random_state,
+        ).fit(df.values)
 
 
 class GMM(Clusterer):
@@ -545,7 +645,32 @@ class GMM(Clusterer):
     verbose_interval: int = config.GMM.verbose_interval
     random_state = config.CLUSTERER.random_state
 
+    def _st_params_dialogue(self, show_extra_info):
+        st.markdown(f'### Advanced GMM parameters')
+        reg_covar = st.number_input(f'GMM "reg. covariance" ', value=self.reg_covar, format='%f')
+        # Extra info: reg covar
+        tol = st.number_input(f'GMM tolerance', value=self.tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
+        # Extra info: GMM tolerance
+        max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1, format='%i')
+        # Extra info: GMM max iterations
+        n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
+                                 value=self.n_init, min_value=1, step=1, format="%i")
+
+        n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2, max_value=40, step=1)
+        self.n_components = n_components
+        st.markdown(f'_You have currently selected __{self.n_components}__ clusters_')
+        if show_extra_info:
+            st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
+                    ' are labeled in the final output.')
+
+        # Extra info: GMM number of initializations
+        self.reg_covar = reg_covar
+        self.tol = tol
+        self.max_iter = max_iter
+        self.n_init = n_init
+
     def train(self, df):
+        from sklearn.mixture import GaussianMixture
         self._model = GaussianMixture(
             n_components=self.n_components,
             covariance_type=self.covariance_type,
@@ -578,13 +703,11 @@ class DBSCAN(Clusterer):
 
 
 
-class CLF(WithParams):
+class CLF(WithStreamlitParamsDialog):
     """ Examples: SVM, random forest, neural network """
-    _model = None
-
-    def st_params_dialogue(self):
-        """ AARONT: TODO: Decide on streamlit interface with all the model parameters. """
-        raise NotImplementedError()
+    def __init__(self, params=None):
+        super().__init__(params)
+        self._model = None
 
     def train(self, X: pd.DataFrame, y: pd.DataFrame):
         raise NotImplementedError()
@@ -598,6 +721,12 @@ class SVM(CLF):
     c, gamma = config.SVM.c, config.SVM.gamma
     probability, verbose = config.SVM.probability, config.SVM.verbose
     random_state = config.CLASSIFIER.random_state
+
+    def _st_params_dialogue(self, show_extra_info):
+        c = st.number_input(f'SVM C', value=self.c, min_value=1e-10, format='%.2f')
+        gamma = st.number_input(f'SVM gamma', value=self.gamma, min_value=1e-10, format='%.2f')
+        self.c = c
+        self.gamma = gamma
 
     def train(self, X, y):
         """
@@ -626,15 +755,17 @@ class RANDOMFOREST(CLF):
     verbose = config.RANDOMFOREST.verbose
     random_state = config.CLASSIFIER.random_state
 
-    _param_checkers = dict(
-        n_estimators=lambda v: check_arg.ensure_int(v) and v > 0,
-        n_jobs=lambda v: check_arg.ensure_int(v) and v > 0,
-        verbose=lambda v: check_arg.ensure_int(v) and v >= 0,
-    )
-
     def __init__(self, params=None):
         super().__init__(params)
-        self._model = None
+        _param_checkers = dict(
+            n_estimators=lambda v: check_arg.ensure_int(v) and v > 0,
+            n_jobs=lambda v: check_arg.ensure_int(v) and v > 0,
+            verbose=lambda v: check_arg.ensure_int(v) and v >= 0,
+        )
+
+    def _st_params_dialogue(self, show_extra_info):
+        n_estimators = st.number_input('Random Forest N estimators', value=self.n_estimators, min_value=1, max_value=1_000, format='%i')
+        self.n_estimators = n_estimators
 
     def train(self, X, y):
         clf = RandomForestClassifier(
@@ -667,12 +798,9 @@ class RANDOMFOREST(CLF):
         return self._model.predict(df)
 
 
-# class DimReducer(WithRandomState, WithParams):
+# class DimReducer(WithParams, WithStreamlitDialog):
 #     # Eg SVD, PCA, kPCA
 #     _model = None
-#     def st_params_dialogue(self):
-#         """ AARONT: TODO: Decide on streamlit interface with all the model parameters. """
-#         raise NotImplementedError()
 
 #     def train(self, X):
 #         raise NotImplementedError()

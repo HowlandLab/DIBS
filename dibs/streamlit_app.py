@@ -55,7 +55,12 @@ key_selected_layout, initial_sidebar_state = 'key_selected_layout', 'initial_sid
 key_pipeline_path = 'key_pipeline_path'  # <- for saving pipe path when loaded??? ????
 key_open_pipeline_path = 'key_open_pipeline_path'  # For selecting a pipeline using hack dialog box
 default_n_seconds_sleep = 'default_n_seconds_wait_until_auto_refresh'
+
 key_button_change_feature_engineering = 'key_button_change_feature_engineering'
+key_button_change_embedder = 'key_button_change_embedder'
+key_button_change_clusterer = 'key_button_change_clusterer'
+key_button_change_clf = 'key_button_change_clf'
+
 key_button_show_adv_pipeline_information = 'key_button_show_more_pipeline_information'
 key_button_see_rebuild_options = 'key_button_see_model_options'
 key_button_see_advanced_options = 'key_button_see_advanced_options'
@@ -92,7 +97,12 @@ streamlit_persistence_variables = {  # Instantiate default variable values here.
     key_iteration_page_refresh_count: 0,
     default_n_seconds_sleep: 3,
     checkbox_show_extra_text: False,
+
     key_button_change_feature_engineering: False,
+    key_button_change_embedder: False,
+    key_button_change_clusterer: False,
+    key_button_change_clf: False,
+
     key_button_show_adv_pipeline_information: False,
     key_button_see_rebuild_options: False,
     key_button_see_advanced_options: False,
@@ -350,12 +360,150 @@ Success! Your new project pipeline has been saved to disk to the following path:
 
     if is_pipeline_loaded:
         logger.debug(f"Leaving home: pipeline_file_path = {pipeline_file_path}")
-        st.markdown('----------------------------------------------------------------------------------------------')
         if not os.path.isfile(pipeline_file_path):
             err = f'Pipeline file path got lost along the way. Path = {pipeline_file_path}'
             st.error(FileNotFoundError(err))
             st.stop()
 
+        st.markdown(f'## Data management')
+        ### Menu button: adding new data ###
+        button_add_new_data = st.button('Toggle: Add new data to model', key_button_add_new_data)
+        if button_add_new_data:  # Click button, flip state
+            session[key_button_add_new_data] = not session[key_button_add_new_data]
+        if session[key_button_add_new_data]:  # Now check on value and display accordingly
+            st.markdown(f'### Do you want to add data that will be used to train the model, or '
+                        f'data that the model will evaluate?')
+            # 1/2: Button for adding data to training data set
+            button_add_train_data_source = st.button('-> Add new data for training the model', key=key_button_add_train_data_source)
+            if button_add_train_data_source:
+                session[key_button_add_train_data_source] = not session[key_button_add_train_data_source]
+                session[key_button_add_predict_data_source] = False  # Close the menu for adding prediction data
+            if session[key_button_add_train_data_source]:
+                # # New implementation via tkinter (NOT WORKING YET - THREAD SAFE PROBS)
+
+                # p = p.add_train_data_source(*file_paths).save(os.path.dirname(pipeline_file_path))
+                # st.success(f'Success! Refresh page to see changes')
+                # session[key_button_add_train_data_source] = False
+                # st.stop()
+                # st.success(f'Success! The following files have been added to the pipeline as training data: '
+                #            f'{", ".join([os.path.split(x)[-1] for x in file_paths])}. Refresh the page to see the changes')
+                # session[key_button_add_new_data] = False
+                # st.stop()
+                ############
+
+                # Original implementation below: dont delete yet!
+                st.markdown(f"_Input a file path below to data which will be used to train the model._\n\n_You may input a file path or a path to a directory. If a directory is entered, all CSVs directly within will be added as training data_")
+                if config.DEFAULT_TRAIN_DATA_DIR:
+                    input_new_data_source = st.selectbox('Select dataset to add: ', options=['']+[file for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)])
+                    if input_new_data_source:
+                        input_new_data_source = os.path.join(config.DEFAULT_TRAIN_DATA_DIR, input_new_data_source)
+                else:
+                    input_new_data_source = st.text_input('Past absolute path to data to add: ')
+                if input_new_data_source:
+                    # Check if file exists
+                    if not os.path.isfile(input_new_data_source) and not os.path.isdir(input_new_data_source):
+                        st.error(FileNotFoundError(f'File not found: {input_new_data_source}. Data not added to pipeline.'))
+                    elif os.path.isdir(input_new_data_source) and len([file for file in os.listdir(input_new_data_source) if file.endswith('csv')]) == 0:
+                        err = f'Zero CSV files were found in the submitted folder: {input_new_data_source}'
+                        st.error(err)
+                    # Add to pipeline, save
+                    else:
+                        p = p.add_train_data_source(input_new_data_source)
+                        save_to_folder(p, os.path.dirname(pipeline_file_path))
+                        session[key_button_add_train_data_source] = False  # Reset menu to collapsed state
+                        session[key_button_add_new_data] = False
+                        n = session[default_n_seconds_sleep]
+                        st.balloons()
+                        st.success(f'New training data added to pipeline successfully! Pipeline has been saved to: "{pipeline_file_path}".')  # TODO: finish statement. Add in suggestion to refresh page.
+                        st.info(f'This page will refresh automatically in {n} seconds')
+                        time.sleep(n)
+                        st.experimental_rerun()
+                st.markdown('')
+
+            # 2/2: Button for adding data to prediction set
+            button_add_predict_data_source = st.button('-> Add data to be evaluated by the model', key=key_button_add_predict_data_source)
+            if button_add_predict_data_source:
+                session[key_button_add_predict_data_source] = not session[key_button_add_predict_data_source]
+                session[key_button_add_train_data_source] = False  # Close the menu for adding training data
+            if session[key_button_add_predict_data_source]:
+                st.markdown(f'TODO: add in new predict data')
+                input_new_predict_data_source = st.text_input(f'Input a file path below to a new data source which will be analyzed by the model.')
+                if input_new_predict_data_source:
+                    # Check if file exists
+                    if not os.path.isfile(input_new_predict_data_source) and not os.path.isdir(input_new_predict_data_source):
+                        st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. Data not added to pipeline.'))
+                    elif os.path.isdir(input_new_predict_data_source) and len([file for file in os.listdir(input_new_predict_data_source) if file.endswith('csv')]) == 0:  # TODO: use .endiswith()
+                        err = f'Zero CSV files were found in the submitted folder: {input_new_predict_data_source}'
+                        st.error(err)
+                    # if not os.path.isfile(input_new_predict_data_source):
+                    #     st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. '
+                    #                                f'No data was added to pipeline prediction data set.'))
+                    else:
+                        p = p.add_predict_data_source(input_new_predict_data_source)
+                        save_to_folder(p, os.path.dirname(pipeline_file_path))
+                        session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
+                        session[key_button_add_new_data] = False  # Reset add menu to collapsed state
+                        n_wait_secs = session[default_n_seconds_sleep]
+                        st.success(f'New prediction data added to pipeline successfully! Pipeline has been saved.')
+                        st.info(f'This page will refresh with your new changes in {n_wait_secs} seconds.')
+                        time.sleep(n_wait_secs)
+                        st.experimental_rerun()
+            st.markdown('')
+            st.markdown('')
+            st.markdown('')
+        ### End of menu for adding data ###
+
+        ### Menu button: removing data ###
+        button_remove_data = st.button('Toggle: Remove data from model', key_button_menu_remove_data)
+        if button_remove_data:
+            session[key_button_menu_remove_data] = not session[key_button_menu_remove_data]
+        if session[key_button_menu_remove_data]:
+            select_train_or_predict_remove = st.selectbox('Select which data you want to remove', options=['', training_data_option, predict_data_option])
+            if select_train_or_predict_remove == training_data_option:
+                select_train_data_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.training_data_sources)
+                if select_train_data_to_remove:
+                    st.info(f'Are you sure you want to remove the following data from the training data set: {select_train_data_to_remove} ?')
+                    st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
+                    confirm = st.button('Confirm')
+                    if confirm:
+                        with st.spinner(f'Removing {select_train_data_to_remove} from training data set...'):
+                            p = p.remove_train_data_source(select_train_data_to_remove)
+                            save_to_folder(p, os.path.dirname(pipeline_file_path))
+                        session[key_button_menu_remove_data] = False
+                        n = session[default_n_seconds_sleep]
+                        st.balloons()
+                        st.success(f'{select_train_data_to_remove} data successfully removed!')
+                        st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
+                        time.sleep(n)
+                        st.experimental_rerun()
+                    st.markdown('------------------------------------------')
+
+            if select_train_or_predict_remove == predict_data_option:
+                select_predict_option_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.predict_data_sources)
+                if select_predict_option_to_remove:
+                    st.info(f'Are you sure you want to remove the following data from the predicted/analyzed data set: {select_predict_option_to_remove}')
+                    st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
+                    confirm = st.button('Confirm')
+                    if confirm:
+                        with st.spinner(f'Removing {select_predict_option_to_remove} from predict data set'):
+                            p = p.remove_predict_data_source(select_predict_option_to_remove)
+                            save_to_folder(p, os.path.dirname(pipeline_file_path))
+                        session[key_button_menu_remove_data] = False
+                        st.balloons()
+                        st.success(f'{select_predict_option_to_remove} data was successfully removed!')
+                        st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
+                        time.sleep(session[default_n_seconds_sleep])
+                        st.experimental_rerun()
+                    st.markdown('------------------------------------------')
+                    st.markdown('')
+            st.markdown('')
+
+        ### End of menu for removing data ###
+
+        st.markdown('')
+
+
+        st.markdown('----------------------------------------------------------------------------------------------')
         # HACKS: Should have been a separate streamlit dialog.
         feature_engineering_class = type(p._feature_engineerer)
         # Show extra pipeline text if necessary
@@ -384,6 +532,7 @@ def show_pipeline_info(p: base_pipeline.BasePipeline, pipeline_path):
     # logger.debug(f'{logging_enhanced.get_current_function()}(): Starting. pipeline_path = {pipeline_path}')  # Debugging effort
 
     ### SIDEBAR ###
+
 
     ### MAIN PAGE ###
     st.markdown(f'## Pipeline basic information')
@@ -466,6 +615,21 @@ Dev details:
     return show_actions(p, pipeline_path)
 
 
+def show_model_params(p):
+    st.info(f'''
+Current model params:                  
+
+Embedder: {p._embedder.__class__.__name__}                   
+params: {p._embedder.get_params()}              
+
+Clusterer: {p._clusterer.__class__.__name__}                
+params: {p._clusterer.get_params()}                
+
+CLF: {p._clf.__class__.__name__}                
+params: {p._clf.get_params()}               
+''')
+
+
 def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
     """ Show basic actions that we can perform on the model """
     ### SIDEBAR ###
@@ -503,141 +667,6 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
     ####################################### MODEL BUILDING #############################################
     st.markdown(f'## Model building & information')
 
-    ### Menu button: adding new data ###
-    button_add_new_data = st.button('Toggle: Add new data to model', key_button_add_new_data)
-    if button_add_new_data:  # Click button, flip state
-        session[key_button_add_new_data] = not session[key_button_add_new_data]
-    if session[key_button_add_new_data]:  # Now check on value and display accordingly
-        st.markdown(f'### Do you want to add data that will be used to train the model, or '
-                    f'data that the model will evaluate?')
-        # 1/2: Button for adding data to training data set
-        button_add_train_data_source = st.button('-> Add new data for training the model', key=key_button_add_train_data_source)
-        if button_add_train_data_source:
-            session[key_button_add_train_data_source] = not session[key_button_add_train_data_source]
-            session[key_button_add_predict_data_source] = False  # Close the menu for adding prediction data
-        if session[key_button_add_train_data_source]:
-            # # New implementation via tkinter (NOT WORKING YET - THREAD SAFE PROBS)
-
-            # p = p.add_train_data_source(*file_paths).save(os.path.dirname(pipeline_file_path))
-            # st.success(f'Success! Refresh page to see changes')
-            # session[key_button_add_train_data_source] = False
-            # st.stop()
-            # st.success(f'Success! The following files have been added to the pipeline as training data: '
-            #            f'{", ".join([os.path.split(x)[-1] for x in file_paths])}. Refresh the page to see the changes')
-            # session[key_button_add_new_data] = False
-            # st.stop()
-            ############
-
-            # Original implementation below: dont delete yet!
-            st.markdown(f"_Input a file path below to data which will be used to train the model._\n\n_You may input a file path or a path to a directory. If a directory is entered, all CSVs directly within will be added as training data_")
-            if config.DEFAULT_TRAIN_DATA_DIR:
-                input_new_data_source = st.selectbox('Select dataset to add: ', options=['']+[file for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)])
-                if input_new_data_source:
-                    input_new_data_source = os.path.join(config.DEFAULT_TRAIN_DATA_DIR, input_new_data_source)
-            else:
-                input_new_data_source = st.text_input('Past absolute path to data to add: ')
-            if input_new_data_source:
-                # Check if file exists
-                if not os.path.isfile(input_new_data_source) and not os.path.isdir(input_new_data_source):
-                    st.error(FileNotFoundError(f'File not found: {input_new_data_source}. Data not added to pipeline.'))
-                elif os.path.isdir(input_new_data_source) and len([file for file in os.listdir(input_new_data_source) if file.endswith('csv')]) == 0:
-                    err = f'Zero CSV files were found in the submitted folder: {input_new_data_source}'
-                    st.error(err)
-                # Add to pipeline, save
-                else:
-                    p = p.add_train_data_source(input_new_data_source)
-                    save_to_folder(p, os.path.dirname(pipeline_file_path))
-                    session[key_button_add_train_data_source] = False  # Reset menu to collapsed state
-                    session[key_button_add_new_data] = False
-                    n = session[default_n_seconds_sleep]
-                    st.balloons()
-                    st.success(f'New training data added to pipeline successfully! Pipeline has been saved to: "{pipeline_file_path}".')  # TODO: finish statement. Add in suggestion to refresh page.
-                    st.info(f'This page will refresh automatically in {n} seconds')
-                    time.sleep(n)
-                    st.experimental_rerun()
-            st.markdown('')
-
-        # 2/2: Button for adding data to prediction set
-        button_add_predict_data_source = st.button('-> Add data to be evaluated by the model', key=key_button_add_predict_data_source)
-        if button_add_predict_data_source:
-            session[key_button_add_predict_data_source] = not session[key_button_add_predict_data_source]
-            session[key_button_add_train_data_source] = False  # Close the menu for adding training data
-        if session[key_button_add_predict_data_source]:
-            st.markdown(f'TODO: add in new predict data')
-            input_new_predict_data_source = st.text_input(f'Input a file path below to a new data source which will be analyzed by the model.')
-            if input_new_predict_data_source:
-                # Check if file exists
-                if not os.path.isfile(input_new_predict_data_source) and not os.path.isdir(input_new_predict_data_source):
-                    st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. Data not added to pipeline.'))
-                elif os.path.isdir(input_new_predict_data_source) and len([file for file in os.listdir(input_new_predict_data_source) if file.endswith('csv')]) == 0:  # TODO: use .endiswith()
-                    err = f'Zero CSV files were found in the submitted folder: {input_new_predict_data_source}'
-                    st.error(err)
-                # if not os.path.isfile(input_new_predict_data_source):
-                #     st.error(FileNotFoundError(f'File not found: {input_new_predict_data_source}. '
-                #                                f'No data was added to pipeline prediction data set.'))
-                else:
-                    p = p.add_predict_data_source(input_new_predict_data_source)
-                    save_to_folder(p, os.path.dirname(pipeline_file_path))
-                    session[key_button_add_predict_data_source] = False  # Reset add predict data menu to collapsed state
-                    session[key_button_add_new_data] = False  # Reset add menu to collapsed state
-                    n_wait_secs = session[default_n_seconds_sleep]
-                    st.success(f'New prediction data added to pipeline successfully! Pipeline has been saved.')
-                    st.info(f'This page will refresh with your new changes in {n_wait_secs} seconds.')
-                    time.sleep(n_wait_secs)
-                    st.experimental_rerun()
-        st.markdown('')
-        st.markdown('')
-        st.markdown('')
-    ### End of menu for adding data ###
-
-    ### Menu button: removing data ###
-    button_remove_data = st.button('Toggle: Remove data from model', key_button_menu_remove_data)
-    if button_remove_data:
-        session[key_button_menu_remove_data] = not session[key_button_menu_remove_data]
-    if session[key_button_menu_remove_data]:
-        select_train_or_predict_remove = st.selectbox('Select which data you want to remove', options=['', training_data_option, predict_data_option])
-        if select_train_or_predict_remove == training_data_option:
-            select_train_data_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.training_data_sources)
-            if select_train_data_to_remove:
-                st.info(f'Are you sure you want to remove the following data from the training data set: {select_train_data_to_remove} ?')
-                st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
-                confirm = st.button('Confirm')
-                if confirm:
-                    with st.spinner(f'Removing {select_train_data_to_remove} from training data set...'):
-                        p = p.remove_train_data_source(select_train_data_to_remove)
-                        save_to_folder(p, os.path.dirname(pipeline_file_path))
-                    session[key_button_menu_remove_data] = False
-                    n = session[default_n_seconds_sleep]
-                    st.balloons()
-                    st.success(f'{select_train_data_to_remove} data successfully removed!')
-                    st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
-                    time.sleep(n)
-                    st.experimental_rerun()
-                st.markdown('------------------------------------------')
-
-        if select_train_or_predict_remove == predict_data_option:
-            select_predict_option_to_remove = st.selectbox('Select a source of data to be removed', options=['']+p.predict_data_sources)
-            if select_predict_option_to_remove:
-                st.info(f'Are you sure you want to remove the following data from the predicted/analyzed data set: {select_predict_option_to_remove}')
-                st.markdown(f'*NOTE: upon removing the data, the model will need to be rebuilt.*')
-                confirm = st.button('Confirm')
-                if confirm:
-                    with st.spinner(f'Removing {select_predict_option_to_remove} from predict data set'):
-                        p = p.remove_predict_data_source(select_predict_option_to_remove)
-                        save_to_folder(p, os.path.dirname(pipeline_file_path))
-                    session[key_button_menu_remove_data] = False
-                    st.balloons()
-                    st.success(f'{select_predict_option_to_remove} data was successfully removed!')
-                    st.info(f'The page will refresh shortly, or you can manually refresh the page to see the changes')
-                    time.sleep(session[default_n_seconds_sleep])
-                    st.experimental_rerun()
-                st.markdown('------------------------------------------')
-                st.markdown('')
-        st.markdown('')
-
-    ### End of menu for removing data ###
-
-    st.markdown('')
 
     # AARONT: TODO: How are the config values read from disk? Ever modified?
     ### Menu button: rebuilding model ###
@@ -647,18 +676,7 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
     if session[key_button_see_rebuild_options]:  # Now check on value and display accordingly
         # Current params
         st.markdown('')
-        st.info(f'''
-Current model params:
-
-Embedder: {p._embedder.__class__.__name__}
-Embedder params: {p._embedder.get_params()}
-
-Clusterer: {p._clusterer.__class__.__name__}
-Clusterer params: {p._clusterer.get_params()}
-
-CLF: {p._clf.__class__.__name__}
-CLF params: {p._clf.get_params()}
-''')
+        show_model_params(p)
         # st.markdown('')
         # if st.button('Reload from config?'):
         #     # HACK: Doesn't work because we can't re-initialize the config.py module at runtime...
@@ -676,6 +694,7 @@ CLF params: {p._clf.get_params()}
         #     )
         st.markdown('')
         st.markdown('## Model Parameters')
+
         st.markdown(f'### General parameters')
         input_video_fps = st.number_input(f'Video FPS of input data', value=float(p.video_fps), min_value=0., max_value=500., step=1.0, format='%.2f')
         input_average_over_n_frames = st.slider('Select number of frames to average over', value=p.average_over_n_frames, min_value=1, max_value=10, step=1)
@@ -691,54 +710,65 @@ CLF params: {p._clf.get_params()}
         # st.multiselect('select features', p.all_features, default=p.all_features)  # TODO: develop this feature selection tool!
         # st.markdown('---')
 
-        st.markdown('### Gaussian Mixture Model Parameters')
-        slider_gmm_n_components = st.slider(f'GMM Components (number of clusters)', value=p._clusterer.n_components, min_value=2, max_value=40, step=1)
-        st.markdown(f'_You have currently selected __{slider_gmm_n_components}__ clusters_')
+        st.markdown('### Embedder Params')
+        button_change_embedder_set = st.button('Toggle: Change embedding algorithm', key=key_button_change_embedder)
+        if button_change_embedder_set:
+            session[key_button_change_embedder] = not session[key_button_change_embedder]
+        if session[key_button_change_embedder]:
+            selected_embedder = st.selectbox('Select an embedding algorithm', options=[''] + list(config.valid_embedders))
+            st.markdown('')
+            if selected_embedder:  # After selecting a Pipeline implementation...
+                p.set_params(EMBEDDER=(selected_embedder, dict())) # Will get defaults
+                save_to_folder(p, os.path.dirname(pipeline_file_path))
+                st.markdown('You have changed the embedding algorithm!')
+                session[key_button_change_embedder] = False
+        p._embedder.st_params_dialogue(session[checkbox_show_extra_text])
 
-        # Extra info: GMM components
-        if session[checkbox_show_extra_text]:
-            st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
-                    ' are labeled in the final output.')
+        st.markdown('### Clusterer Params')
+        button_change_clusterer_set = st.button('Toggle: Change clustering algorithm', key=key_button_change_clusterer)
+        if button_change_clusterer_set:
+            session[key_button_change_clusterer] = not session[key_button_change_clusterer]
+        if session[key_button_change_clusterer]:
+            selected_clusterer = st.selectbox('Select a clustering algorithm', options=[''] + list(config.valid_clusterers))
+            st.markdown('')
+            if selected_clusterer:  # After selecting a Pipeline implementation...
+                p.set_params(CLUSTERER=(selected_clusterer, dict())) # Will get defaults
+                save_to_folder(p, os.path.dirname(pipeline_file_path))
+                st.markdown('You have changed the clustering algorithm!')
+                session[key_button_change_clusterer] = False
+        p._clusterer.st_params_dialogue(session[checkbox_show_extra_text])
+
+        st.markdown('### Classifier Params')
+        button_change_clf_set = st.button('Toggle: Change classifier', key=key_button_change_clf)
+        if button_change_clf_set:
+            session[key_button_change_clf] = not session[key_button_change_clf]
+        if session[key_button_change_clf]:
+            selected_clf = st.selectbox('Select a clustering algorithm', options=[''] + list(config.valid_classifiers))
+            st.markdown('')
+            if selected_clf:  # After selecting a Pipeline implementation...
+                old_clf = p._clf
+                try:
+                    p.set_params(CLF=(selected_clf, dict())) # Will get defaults
+                except Exception as e:
+                    st.error(e)
+                    p._clf = old_clf
+                save_to_folder(p, os.path.dirname(pipeline_file_path))
+                st.markdown('You have changed the classifier!')
+                session[key_button_change_clf] = False
+        p._clf.st_params_dialogue(session[checkbox_show_extra_text])
 
         st.markdown('')
-        # TODO: low: add GMM: probability = True
-        # TODO: low: add: GMM: n_jobs = -2
 
         ### Other model info ###
         st.markdown('### Other model information')
         # TODO: Remove?
         ## input_cross_validation_k = st.number_input(f'Set K for K-fold cross validation', value=int(p.cross_validation_k), min_value=2, format='%i')  # TODO: low: add max_value= number of data points (for k=n)?
         # TODO: med/high: add number input for % holdout for test/train split
-        # Hack solution: specify params here so that the variable exists even though advanced params section not opened.
-
-        # Extra info: k-folds
 
         st.markdown('')
         ### Set up default values for advanced parameters in case the user does not set advanced parameters at all
         # features = p.all_features # TODO: Unused, remove?
-        embedder_params, clusterer_params, clf_params = p.get_model_params()
-
         input_average_over_n_frames = p.average_over_n_frames
-
-        # HACK: TODO: Fix.  Only show the dialog for TSNE
-        if p._embedder.__class__.__name__ == 'TSNE':
-            # TODO: Streamline the streamlit stuff.  This is temporary
-            input_tsne_learning_rate = embedder_params['learning_rate']
-            input_tsne_perplexity = embedder_params['make_this_better_perplexity']
-            input_tsne_early_exaggeration = embedder_params['early_exaggeration']
-            input_tsne_n_components = embedder_params['n_components']
-            input_tsne_n_iter = embedder_params['n_iter']
-
-        input_gmm_reg_covar = clusterer_params['reg_covar']
-        input_gmm_tol = clusterer_params['tol']
-        input_gmm_max_iter = clusterer_params['max_iter']
-        input_gmm_n_init = clusterer_params['n_init']
-
-        # TODO: REMOVE TEMP HACKS HERE!!  This whole thing needs to be generalized in some way.
-        select_classifier = p._clf.__class__
-        input_svm_c = clf_params.get('c')
-        input_svm_gamma = clf_params.get('gamma')
-        select_rf_n_estimators = clf_params.get('n_estimators')
 
         ### Advanced Parameters ###
         st.markdown('### Advanced Parameters')
@@ -753,69 +783,6 @@ CLF params: {p._clf.get_params()}
             st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is still open when clicking the "Rebuild" button.*')
             ### See advanced options for model ###
 
-            # TSNE
-            # HACK: TODO: Fix.  Only show the dialog for TSNE
-            if p._embedder.__class__.__name__ == 'TSNE':
-
-                st.markdown('### Advanced TSNE Parameters')
-                if session[checkbox_show_extra_text]:
-                    st.info('See the original paper describing this algorithm for more details.'
-                            ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
-                            ' Section 2 includes perplexity.')
-                # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
-                input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=input_tsne_perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
-                # Extra info: tsne-perplexity
-                if session[checkbox_show_extra_text]:
-                    st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')  # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
-                input_tsne_learning_rate = st.number_input(label=f'TSNE Learning Rate', value=input_tsne_learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
-                # Extra info: learning rate
-                if session[checkbox_show_extra_text]:
-                    st.info('TODO: learning rate')  # TODO: low
-                input_tsne_early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=input_tsne_early_exaggeration, min_value=0., step=0.1, format='%.2f')
-                # Extra info: early exaggeration
-                if session[checkbox_show_extra_text]:
-                    st.info('TODO: early exaggeration')  # TODO: low
-                input_tsne_n_iter = st.number_input(label=f'TSNE N Iterations', value=input_tsne_n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
-                # Extra info: number of iterations
-                if session[checkbox_show_extra_text]:
-                    st.info('TODO: number of iterations')  # TODO: low
-                input_tsne_n_components = st.number_input(f'TSNE N Components/Dimensions', value=input_tsne_n_components, min_value=2, max_value=3, step=1, format='%i')
-                # Extra info: number of components (dimensions)
-                if session[checkbox_show_extra_text]:
-                    st.info('TODO: number of components (dimensions)')  # TODO: low
-
-            st.markdown(f'### Advanced GMM parameters')
-            input_gmm_reg_covar = st.number_input(f'GMM "reg. covariance" ', value=input_gmm_reg_covar, format='%f')
-            # Extra info: reg covar
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: reg covar')  # TODO: low
-            input_gmm_tol = st.number_input(f'GMM tolerance', value=input_gmm_tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
-            # Extra info: GMM tolerance
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: GMM tolerance')  # TODO: low
-            input_gmm_max_iter = st.number_input(f'GMM max iterations', value=input_gmm_max_iter, min_value=1, max_value=100_000, step=1, format='%i')
-            # Extra info: GMM max iterations
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: GMM max iterations')  # TODO: low
-            input_gmm_n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20', value=input_gmm_n_init, min_value=1, step=1, format="%i")
-            # Extra info: GMM number of initializations
-            if session[checkbox_show_extra_text]:
-                st.info('TODO: GMM number of initializations')  # TODO: low
-
-            st.markdown(f'### Advanced Classifier Parameters')
-            select_classifier = st.selectbox('Select a classifier type:', options=[p._clf.__class__.__name__] + [clf_type for clf_type in list(config.valid_classifiers) if clf_type != p._clf.__class__.__name__])
-            if select_classifier == 'SVM':
-                ### SVM ###
-                input_svm_c = st.number_input(f'SVM C', value=input_svm_c, min_value=1e-10, format='%.2f')
-                if session[checkbox_show_extra_text]:
-                    st.info('TODO: explain SVM "C" parameter')  # TODO: low
-                input_svm_gamma = st.number_input(f'SVM gamma', value=input_svm_gamma, min_value=1e-10, format='%.2f')
-                if session[checkbox_show_extra_text]:
-                    st.info('TODO: explain SVM "gamma" parameter')  # TODO: low
-            elif select_classifier == 'RANDOMFOREST':
-                select_rf_n_estimators = st.number_input('Random Forest N estimators', value=p._clf.n_estimators, min_value=1, max_value=1_000, format='%i')
-                if session[checkbox_show_extra_text]:
-                    st.info('TODO: explain RF # of trees and roughly optimal #')
         ### End of Show Advanced Params Section
 
         st.markdown('')
@@ -837,50 +804,15 @@ CLF params: {p._clf.get_params()}
                     with st.spinner('Building model. This could take a couple minutes...'):
 
                         # HACK: TODO: Fix.  Only show the dialog for TSNE
-                        if p._embedder.__class__.__name__ == 'TSNE':
-                            _hack_embedder_params = (
-                                'TSNE', {
-                                    'perplexity': input_tsne_perplexity,
-                                    'learning_rate': input_tsne_learning_rate,
-                                    'early_exaggeration': input_tsne_early_exaggeration,
-                                    'n_iter': input_tsne_n_iter,
-                                    'n_components': input_tsne_n_components,
-                                }
-                            )
-                        else:
-                            _hack_embedder_params = (
-                                'PrincipalComponents', dict() # TODO: Allow params in GUI
-                            )
                         model_vars = {
                             # General opts
                             'video_fps': input_video_fps,
                             'average_over_n_frames': input_average_over_n_frames,
                             # 'cross_validation_k': input_cross_validation_k, # TODO: Remove?
-
-                            # TODO: Generalize this dict of params so that we can dynamically set algos
-                            # Something like: {type_of_thing1: (selected_thing, selected_params_for_thing)}
-                            'EMBEDDER': _hack_embedder_params,
-                            'CLUSTERER': (
-                                'GMM', {
-                                    'n_components': slider_gmm_n_components,
-                                    'reg_covar': input_gmm_reg_covar,
-                                    'tol': input_gmm_tol,
-                                    'max_iter': input_gmm_max_iter,
-                                    'n_init': input_gmm_n_init,
-                                }
-                            ),
-                            'CLF':
-                                ('RANDOMFOREST', {
-                                    # 'classifier_type': select_classifier,
-                                    'n_estimators': select_rf_n_estimators,
-                                })
-                            # 'SVM': {
-                            #     'svm_c': input_svm_c,
-                            #     'svm_gamma': input_svm_gamma,
-                            # }
-
                         }
 
+                        st.markdown(f'### New Params for models:')
+                        show_model_params(p)
                         # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
                         p = p.set_params(**model_vars)
                         if not os.path.isdir(os.path.dirname(pipeline_file_path)):
