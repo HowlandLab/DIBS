@@ -152,6 +152,7 @@ def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False)
             # joblib.dump(self, model_file)
             # pickle.dump(self, model_file)
             import dill
+            # TODO: Write data frames to disc
             # dill.detect.trace(True) # Debugging trace.
             # IMPORTANT: protocol=dill.HIGHEST_PROTOCOL is necessary.  If this argument is not provided,
             #            the oldest compatible protocol will be used, and that will be inefficient as well
@@ -181,10 +182,19 @@ def read_pipeline(path_to_file: str):
     with open(path_to_file, 'rb') as file:
         # p = joblib.load(file)
         # p = pickle.load(file)
+        # TODO: read data frames from disk
         import dill # Dill may not be strictly required, but allows for much more robust serialization.
                     # If dill fails in the future, a fallback to pickle should be okay, but any lambdas
                     # (amoung other exotic python constructs) will not be serializable without dill.
         p = dill.load(file)
+
+    # # HACKS: TODO: After we implement loading and saving dataframes this won't be necessary anymore
+    ## DOESN"T WORK!! Have to do this in streamlit direct.....
+    # p.force_reengineer_train_features=True
+    # p.reengineer_predict_features=True
+    # p._embedder_is_built = False
+    # p._clusterer_is_built = False
+    # p._clf_is_built = False
     logger.debug(f'{logging_enhanced.get_current_function()}(): Pipeline at {path_to_file} opened successfully!')
     return p
 

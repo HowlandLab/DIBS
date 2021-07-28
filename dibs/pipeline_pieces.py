@@ -15,6 +15,7 @@ from openTSNE import TSNE as OpenTsneObj
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import LocallyLinearEmbedding, Isomap, TSNE as TSNE_sklearn
 from sklearn.svm import SVC
+from sklearn import metrics
 from sklearn.decomposition import PCA
 import time
 
@@ -75,11 +76,9 @@ class WithParams(object):
 
 class WithStreamlitParamsDialog(WithParams):
     def st_params_dialogue(self, show_extra_info: bool):
-        """ TODO: Implement default streamlit dialogue that says 'sorry, but we can only read the config',
-                  and put a button here to read the config again...? Yes?? """
-        # 0. Does this work at all?  Do this without crashing.
-        # 1. Get parameter values from this class.  Those are the defaults.  GET THE DEFAULTS FROM A NEW INSTANTIATION. Lol
-        # 2. Display the name of each, and a dialog for entering new values
+        """
+        :param show_extra_info:
+        """
         # 3. BONUS: Can we pick up doc strings attached to parameters and display these as extra info?
         st.markdown(f'## {self.__class__.__name__} Parameters:')
         self._st_params_dialogue(show_extra_info)
@@ -294,10 +293,11 @@ class TSNE(Embedder):
                     ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
                     ' Section 2 includes perplexity.')
         # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
-        input_tsne_perplexity = st.number_input(label=f'TSNE Perplexity', value=self.perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
+        perplexity = st.number_input(label=f'TSNE Perplexity', value=self.perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
         # Extra info: tsne-perplexity
         if show_extra_info:
-            st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')  # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
+            st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
+            # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
         learning_rate = st.number_input(label=f'TSNE Learning Rate', value=self.learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
         # Extra info: learning rate
         early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=self.early_exaggeration, min_value=0., step=0.1, format='%.2f')
@@ -306,6 +306,7 @@ class TSNE(Embedder):
         # Extra info: number of iterations
         n_components = st.number_input(f'TSNE N Components/Dimensions', value=self.n_components, min_value=2, max_value=3, step=1, format='%i')
         # Extra info: number of components (dimensions)
+        self.make_this_better_perplexity = perplexity
         self.learning_rate = learning_rate
         self.early_exaggeration = early_exaggeration
         self.n_iter = n_iter
@@ -573,9 +574,10 @@ class Clusterer(WithStreamlitParamsDialog):
     def train(self, df: pd.DataFrame):
         raise NotImplementedError()
 
-    def predict(self, df: pd.DataFrame) -> np.ndarray: # TODO: array or df??
-        """ TODO: Is input df or np.ndarray?? """
-        return self._model.predict(df)
+    ## TODO: Get rid of prediction for Clusterer... we should not be predicting with a clusterer
+    # def predict(self, arr: np.ndarray) -> np.ndarray: # TODO: array or df??
+    #     """ TODO: Is input df or np.ndarray?? """
+    #     return self._model.predict(arr)
 
 
 class BayesianGMM(Clusterer):
@@ -595,22 +597,19 @@ class BayesianGMM(Clusterer):
     def _st_params_dialogue(self, show_extra_info):
         st.markdown(f'### Advanced GMM parameters')
         reg_covar = st.number_input(f'GMM "reg. covariance" ', value=self.reg_covar, format='%f')
-        # Extra info: reg covar
         tol = st.number_input(f'GMM tolerance', value=self.tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
-        # Extra info: GMM tolerance
         max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1, format='%i')
-        # Extra info: GMM max iterations
         n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
                                  value=self.n_init, min_value=1, step=1, format="%i")
 
         n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2, max_value=40, step=1)
+
+        # Extra info: GMM number of initializations
         self.n_components = n_components
         st.markdown(f'_You have currently selected __{self.n_components}__ clusters_')
         if show_extra_info:
             st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
                     ' are labeled in the final output.')
-
-        # Extra info: GMM number of initializations
         self.reg_covar = reg_covar
         self.tol = tol
         self.max_iter = max_iter
@@ -631,6 +630,7 @@ class BayesianGMM(Clusterer):
             verbose_interval=self.verbose_interval,
             random_state=self.random_state,
         ).fit(df.values)
+        return self._model.fit_predict(df.values)
 
 
 class GMM(Clusterer):
@@ -648,22 +648,19 @@ class GMM(Clusterer):
     def _st_params_dialogue(self, show_extra_info):
         st.markdown(f'### Advanced GMM parameters')
         reg_covar = st.number_input(f'GMM "reg. covariance" ', value=self.reg_covar, format='%f')
-        # Extra info: reg covar
         tol = st.number_input(f'GMM tolerance', value=self.tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
-        # Extra info: GMM tolerance
         max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1, format='%i')
-        # Extra info: GMM max iterations
         n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
                                  value=self.n_init, min_value=1, step=1, format="%i")
 
         n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2, max_value=40, step=1)
+
         self.n_components = n_components
         st.markdown(f'_You have currently selected __{self.n_components}__ clusters_')
         if show_extra_info:
             st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
                     ' are labeled in the final output.')
 
-        # Extra info: GMM number of initializations
         self.reg_covar = reg_covar
         self.tol = tol
         self.max_iter = max_iter
@@ -682,7 +679,8 @@ class GMM(Clusterer):
             verbose=self.verbose,
             verbose_interval=self.verbose_interval,
             random_state=self.random_state,
-        ).fit(df.values)
+        )
+        return self._model.fit_predict(df.values)
 
 
 class SPECTRAL(Clusterer):
@@ -690,8 +688,42 @@ class SPECTRAL(Clusterer):
 
 
 class DBSCAN(Clusterer):
-    pass
+    _X = None # input data
+    eps = 0.5
+    min_samples = 50 # default 5
 
+    def train(self, df):
+        from sklearn.cluster import DBSCAN
+        self._X = df.values
+        db: DBSCAN = DBSCAN(
+            eps=self.eps,
+            min_samples=self.min_samples,
+            metric='euclidean',
+            metric_params=None,
+            algorithm='auto',
+            leaf_size=30, # Might want to tweak this
+            p=None, # Power of Minkowski metric for calculating points, defaults to p=2 (equivalent to euclidean)
+            n_jobs=-1,
+        ).fit(df.values)
+        self._model = db
+        return self._model.labels_
+
+    def metrics(self):
+        labels = self._model.labels_
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        n_noise_ = list(labels).count(-1)
+        return {
+            'metrics':
+                'Estimated number of clusters: %d' % n_clusters_ +\
+                'Estimated number of noise points: %d' % n_noise_ +\
+                    ## TODO: Need labels_true... need answers
+                # "Homogeneity: %0.3f" % metrics.homogeneity_score(labels_true, labels) +\
+                # "Completeness: %0.3f" % metrics.completeness_score(labels_true, labels) +\
+                # "V-measure: %0.3f" % metrics.v_measure_score(labels_true, labels) +\
+                # "Adjusted Rand Index: %0.3f" % metrics.adjusted_rand_score(labels_true, labels) +\
+                # "Adjusted Mutual Information: %0.3f" % metrics.adjusted_mutual_info_score(labels_true, labels) +\
+                "Silhouette Coefficient: %0.3f" % metrics.silhouette_score(self._X, labels)
+        }
 
 
 

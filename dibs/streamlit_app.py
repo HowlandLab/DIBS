@@ -365,6 +365,62 @@ Success! Your new project pipeline has been saved to disk to the following path:
             st.error(FileNotFoundError(err))
             st.stop()
 
+        def _hacks_rebuilder(p):
+            """ HACK: TODO: Copy paste hack builder """
+            if st.button('Force rebuild now'):  # Rebuild model button was clicked
+                try:
+                    with st.spinner('Building model. This could take a couple minutes...'):
+                        # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
+                        if not os.path.isdir(os.path.dirname(pipeline_file_path)):
+                            st.error(f'UNEXPECTED ERROR: pipeline file DIRECTORY parsed as: {os.path.dirname(pipeline_file_path)}')
+                            st.stop()
+                        # Build, save at each intermediate step, in case of errors later.
+                        try:
+                            ## HACKS: More hacks, TODO: Better design so no more carrying these bools
+                            p.force_reengineer_train_features=True
+                            p.reengineer_predict_features=True
+                            p._embedder_is_built = False
+                            p._clusterer_is_built = False
+                            p._clf_is_built = False
+                            p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
+                        except Exception as e:
+                            # # HACK: Force rebuild
+                            # logger.error(f'\n\tERROR: {e}\n\tRetrying after rebuilding engineered features')
+
+                            traceback_string = '        \n'.join(traceback.format_exc().split('\n'))
+                            err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}.' \
+                                  f'    \n' \
+                                  f'    \nTraceback:' \
+                                  f'    \n{traceback_string}.'
+                            logger.error(err, exc_info=True)
+                            st.error(err)
+                            st.stop()
+                            # p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path),
+                            #             force_reengineer_train_features=True,
+                            #             reengineer_predict_features=True)
+                    st.balloons()
+                    n = session[default_n_seconds_sleep]
+                    st.success(f'Model was successfully re-built!')
+                    ## Doesn't work, hangs
+                    # st.success(f'Model was successfully re-built! This page will auto-refresh in {n} seconds.')
+                    # time.sleep(n)
+                    # st.experimental_rerun()
+                except Exception as e:
+                    traceback_string = '        \n'.join(traceback.format_exc().split('\n'))
+                    err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}.' \
+                          f'    \n' \
+                          f'    \nTraceback:' \
+                          f'    \n{traceback_string}.'
+                    logger.error(err, exc_info=True)
+                    st.error(err)
+                    st.stop()
+                finally:
+                    return p
+            else:
+                return p
+
+        p = _hacks_rebuilder(p)
+
         st.markdown(f'## Data management')
         ### Menu button: adding new data ###
         button_add_new_data = st.button('Toggle: Add new data to model', key_button_add_new_data)
@@ -621,12 +677,15 @@ Current model params:
 
 Embedder: {p._embedder.__class__.__name__}                   
 params: {p._embedder.get_params()}              
+Built: {p._embedder_is_built}
 
 Clusterer: {p._clusterer.__class__.__name__}                
 params: {p._clusterer.get_params()}                
+Built: {p._clusterer_is_built}
 
 CLF: {p._clf.__class__.__name__}                
 params: {p._clf.get_params()}               
+Built: {p._clf_is_built}
 ''')
 
 
@@ -710,7 +769,12 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
         # st.multiselect('select features', p.all_features, default=p.all_features)  # TODO: develop this feature selection tool!
         # st.markdown('---')
 
-        st.markdown('### Embedder Params')
+        st.markdown('### Embedder Params') # TODO: LOW: Put buttons next to each other
+        if st.button('Force rebuilding embedder'):
+            p._embedder_is_built = False
+            p._clusterer_is_built = False
+            p._classifier_is_built = False # TODO: Don't force rebuilding classifier
+            st.markdown('The embedder, clusterer and classifier will be rebuilt')
         button_change_embedder_set = st.button('Toggle: Change embedding algorithm', key=key_button_change_embedder)
         if button_change_embedder_set:
             session[key_button_change_embedder] = not session[key_button_change_embedder]
@@ -725,6 +789,10 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
         p._embedder.st_params_dialogue(session[checkbox_show_extra_text])
 
         st.markdown('### Clusterer Params')
+        if st.button('Force rebuilding clusterer'):
+            p._clusterer_is_built = False
+            p._classifier_is_built = False # TODO: Don't force rebuilding classifier
+            st.markdown('The clusterer and classifier will be rebuilt')
         button_change_clusterer_set = st.button('Toggle: Change clustering algorithm', key=key_button_change_clusterer)
         if button_change_clusterer_set:
             session[key_button_change_clusterer] = not session[key_button_change_clusterer]
@@ -739,6 +807,9 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
         p._clusterer.st_params_dialogue(session[checkbox_show_extra_text])
 
         st.markdown('### Classifier Params')
+        if st.button('Force rebuilding classifier'):
+            p._classifier_is_built = False
+            st.markdown('The classifier will be rebuilt')
         button_change_clf_set = st.button('Toggle: Change classifier', key=key_button_change_clf)
         if button_change_clf_set:
             session[key_button_change_clf] = not session[key_button_change_clf]
@@ -770,18 +841,18 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
         # features = p.all_features # TODO: Unused, remove?
         input_average_over_n_frames = p.average_over_n_frames
 
-        ### Advanced Parameters ###
-        st.markdown('### Advanced Parameters')
-        # TODO: HIGH IMPORTANCE! The advanced parameters should reflect the classifier type being used (SVM vs RF vs something new in the future)
-        st.markdown('*Toggle advanced parameters at your own risk. Many variables require special knowledge of ML parameters*')
-        button_see_advanced_options = st.button('Toggle: show advanced parameters')
-        if button_see_advanced_options:
-            session[key_button_see_advanced_options] = not session[key_button_see_advanced_options]
-        if session[key_button_see_advanced_options]:
-            # st.markdown('### Advanced model options. ')
-            st.markdown('### Do not change things here unless you know what you are doing!')
-            st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is still open when clicking the "Rebuild" button.*')
-            ### See advanced options for model ###
+        # ### Advanced Parameters ###
+        # st.markdown('### Advanced Parameters')
+        # # TODO: MED: Create seperate advanced parameters dialogs for different algos, instead of showing all of them?
+        # st.markdown('*Toggle advanced parameters at your own risk. Many variables require special knowledge of ML parameters*')
+        # button_see_advanced_options = st.button('Toggle: show advanced parameters')
+        # if button_see_advanced_options:
+        #     session[key_button_see_advanced_options] = not session[key_button_see_advanced_options]
+        # if session[key_button_see_advanced_options]:
+        #     # st.markdown('### Advanced model options. ')
+        #     st.markdown('### Do not change things here unless you know what you are doing!')
+        #     st.markdown('*Note: If you collapse the advanced options menu, all changes will be lost. To retain advanced parameters changes, ensure that the menu is still open when clicking the "Rebuild" button.*')
+        #     ### See advanced options for model ###
 
         ### End of Show Advanced Params Section
 
@@ -803,12 +874,10 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
                 try:
                     with st.spinner('Building model. This could take a couple minutes...'):
 
-                        # HACK: TODO: Fix.  Only show the dialog for TSNE
                         model_vars = {
                             # General opts
                             'video_fps': input_video_fps,
                             'average_over_n_frames': input_average_over_n_frames,
-                            # 'cross_validation_k': input_cross_validation_k, # TODO: Remove?
                         }
 
                         st.markdown(f'### New Params for models:')
@@ -821,8 +890,9 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
                         # Build, save at each intermediate step, in case of errors later.
                         try:
                             p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
-                        except:
+                        except Exception as e:
                             # HACK: Force rebuild
+                            logger.error(f'\n\tERROR: {e}\n\tRetrying after rebuilding engineered features')
                             p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path),
                                         force_reengineer_train_features=True,
                                         reengineer_predict_features=True)
@@ -912,12 +982,13 @@ def see_model_diagnostics(p: base_pipeline.BasePipeline, pipeline_file_path):
                     'the model is not currently built.')
         st.markdown('')
 
-    # View GMM/clustering plot
-    st.markdown(f'### See GMM distributions according to TSNE-reduced feature dimensions')  # TODO: low: phrase better
-    gmm_button = st.button('Toggle: graph of cluster/assignment distribution')  # TODO: low: phrase this button better?
+    # View clustering plot
+    st.markdown(f'### See {p._clusterer.__class__.__name__} labels according to '
+                f'{p._embedder.__class__.__name__}-reduced feature dimensions')
+    gmm_button = st.button('Toggle: graph of cluster/assignment distribution')
     if gmm_button: session[key_button_view_assignments_clusters] = not session[key_button_view_assignments_clusters]
     if session[key_button_view_assignments_clusters]:
-        if p.is_built:
+        if p.is_built: # TODO: LOW: Allow building the embedding/clustering separately from the classifier
             azim, elevation = 15, 110
             if p._embedder.n_components == 3:
                 azim = st.slider('azimuth slider', value=azim, min_value=-90, max_value=90)
@@ -939,9 +1010,6 @@ def see_model_diagnostics(p: base_pipeline.BasePipeline, pipeline_file_path):
     # TODO: med
 
     ###
-
-    ### View transition matrix of actions
-    # TODO: low
 
     ###
 

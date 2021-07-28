@@ -27,7 +27,6 @@ from typing import List, Optional, Tuple
 import inspect
 import itertools
 import math
-# import numba
 import numpy as np
 import pandas as pd
 
@@ -68,45 +67,19 @@ def attach_time_shifted_data(df: pd.DataFrame, bodypart: str, tau: int, output_f
 
 def attach_train_test_split_col(df, test_col: str, test_pct: float, random_state: int, sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
     """ TODO: Move this somewhere more relevant... it is used in the Basepipeline class
-
+    TODO: For something like cross validation, we would want to allow this to be generated outside the dataset
     :param df:
     :param test_col:
     :param test_pct:
-    :param sort_results_by: (Optional[List[str]])
-    :param random_state:
-    :param copy:
     :return:
     """
-    # Arg checking
-    # TODO: med/high: check the arg checking here
-    if sort_results_by is not None:
-        check_arg.ensure_type(sort_results_by, list)
-        if len(sort_results_by) <= 0:
-            err = f'{logging_enhanced.get_current_function()}(): List cannot be empty TODO: elaborate'
-            logger.error(err)
-            raise ValueError()
-        for col_name in sort_results_by:
-            check_arg.ensure_type(col_name, str)
-
-    # Execute
-    df = df.copy() if copy else df
-    df[test_col] = 0
-    df_shuffled = sklearn_shuffle_dataframe(df, random_state=random_state)  # Shuffles data, loses none in the process. Assign bool according to random assortment.
     # TODO: med: fix setting with copy warning
-    df_shuffled.iloc[:round(len(df_shuffled) * test_pct), :][test_col] = 1  # Setting copy with warning: https://realpython.com/pandas-settingwithcopywarning/
-    df_shuffled[test_col] = df_shuffled[test_col].astype(bool)
-
-    df_shuffled = df_shuffled.reset_index()
-
-    if sort_results_by is not None:
-        df_shuffled = df_shuffled.sort_values(sort_results_by)
-
-    actual_split_pct = round(len(df_shuffled.loc[df_shuffled[test_col]]) / len(df_shuffled), 3)
+    df[test_col] = np.random.binomial(1, test_pct, len(df))
 
     logger.debug(f"{logging_enhanced.get_current_function()}(): "
-                 f"Final test/train split is calculated to be: {actual_split_pct}")
+                 f"Final test/train split is calculated to be: {test_pct}")
 
-    return df_shuffled  # TODO: HIGH PRIORITY: FIX THIS!
+    return df
 
 
 ### Numpy array feature creation functions
