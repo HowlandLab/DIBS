@@ -684,12 +684,36 @@ class GMM(Clusterer):
 
 
 class SPECTRAL(Clusterer):
-    pass
+    """ https://scikit-learn.org/stable/modules/generated/sklearn.cluster.SpectralClustering.html """
+    random_state=config.CLUSTERER.random_state # TODO: Use?
+    n_clusters=8
+    affinity='rbf' # default rbf, one of: ??
+    n_neighbors=10 # default 10.  Number of neighbors used to build the affinity matrix
+
+    def train(self, df):
+        # TODO: Try all 3
+        from sklearn.cluster import SpectralBiclustering, SpectralClustering, SpectralCoclustering
+        sp: SpectralClustering = SpectralClustering(
+            n_clusters=self.n_clusters,
+            eigen_solver=None, #
+            n_components=self.n_clusters, # number of eigen vectors to use defaults to same as n_clusters
+            affinity=self.affinity, # aka: kernel(ish)
+            gamma=1.0,
+            n_neighbors=self.n_neighbors,
+            assign_labels='kmeans', # kmeans or discretize.  kmeans sensitive to initialization, discretize not
+            degree=3, # poly kernel
+            coef0=1, # poly and sigmoid kernels
+            kernel_params=None, # if kernel takes params pass dict
+            n_jobs=-1,
+        )
+        self._model = sp
+        return sp.fit_predict(df.values)
+
 
 
 class DBSCAN(Clusterer):
     _X = None # input data
-    eps = 0.5
+    eps = 2.0 # default 0.5
     min_samples = 50 # default 5
 
     def train(self, df):

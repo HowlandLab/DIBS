@@ -369,6 +369,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
             """ HACK: TODO: Copy paste hack builder """
             if st.button('Force rebuild now'):  # Rebuild model button was clicked
                 try:
+                    show_model_params(p)
                     with st.spinner('Building model. This could take a couple minutes...'):
                         # TODO: HIGH: make sure that model parameters are put into Pipeline before build() is called.
                         if not os.path.isdir(os.path.dirname(pipeline_file_path)):
@@ -385,7 +386,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
                             p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
                         except Exception as e:
                             # # HACK: Force rebuild
-                            # logger.error(f'\n\tERROR: {e}\n\tRetrying after rebuilding engineered features')
+                            # logger.error(f'\n\tERRR: {e}\n\tRetrying after rebuilding engineered features')
 
                             traceback_string = '        \n'.join(traceback.format_exc().split('\n'))
                             err = f'UNEXPECTED EXCEPTION WHEN BUILDING PIPELINE: {repr(e)}.' \
