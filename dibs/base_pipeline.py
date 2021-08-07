@@ -858,16 +858,15 @@ class BasePipeline(BasePipelineAttributeHolder):
     def _build_classifier(self):
         """ Train classifier, TODO: And apply labels to something? """
         # TODO: Here we must handle the thing... This is not working
-        df_train = self._df_features_train_scaled[self._df_features_train_scaled[self.test_col_name] == 1]
+        df_train = self._df_features_train_scaled[self._df_features_train_scaled[self.test_col_name] == 0]
         a = df_train.copy()
         # TODO: TEST!
         # assert len(df) == count of times true in thing
         # Select only
-        df_train = df_train.loc[ # TODO: Diff between df.loc and df.iloc?
+        df_train = df_train.loc[
             (~df_train[list(self.all_engineered_features)].isnull().any(axis=1)) &
             (~df_train[self.clusterer_assignment_col_name].isnull()) &
-            (df_train[self.clusterer_assignment_col_name] != self.null_clusterer_label) &
-            (df_train[self.test_col_name] != 0)
+            (df_train[self.clusterer_assignment_col_name] != self.null_clusterer_label)
             ]
 
         # classifier is trained in high dimensional feature space, where prediction of new data will occur

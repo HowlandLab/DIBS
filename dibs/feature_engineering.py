@@ -40,6 +40,11 @@ logger = config.initialize_logger(__name__)
 
 ### Attach features as columns to a DataFrame of DLC data
 
+def time_shifted(v, tau: int):
+    """ Create time shifted copy of an input feature to allow simple time series modelling """
+    v = pd.Series(v) # TODO: Test, should take a numpy array and turn it into a Series
+    return v.shift(periods=tau), 'avg'
+
 
 def attach_time_shifted_data(df: pd.DataFrame, bodypart: str, tau: int, output_feature_name: str, copy=False) -> pd.DataFrame:
     # Check args
@@ -176,7 +181,8 @@ def angle_between(v1, v2):
     """
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    # return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+    return np.arccos(np.dot(v1_u, v2_u))
 
 
 ### Binning

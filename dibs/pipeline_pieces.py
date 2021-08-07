@@ -236,8 +236,9 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
 
         (distance, inter_names[0], c.NOSETIP), # avg of fore paws
         (distance, inter_names[1], c.NOSETIP), # avg of hind paws
+        # angle_between works
 
-        # TODO: velocity
+        # velocity
         # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
 
     ]
@@ -692,7 +693,7 @@ class SPECTRAL(Clusterer):
 
     def train(self, df):
         # TODO: Try all 3
-        from sklearn.cluster import SpectralBiclustering, SpectralClustering, SpectralCoclustering
+        from sklearn.cluster import SpectralClustering
         sp: SpectralClustering = SpectralClustering(
             n_clusters=self.n_clusters,
             eigen_solver=None, #
