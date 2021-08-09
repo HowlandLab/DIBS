@@ -141,10 +141,7 @@ def average(*arrays) -> (np.ndarray, str):
         logger.error(err_disparate_shapes_of_arrays)
         raise ValueError(err_disparate_shapes_of_arrays)
     # Execute
-    averaged_array = np.zeros(arrays[0].shape)
-    for i in range(0, len(arrays)):
-        averaged_array += arrays[i]
-    averaged_array = averaged_array / len(arrays)
+    averaged_array = np.mean(np.array(arrays), axis=0)
     return averaged_array, 'avg'
 
 
