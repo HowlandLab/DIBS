@@ -87,12 +87,12 @@ def attach_train_test_split_col(df, test_col: str, test_pct: float, random_state
     return df
 
 
-### Numpy array feature creation functions
+# Numpy array feature creation functions
 
-def distance(arr1, arr2) -> (np.ndarray, str):
+def distance(arr1, arr2, p=2) -> (np.ndarray, str):
     """
-    Calculates the distance between two arrays of 2-dimensions (1 row, n columns), assuming
-    the first column in both arrays is the x-data and the second column is the y-data.
+    Calculates the p'th order distance between two arrays of 2-dimensions (m rows, n columns), where each column
+    represents coordinate in 1D.
     Returns float distance between the two arrays.
 
     :param arr1: (Array)
@@ -100,7 +100,7 @@ def distance(arr1, arr2) -> (np.ndarray, str):
         arr1/arr2 Example:
             [[5.   2.   3.75]]
             [[20.  15.5  7. ]]
-
+    :param p: order of distance norm
     :returns: (float)
         Example output: 20.573040611440984
 
@@ -111,7 +111,7 @@ def distance(arr1, arr2) -> (np.ndarray, str):
 
     # Execute
     try:
-        distance = (np.sum(arr1 - arr2, axis=1)**2)**0.5
+        distance = np.sum((arr1 - arr2)**p, axis=1)**(1./p)
     except ValueError as ve:
         # Raises ValueError if array shape is not the same
         err = f'Error occurred when calculating distance between two arrays. ' \
