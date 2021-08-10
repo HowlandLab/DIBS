@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 import numpy as np
 from typing import Union, Dict, List, Tuple, Optional
@@ -17,7 +18,8 @@ from sklearn.manifold import LocallyLinearEmbedding, Isomap, TSNE as TSNE_sklear
 from sklearn.svm import SVC
 from sklearn import metrics
 from sklearn.decomposition import PCA
-import time
+from sklearn.cluster import SpectralClustering
+
 
 from dibs import logging_enhanced
 from dibs.feature_engineering import integrate_df_feature_into_bins
@@ -686,30 +688,32 @@ class GMM(Clusterer):
 
 class SPECTRAL(Clusterer):
     """ https://scikit-learn.org/stable/modules/generated/sklearn.cluster.SpectralClustering.html """
-    random_state=config.CLUSTERER.random_state # TODO: Use?
-    n_clusters=8
-    affinity='rbf' # default rbf, one of: ??
-    n_neighbors=10 # default 10.  Number of neighbors used to build the affinity matrix
+    n_clusters = config.SPECTRAL.n_clusters
+    eigen_solver = config.SPECTRAL.eigen_solver
+    n_components = config.SPECTRAL.n_components
+    gamma = config.SPECTRAL.gamma
+    affinity = config.SPECTRAL.affinity
+    n_neighbors = config.SPECTRAL.n_neighbors
+    assign_labels = config.SPECTRAL.assign_labels
+    degree = config.SPECTRAL.degree
+    coef0 = config.SPECTRAL.coef0
+    n_jobs = config.SPECTRAL.n_jobs
 
     def train(self, df):
-        # TODO: Try all 3
-        from sklearn.cluster import SpectralClustering
         sp: SpectralClustering = SpectralClustering(
             n_clusters=self.n_clusters,
-            eigen_solver=None, #
-            n_components=self.n_clusters, # number of eigen vectors to use defaults to same as n_clusters
-            affinity=self.affinity, # aka: kernel(ish)
-            gamma=1.0,
+            eigen_solver=self.eigen_solver,
+            n_components=self.n_clusters,
+            affinity=self.affinity,
+            gamma=self.gamma,
             n_neighbors=self.n_neighbors,
-            assign_labels='kmeans', # kmeans or discretize.  kmeans sensitive to initialization, discretize not
-            degree=3, # poly kernel
-            coef0=1, # poly and sigmoid kernels
-            kernel_params=None, # if kernel takes params pass dict
-            n_jobs=-1,
+            assign_labels=self.assign_labels,
+            degree=self.degree,
+            coef0=self.coef0,
+            n_jobs=self.n_jobs,
         )
         self._model = sp
         return sp.fit_predict(df.values)
-
 
 
 class DBSCAN(Clusterer):
@@ -861,7 +865,7 @@ class RANDOMFOREST(CLF):
 
 #     def train(self, X):
 #         raise NotImplementedError()
-    
+
 #     def explained_variance(self):
 #         raise NotImplementedError()
 

@@ -286,7 +286,6 @@ class RANDOMFOREST:
     n_jobs = configuration.getint('RANDOMFOREST', 'n_jobs')
     verbose = configuration.getint('RANDOMFOREST', 'verbose')
     assert n_estimators > 0, f''
-    assert n_jobs > 0, f''
     assert verbose >= 0, f''
 
 
@@ -345,6 +344,21 @@ class UMAP:
 class PrincipalComponents:
     n_components = configuration.getint('PCA', 'n_components')
     svd_solver = configuration.get('PCA', 'svd_solver')
+
+
+# SPECTRAL
+class SPECTRAL:
+    n_clusters = configuration.getint('SPECTRAL', 'n_clusters')
+    eigen_solver = configuration.get('SPECTRAL', 'eigen_solver')
+    n_components = configuration.getint('SPECTRAL', 'n_components')
+    gamma = configuration.getfloat('SPECTRAL', 'gamma')
+    affinity = configuration.get('SPECTRAL', 'affinity')
+    n_neighbors = configuration.getint('SPECTRAL', 'n_neighbors')
+    assign_labels = configuration.get('SPECTRAL', 'assign_labels')
+    degree = configuration.getint('SPECTRAL', 'degree')
+    coef0 = configuration.getint('SPECTRAL', 'coef0')
+    # kernel_params = configuration.get('SPECTRAL', 'kernel_params')
+    n_jobs = configuration.getint('SPECTRAL', 'n_jobs')
 
 
 ###### VIDEO PARAMETERS #####
