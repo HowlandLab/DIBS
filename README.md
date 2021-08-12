@@ -26,13 +26,13 @@ Thank you for your support.
 - Ensure that you have Python installed
   - To ensure that you have Python installed, try running: `python --version`
   - Make sure that you have Python 3.7 or newer installed
-- Ensure that you have Anaconda installed
-  - You can ensure you have conda installed by running: `conda --version`
-  - If you do not have Anaconda installed, it is a good idea to have it but not entirely required.
-- Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
-- Copy and paste all commands from [CONDA\_ENV\_COMMANDS.txt](./CONDA_ENV_COMMANDS.txt) into your 
-  command line one at a time to download all necessary packages
-
+- Ensure that you have Anaconda/Miniconda installed
+- Miniconda is preferred as it takes less space and only installs required packages by this project.
+- You can ensure you have conda installed by running: `conda --version`
+  - Run the following command to create your environment: `conda create -n dibs && conda activate dibs`
+  - Run the following command to install all required libraries used by DIBS: `pip install -r requirements.txt` 
+- For windows users, also use the following command: `conda install -y pywin32 winpty`
+- If you have problems with starting Jupyter Notebooks, try running the following command: `pip install --upgrade pyzmq`
 -------------------------------------------------------------------------------
 
 ## Usage
