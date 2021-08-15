@@ -8,14 +8,13 @@ import joblib
 import inspect
 import numpy as np
 import os
+import dill
 import pandas as pd
 import re
 import sys
 
-
 from dibs import check_arg, config, logging_enhanced
 from dibs.logging_enhanced import get_current_function
-
 
 logger = config.initialize_logger(__name__)
 
@@ -64,8 +63,9 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     file_folder, file_name = os.path.split(csv_file_path)
     # file_name_without_extension, extension = file_name.split('.')  # Old way of doing things. remove this line later.
     ext_common_idx = file_name.rfind('.')
-    file_name_without_extension, extension = file_name[:ext_common_idx], file_name[ext_common_idx+1:]
-    assert file_name_without_extension == config.get_data_source_from_file_path(csv_file_path)  # TODO: low: delete this line only after a test has been implemented
+    file_name_without_extension, extension = file_name[:ext_common_idx], file_name[ext_common_idx + 1:]
+    assert file_name_without_extension == config.get_data_source_from_file_path(
+        csv_file_path)  # TODO: low: delete this line only after a test has been implemented
 
     # # # # # # #
     # Read in CSV
@@ -124,13 +124,12 @@ def read_h5(data_file_path, **kwargs) -> pd.DataFrame:
     return
 
 
-    # Saving and stuff
-def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False):
+# Saving and stuff
+def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False, df_export=None, stage=''):
     """
     Defaults to config.ini OUTPUT_PATH variable if a save path not specified beforehand.
     :param output_path_dir: (str) an absolute path to a DIRECTORY where the pipeline will be saved.
     """
-    # logger.debug(f'{inspect.stack()[0][3]}(): Attempting to save pipeline to the following folder: {output_path_dir}.')
 
     # Check if valid directory
     check_arg.ensure_is_dir(output_path_dir)
@@ -151,7 +150,6 @@ def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False)
         with open(final_out_path, 'wb') as model_file:
             # joblib.dump(self, model_file)
             # pickle.dump(self, model_file)
-            import dill
             # TODO: Write data frames to disc
             # dill.detect.trace(True) # Debugging trace.
             # IMPORTANT: protocol=dill.HIGHEST_PROTOCOL is necessary.  If this argument is not provided,
@@ -165,10 +163,25 @@ def save_to_folder(p, output_path_dir=config.OUTPUT_PATH, read_and_return=False)
         raise e
 
     logger.debug(f'{inspect.stack()[0][3]}(): Pipeline ({p.name}) saved to: {final_out_path}')
+    if df_export is not None:
+        save_csv(os.path.join(output_path_dir, stage+'.csv'), df_export)
     if read_and_return:
         return read_pipeline(final_out_path)
     else:
         return p
+
+
+def save_csv(path, df: pd.DataFrame):
+    # Check if valid final path to be saved
+    check_arg.ensure_is_valid_path(path)
+    if not check_arg.is_pathname_valid(path):
+        invalid_path_err = f'Invalid output path save: {path}'
+        logger.error(invalid_path_err)
+        raise ValueError(invalid_path_err)
+
+    logger.debug(f'{inspect.stack()[0][3]}(): Attempting to save file as csv: {path}.')
+
+    df.to_csv(path, index=False)
 
 
 def read_pipeline(path_to_file: str):
@@ -183,9 +196,9 @@ def read_pipeline(path_to_file: str):
         # p = joblib.load(file)
         # p = pickle.load(file)
         # TODO: read data frames from disk
-        import dill # Dill may not be strictly required, but allows for much more robust serialization.
-                    # If dill fails in the future, a fallback to pickle should be okay, but any lambdas
-                    # (amoung other exotic python constructs) will not be serializable without dill.
+        import dill  # Dill may not be strictly required, but allows for much more robust serialization.
+        # If dill fails in the future, a fallback to pickle should be okay, but any lambdas
+        # (amoung other exotic python constructs) will not be serializable without dill.
         p = dill.load(file)
 
     # # HACKS: TODO: After we implement loading and saving dataframes this won't be necessary anymore
@@ -214,4 +227,3 @@ def clean_string(s):
         return s.strip().strip('"').strip("'")
     else:
         return s
-

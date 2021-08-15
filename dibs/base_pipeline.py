@@ -67,7 +67,8 @@ class BasePipelineAttributeHolder(object):
         self._clusterer: Clusterer = getattr(pipeline_pieces, config.CLUSTERER.DEFAULT)()
         self._clf: CLF = getattr(pipeline_pieces, config.CLASSIFIER.DEFAULT)()
         # Data
-        default_cols = ['frame', 'data_source', 'file_source', self.clusterer_assignment_col_name, self.clf_assignment_col_name]
+        default_cols = ['frame', 'data_source', 'file_source', self.clusterer_assignment_col_name,
+                        self.clf_assignment_col_name]
         self._df_features_train_raw = pd.DataFrame(columns=default_cols)
         self._df_features_train = pd.DataFrame(columns=default_cols)
         self._df_features_train_scaled = pd.DataFrame(columns=default_cols)
@@ -135,30 +136,44 @@ class BasePipelineAttributeHolder(object):
         return df.astype({'frame': float, }).astype({'frame': int, })
 
     @property
-    def scaler(self): return self._scaler
+    def scaler(self):
+        return self._scaler
 
     ### Properties & Getters ###
     @property
-    def df_features_train_raw(self): return self.convert_types(self._df_features_train_raw)
+    def df_features_train_raw(self):
+        return self.convert_types(self._df_features_train_raw)
+
     @property
-    def df_features_train(self): return self.convert_types(self._df_features_train)
+    def df_features_train(self):
+        return self.convert_types(self._df_features_train)
+
     @property
-    def df_features_train_scaled(self): return self.convert_types(self._df_features_train_scaled)
+    def df_features_train_scaled(self):
+        return self.convert_types(self._df_features_train_scaled)
+
     @property
-    def df_features_predict_raw(self): return self.convert_types(self._df_features_predict_raw)
+    def df_features_predict_raw(self):
+        return self.convert_types(self._df_features_predict_raw)
+
     @property
-    def df_features_predict(self): return self.convert_types(self._df_features_predict)
+    def df_features_predict(self):
+        return self.convert_types(self._df_features_predict)
+
     @property
-    def df_features_predict_scaled(self): return self.convert_types(self._df_features_predict_scaled)
+    def df_features_predict_scaled(self):
+        return self.convert_types(self._df_features_predict_scaled)
+
     @property
     def df_clusterer_assignments(self):
         return self._df_features_train_scaled[self.clusterer_assignment_col_name].loc[
             self._df_features_train_scaled[self.clusterer_assignment_col_name] != self.null_clusterer_label
-        ]
+            ]
+
     @property
     def df_embedder_embedding(self):
         """ Allows user to extract reduced data from pipeline. """
-        return self._df_features_train_scaled.loc[self.dims_cols_names].copy()
+        return self._df_features_train_scaled[self.dims_cols_names].copy()
 
     @property
     def transition_matrix(self):
@@ -166,8 +181,8 @@ class BasePipelineAttributeHolder(object):
         logger.debug(gmm_a)
         n = len(gmm_a.unique())
         mat = np.zeros((n, n), dtype=int)
-        for b1,b2 in zip(gmm_a[0:-2], gmm_a[1:-1]):
-            mat[b1,b2] += 1 # TODO: med; There is a bug here at the intersection of datasets, since we are measuring
+        for b1, b2 in zip(gmm_a[0:-2], gmm_a[1:-1]):
+            mat[b1, b2] += 1  # TODO: med; There is a bug here at the intersection of datasets, since we are measuring
             #                       the transition from one behavoiur to the next when really the video changed.
             #                       Since this accounts for much less than 0.1% of our overall data, it is not critical to fix at this time.
         np.fill_diagonal(mat, 0)
@@ -180,7 +195,7 @@ class BasePipelineAttributeHolder(object):
         # TODO: Add axis labels.  Change labels to reflect user labels
         # sns.set(rc={'figure.figsize':(11.7, 8.27)})
         plt.clf()
-        hm=sns.heatmap(
+        hm = sns.heatmap(
             self.transition_matrix,
             cmap=cmap,
             annot=True,
@@ -211,8 +226,8 @@ class BasePipelineAttributeHolder(object):
         relative to already-compiled model
         """
         return self._is_training_data_set_different_from_model_input \
-            or self._has_unengineered_predict_data \
-            or not self._is_built
+               or self._has_unengineered_predict_data \
+               or not self._is_built
 
     def get_inconsistent_state_repr(self) -> str:
         """ https://github.com/streamlit/streamlit/issues/868 require extra white space to make multi line """
@@ -223,19 +238,24 @@ class BasePipelineAttributeHolder(object):
                f'_clf_is_built: {self._clf_is_built}    \n'
 
     @property
-    def is_built(self): return self._is_built
+    def is_built(self):
+        return self._is_built
 
     @property
-    def has_train_data(self) -> bool: return bool(len(self.df_features_train_raw))
+    def has_train_data(self) -> bool:
+        return bool(len(self.df_features_train_raw))
 
     @property
-    def has_test_data(self) -> bool: return bool(len(self.df_features_predict_raw))
+    def has_test_data(self) -> bool:
+        return bool(len(self.df_features_predict_raw))
 
     @property
-    def accuracy_score(self): return self._acc_score
+    def accuracy_score(self):
+        return self._acc_score
 
     @property
-    def cross_val_scores(self): return self._cross_val_scores
+    def cross_val_scores(self):
+        return self._cross_val_scores
 
     @property
     def training_data_sources(self) -> List[str]:
@@ -258,7 +278,8 @@ class BasePipelineAttributeHolder(object):
                 if source.split('DLC')[0] in os.path.splitext(os.path.basename(path))[0]:
                     if source in sources_to_video_paths:
                         # TODO: Come up with more robust logic, or actionable solution for the user to take.  Possible solution: Have the split pattern specified in config.ini
-                        raise RuntimeError(f'Double matched source {source} to multiple paths: {path}, {sources_to_video_paths[source]}')
+                        raise RuntimeError(
+                            f'Double matched source {source} to multiple paths: {path}, {sources_to_video_paths[source]}')
                     sources_to_video_paths[source] = os.path.join(config.VIDEO_INPUT_FOLDER_PATH, path)
                     # HACK: Have to remove from the sources list... so there is no double matching
                     sources.remove(source)
@@ -266,7 +287,7 @@ class BasePipelineAttributeHolder(object):
             else:
                 logger.warn(f'Video path not matched to any data source: {path}; This is probably undesirable.')
         logger.info(f'Matched videos and paths as follows:')
-        for k,v in sources_to_video_paths.items():
+        for k, v in sources_to_video_paths.items():
             logger.info(f'{k}: {v}')
         if unmatched_datasources := sorted(set(data_sources) - set(sources_to_video_paths.keys())):
             logger.warn(f'Sources not matched to a video path:')
@@ -289,14 +310,18 @@ class BasePipelineAttributeHolder(object):
     @property
     def unique_assignments(self) -> List[any]:
         if len(self._df_features_train_scaled) > 0:
-            return list(np.unique(self._df_features_train_scaled.loc[self._df_features_train_scaled[self.clf_assignment_col_name] != self.null_classifier_label][self.clf_assignment_col_name].values))
+            return list(np.unique(self._df_features_train_scaled.loc[self._df_features_train_scaled[
+                                                                         self.clf_assignment_col_name] != self.null_classifier_label][
+                                      self.clf_assignment_col_name].values))
         return []
 
     @property
-    def all_engineered_features(self) -> Tuple[str]: return self._feature_engineerer._all_engineered_features
+    def all_engineered_features(self) -> Tuple[str]:
+        return self._feature_engineerer._all_engineered_features
 
     @property
-    def all_engineered_features_list(self) -> List[str]: return list(self.all_engineered_features)
+    def all_engineered_features_list(self) -> List[str]:
+        return list(self.all_engineered_features)
 
     @property
     def dims_cols_names(self) -> List[str]:
@@ -304,7 +329,7 @@ class BasePipelineAttributeHolder(object):
         Automatically creates a list of consistent column names, relative to the number of
         TSNE components, that labels the columns of reduced data after the TSNE operation.
         """
-        return [f'dim_{d}' for d in range(1, self._embedder.n_components+1)]
+        return [f'dim_{d}' for d in range(1, self._embedder.n_components + 1)]
 
 
 class BasePipeline(BasePipelineAttributeHolder):
@@ -390,16 +415,15 @@ class BasePipeline(BasePipelineAttributeHolder):
             """ d1 should be a subset of d2 """
             return len(set(d1.items()) - set(d2.items())) == 0
 
-
         ### MODEL PARAMS ###
         # TODO: Use a stringified "hash" representation of the feature engineering in some way to ensure we don't redundantly redo?
         if new_feature_engineerer_tuple := kwargs.get('FEATURE_ENGINEERER'):
-            new_feature_engineerer_name, new_feature_engineerer_params = new_feature_engineerer_tuple # params usually just RANDOM_STATE
+            new_feature_engineerer_name, new_feature_engineerer_params = new_feature_engineerer_tuple  # params usually just RANDOM_STATE
             if new_feature_engineerer_name != self._feature_engineerer.__class__.__name__:
                 self._feature_engineerer = getattr(pipeline_pieces, new_feature_engineerer_name)()
             # self._feature_engineerer.set_params(new_feature_engineerer_params) # TODO: Let feature engineerer take args, for example tau
-            self._is_training_data_set_different_from_model_input = True # Forces re-generation of engineered training datasets
-            self._has_unengineered_predict_data = True # Forces re-generation of engineered predict datasets
+            self._is_training_data_set_different_from_model_input = True  # Forces re-generation of engineered training datasets
+            self._has_unengineered_predict_data = True  # Forces re-generation of engineered predict datasets
 
         if new_embedder_tuple := kwargs.get('EMBEDDER'):
             new_embedder_name, new_embedder_params = new_embedder_tuple
@@ -443,7 +467,8 @@ class BasePipeline(BasePipelineAttributeHolder):
         check_arg.ensure_type(video_fps, int, float)
         self.video_fps = float(video_fps)
         # Window averaging
-        average_over_n_frames = kwargs.get('average_over_n_frames', self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
+        average_over_n_frames = kwargs.get('average_over_n_frames',
+                                           self.average_over_n_frames)  # TODO: low: add a default option for this in config.ini+config.py
         check_arg.ensure_type(average_over_n_frames, int)
         self.average_over_n_frames = average_over_n_frames
 
@@ -585,9 +610,11 @@ class BasePipeline(BasePipelineAttributeHolder):
         for i, df_i in enumerate(list_dfs_of_raw_data):
             df_i = self.convert_types(df_i.copy())
             check_arg.ensure_frame_indices_are_integers(df_i)
-            logger.debug(f'{get_current_function()}(): Engineering df feature set {i+1} of {len(list_dfs_of_raw_data)}')
+            logger.debug(
+                f'{get_current_function()}(): Engineering df feature set {i + 1} of {len(list_dfs_of_raw_data)}')
             df_engineered_features: pd.DataFrame = self.engineer_features(df_i)
-            df_engineered_features = df_engineered_features.astype({feature: float for feature in self.all_engineered_features})
+            df_engineered_features = df_engineered_features.astype(
+                {feature: float for feature in self.all_engineered_features})
             list_dfs_engineered_features.append(df_engineered_features)
 
         # Aggregate all data into one DataFrame, return
@@ -668,7 +695,8 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         return df_scaled_data
 
-    def _scale_training_data_and_add_train_test_split(self, features: Collection[str] = None, create_new_scaler: bool = True):
+    def _scale_training_data_and_add_train_test_split(self, features: Collection[str] = None,
+                                                      create_new_scaler: bool = True):
         """
         Scales training data. By default, creates new scaler according to train
         data and stores it in pipeline
@@ -697,7 +725,8 @@ class BasePipeline(BasePipelineAttributeHolder):
         # df_features_train_scaled = df_features_train_scaled.loc[~df_features_train_scaled[features].isnull().any(axis=1)]
 
         # Get scaled data
-        df_features_train_scaled = self._create_scaled_data(df_features_train, features, create_new_scaler=create_new_scaler)
+        df_features_train_scaled = self._create_scaled_data(df_features_train, features,
+                                                            create_new_scaler=create_new_scaler)
 
         # Save data. Return.
         self._df_features_train_scaled = df_features_train_scaled
@@ -761,28 +790,33 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Build it
         # Engineer features
         if force_reengineer_train_features or self._is_training_data_set_different_from_model_input:
-            logger.debug(f'{get_current_function()}(): Start engineering features...')
+            logger.debug(f'{get_current_function()}(): Start engineering features')
             self._engineer_features_train()
-            if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
+            if pipeline_file_path:
+                io.save_to_folder(self, pipeline_file_path, df_export=self.df_features_train, stage='feature_eng')
 
         # TODO: Time each step and log for the user.
         # Scale data
         self._scale_training_data_and_add_train_test_split(create_new_scaler=True)
-
+        if pipeline_file_path:
+            io.save_to_folder(self, pipeline_file_path, df_export=self.df_features_train_scaled, stage='feature_eng_scaled')
         # Rebuild any parts that require updating.
         # These flags are set to False on initialization, when setting parameters,
         # and if any previous piece of the pipeline has been changed.
         if not self._embedder_is_built:
             self._build_embedder()
-            if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
+            if pipeline_file_path:
+                io.save_to_folder(self, pipeline_file_path, df_export=self.df_embedder_embedding, stage='embedding')
 
         if not self._clusterer_is_built:
             self._build_clusterer()
-            if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
+            if pipeline_file_path:
+                io.save_to_folder(self, pipeline_file_path, df_export=self.df_clusterer_assignments, stage='clustering')
 
         if not self._clf_is_built:
             self._build_classifier()
-            if pipeline_file_path: io.save_to_folder(self, pipeline_file_path)
+            if pipeline_file_path:
+                io.save_to_folder(self, pipeline_file_path)
 
         self._last_built = time.strftime("%Y-%m-%d_%Hh%Mm%Ss")
         logger.debug(f'{get_current_function()}(): All done with building classifiers/model!')
@@ -811,15 +845,17 @@ class BasePipeline(BasePipelineAttributeHolder):
         # TODO: HIGH: make sure that grabbing the data for training is standardized <----------------------------
         # Grab train data
         df_train_data_for_tsne = self.df_features_train_scaled.loc[
-                (~self.df_features_train_scaled[self.all_engineered_features_list].isnull().any(axis=1))  # Non-null features only
-            ].copy()
+            (~self.df_features_train_scaled[self.all_engineered_features_list].isnull().any(axis=1))
+            # Non-null features only
+        ].copy()
 
         check_arg.ensure_columns_in_DataFrame(df_train_data_for_tsne, self.all_engineered_features_list)
         logger.debug(f'Reducing feature dimensions now with {self._embedder.__class__.__name__}')
         logger.debug(f'Params: {self._embedder.get_params()}')
 
         arr_tsne_result: np.ndarray = self._embedder.embed(df_train_data_for_tsne[list(self.all_engineered_features)])
-        check_arg.ensure_type(arr_tsne_result, np.ndarray)  # TODO: low: remove, debuggin effort for dim reduc approaches
+        check_arg.ensure_type(arr_tsne_result,
+                              np.ndarray)  # TODO: low: remove, debuggin effort for dim reduc approaches
 
         # Attach dimensionally reduced data, save
         # TODO: Here, we have to handle the data differently
@@ -829,7 +865,6 @@ class BasePipeline(BasePipelineAttributeHolder):
         # ], axis=1)
         # TODO: This doesn't seem to be saving
         self._df_features_train_scaled[self.dims_cols_names] = arr_tsne_result
-
         self._embedder_is_built = True
 
         self._clusterer_is_built = False
@@ -859,7 +894,6 @@ class BasePipeline(BasePipelineAttributeHolder):
         """ Train classifier, TODO: And apply labels to something? """
         # TODO: Here we must handle the thing... This is not working
         df_train = self._df_features_train_scaled[self._df_features_train_scaled[self.test_col_name] == 0]
-        a = df_train.copy()
         # TODO: TEST!
         # assert len(df) == count of times true in thing
         # Select only
@@ -870,8 +904,8 @@ class BasePipeline(BasePipelineAttributeHolder):
             ]
 
         # classifier is trained in high dimensional feature space, where prediction of new data will occur
-        X=df_train[list(self.all_engineered_features)]
-        y=df_train[self.clusterer_assignment_col_name]
+        X = df_train[list(self.all_engineered_features)]
+        y = df_train[self.clusterer_assignment_col_name]
 
         logger.debug(f'Training {self._clf.__class__.__name__} classifier now...')
         logger.debug(f'Params: {self._clf.get_params()}')
@@ -920,8 +954,8 @@ class BasePipeline(BasePipelineAttributeHolder):
 
     def clf_predict(self, data: np.array):
         check_arg.ensure_type(data, np.ndarray)
-        d = np.copy(data) # TODO: Do we need to make a copy? Why?
-        d[~np.isfinite(d)] = 0 # TODO: HACK: Could handle NaNs better...
+        d = np.copy(data)  # TODO: Do we need to make a copy? Why?
+        d[~np.isfinite(d)] = 0  # TODO: HACK: Could handle NaNs better...
         return np.array([int(x) if x == x else int(self.null_classifier_label) for x in self._clf.predict(d)])
 
     def _label_data_with_classifier(self):
@@ -971,7 +1005,8 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         # Add prediction labels
         if len(self.df_features_predict_scaled) > 0:
-            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf_predict(self.df_features_predict_scaled[list(self.all_engineered_features)].values)
+            self.df_features_predict_scaled[self.clf_assignment_col_name] = self.clf_predict(
+                self.df_features_predict_scaled[list(self.all_engineered_features)].values)
         else:
             logger.debug(f'{get_current_function()}(): 0 records were detected '
                          f'for PREDICT data. No data was predicted with model.')
@@ -980,7 +1015,8 @@ class BasePipeline(BasePipelineAttributeHolder):
         return self
 
     # Video creation
-    def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str, output_fps: float = config.OUTPUT_VIDEO_FPS):
+    def make_video(self, video_to_be_labeled_path: str, data_source: str, video_name: str, output_dir: str,
+                   output_fps: float = config.OUTPUT_VIDEO_FPS):
         """
 
         :param video_to_be_labeled_path: (str) Path to a video that will be labeled
@@ -1040,7 +1076,8 @@ class BasePipeline(BasePipelineAttributeHolder):
         return self
 
     def make_behaviour_example_videos(self, data_source_type: str, ex_video_dir_name=None,
-                                      min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15, # AARONT: TODO: High fidelity model augment here
+                                      min_rows_of_behaviour=1, max_examples=1, num_frames_buffer=0, output_fps=15,
+                                      # AARONT: TODO: High fidelity model augment here
                                       max_frames_per_video=500):
         """
         Create video clips of behaviours
@@ -1085,13 +1122,14 @@ class BasePipeline(BasePipelineAttributeHolder):
         # cache all the required dataframes for quick lookup
         data_source_to_data_frame = {
             data_source: full_df.loc[full_df['data_source'] == data_source].
-            astype({'frame': float}).astype({'frame': int}).sort_values('frame') # TODO: Why astype?  It is making a copy at least.
+                astype({'frame': float}).astype({'frame': int}).sort_values('frame')
+            # TODO: Why astype?  It is making a copy at least.
             for data_source in valid_data_sources
         }
 
         ### Execute
         # Get DataFrame of the data
-        all_rle_by_assignment: Dict[Any: Tuple[str, int, int]] = defaultdict(list) # will be labels to list
+        all_rle_by_assignment: Dict[Any: Tuple[str, int, int]] = defaultdict(list)  # will be labels to list
         for data_source in valid_data_sources:
             # TODO: NOTE: astype creates a copy.  Why are we using astype?
             df = data_source_to_data_frame[data_source]
@@ -1117,9 +1155,9 @@ class BasePipeline(BasePipelineAttributeHolder):
         for assignment_val in (key for key in all_rle_by_assignment.keys() if key != self.null_classifier_label):
             num_examples = min(max_examples, len(all_rle_by_assignment[assignment_val]))
             all_rle_by_assignment[assignment_val] = sorted(all_rle_by_assignment[assignment_val],
-                                                       key=lambda x: x[2], # sort by length
-                                                       reverse=True  # True means sort largest to smallest
-                                                       )[:num_examples-1]
+                                                           key=lambda x: x[2],  # sort by length
+                                                           reverse=True  # True means sort largest to smallest
+                                                           )[:num_examples - 1]
             # TODO: Now map function over to convert to proper format per label
             #       Desired format is:
 
@@ -1147,7 +1185,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                 # Takes only the first 3 elements since the 4th appears to be brightness value (?)
                 [tuple(float(min(255. * x, 255.))
                        for x in tuple(color_map_array[unique_assignments_index_dict[label]][:3]))
-                       for label in labels],
+                 for label in labels],
                 df_frames_selection['frame'].values,
             ))
 
@@ -1158,18 +1196,20 @@ class BasePipeline(BasePipelineAttributeHolder):
             for data_source, frame_idx, additional_length in all_rle_by_assignment[label]:
                 label_to_frames[label].append((data_source,
                                                expand_rle(
-                                                   data_source_to_data_frame[data_source], frame_idx, additional_length))
+                                                   data_source_to_data_frame[data_source], frame_idx,
+                                                   additional_length))
                                               )
         ### Finally: make video clips
         # Loop over assignments
         time_prefix = time.strftime("%y-%m-%d_%Hh%Mm")
-        for assignment_val, data_source_with_video_clip_tuples in ((k, v) for (k, v) in label_to_frames.items() if k != self.null_classifier_label):
+        for assignment_val, data_source_with_video_clip_tuples in ((k, v) for (k, v) in label_to_frames.items() if
+                                                                   k != self.null_classifier_label):
             output_file_name = f'{time_prefix}_BehaviourExample__assignment_{assignment_val:02d}'
             frame_text_prefix = f'Target assignment: {assignment_val} / '  # TODO: med/high: magic variable
 
             videoprocessing.make_video_from_multiple_sources(
-                data_source_with_video_clip_tuples, # has clips in order to be read
-                data_source_to_video_path, # for opening video files to read
+                data_source_with_video_clip_tuples,  # has clips in order to be read
+                data_source_to_video_path,  # for opening video files to read
                 output_file_name,
                 text_prefix=frame_text_prefix,
                 output_fps=output_fps,
@@ -1178,7 +1218,8 @@ class BasePipeline(BasePipelineAttributeHolder):
 
         return self
 
-    def plot_clusters_by_assignments(self, title='', show_now=False, save_to_file=False, azim_elev: tuple = (70, 135), draw_now=False, **kwargs) -> Tuple[object, object]:
+    def plot_clusters_by_assignments(self, title='', show_now=False, save_to_file=False, azim_elev: tuple = (70, 135),
+                                     draw_now=False, **kwargs) -> Tuple[object, object]:
         """
         # TODO: rename function as plot assignments by cluster
         Get plot of clusters colored by GMM assignment
@@ -1238,7 +1279,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         df_data = df_data.loc[
             (df_data[self.test_col_name]) &
             (df_data[self.clf_assignment_col_name] != self.null_classifier_label)
-        ]
+            ]
 
         y_true = df_data[self.clusterer_assignment_col_name].values
         y_pred = self.clf_predict(df_data[self.all_engineered_features_list].values)
@@ -1281,7 +1322,7 @@ all_engineered_features = {self.all_engineered_features}
         # TODO: low: flesh out how these are usually built. Add a last updated info?
         return f'{self.name}'
 
- # DistanceForepawLeftToNosetip  DistanceForepawRightToNosetip  DistanceForepawLeftToHindpawLeft  DistanceForepawRightToHindpawRight  DistanceAvgHindpawToNosetip  DistanceAvgForepawToNosetip  VelocityAvgForepaw  index          NoseTip_x           NoseTip_y       ForepawLeft_x      ForepawLeft_y      ForepawRight_x      ForepawRight_y       HindpawLeft_x     HindpawLeft_y      HindpawRight_x     HindpawRight_y        TailBase_x         TailBase_y                                         scorer                                                                                                    file_source                                              data_source  frame        AvgForepaw_x       AvgForepaw_y        AvgHindpaw_x       AvgHindpaw_y is_test_data      dim_1      dim_2    g
+# DistanceForepawLeftToNosetip  DistanceForepawRightToNosetip  DistanceForepawLeftToHindpawLeft  DistanceForepawRightToHindpawRight  DistanceAvgHindpawToNosetip  DistanceAvgForepawToNosetip  VelocityAvgForepaw  index          NoseTip_x           NoseTip_y       ForepawLeft_x      ForepawLeft_y      ForepawRight_x      ForepawRight_y       HindpawLeft_x     HindpawLeft_y      HindpawRight_x     HindpawRight_y        TailBase_x         TailBase_y                                         scorer                                                                                                    file_source                                              data_source  frame        AvgForepaw_x       AvgForepaw_y        AvgHindpaw_x       AvgHindpaw_y is_test_data      dim_1      dim_2    g
 # 0                      0.053019                       0.039239                          0.866732                            1.000000                     0.125995                     0.037744            0.000000    0.0                nan                 nan                 nan                nan                 nan                 nan                 nan               nan                 nan                nan               nan                nan  DLC_resnet50_Maternal_EPMDec28shuffle1_700000  C:\Users\killian\projects\DIBS\epm_data_csv_train\EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000.csv  EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000    0.0                 nan                nan                 nan                nan        False -27.276716  32.215048  [2]
 # 1                      0.051575                       0.037303                          0.910765                            0.974973                     0.123089                     0.036062            0.091718    1.0  970.2467651367188  484.22308349609375    1009.06005859375  523.5932006835938  1016.3133544921875  495.00445556640625   1090.837158203125  542.942626953125    1107.18212890625   507.996337890625      1125.5078125  549.2086791992188  DLC_resnet50_Maternal_EPMDec28shuffle1_700000  C:\Users\killian\projects\DIBS\epm_data_csv_train\EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000.csv  EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000    3.0  1012.6867065429688      509.298828125  1099.0096435546875   525.469482421875        False -28.093036  31.893019  [2]
 # 2                      0.047051                       0.032191                          0.899345                            0.780525                     0.102889                     0.031147            0.049857    2.0  976.1922607421875   475.8522033691406  1002.5944213867188    520.92822265625   1015.576904296875   495.1080017089844  1089.6236572265625   543.29150390625  1100.7110595703125  504.5792541503906  1123.61376953125  550.8467407226562  DLC_resnet50_Maternal_EPMDec28shuffle1_700000  C:\Users\killian\projects\DIBS\epm_data_csv_train\EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000.csv  EPM-MCE-10DLC_resnet50_Maternal_EPMDec28shuffle1_700000    6.0  1009.0856628417969  508.0181121826172  1095.1673583984375  523.9353790283203        False -27.697763  29.016086  [2]

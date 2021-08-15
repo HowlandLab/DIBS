@@ -166,8 +166,10 @@ def start_app(**kwargs):
                        initial_sidebar_state='collapsed')
 
     # Load up pipeline if specified on command line or specified in config.ini
-    pipeline_file_path: str = kwargs.get('pipeline_path', '')
-    if pipeline_file_path:
+    pipeline_dir = kwargs.get('pipeline_path', '') if kwargs.get('pipeline_path', '') is not None else ''
+    pipeline_name = kwargs.get('name', '') if kwargs.get('name', '') is not None else ''
+    pipeline_file_path = pipeline_dir + pipeline_name
+    if pipeline_file_path != '':
         check_arg.ensure_is_file(pipeline_file_path)
     else:
         # If not specified on command line, check config.ini path and use as default if possible
@@ -248,7 +250,8 @@ def header(pipeline_file_path):
             st.markdown('*Note: the above decision is not final. Data can be added and removed at any time in a project.*')
             # st.markdown('')
             text_input_new_project_name = st.text_input('Enter a name for your project pipeline. Please use only letters, numbers, and underscores.')
-            input_path_to_pipeline_dir = st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.PIPELINE_OUTPUT_PATH)
+            input_path_to_pipeline_dir = os.path.join(st.text_input('Enter a path to a folder where the new project pipeline will be stored. Press Enter when done.', value=config.PIPELINE_OUTPUT_PATH), text_input_new_project_name)
+            if input_path_to_pipeline_dir: os.makedirs(input_path_to_pipeline_dir, exist_ok=True)
             button_project_info_submitted_is_clicked = st.button('Submit', key='SubmitNewProjectInfo')
 
             if button_project_info_submitted_is_clicked:
@@ -278,14 +281,11 @@ def header(pipeline_file_path):
                         p = p.add_train_data_source(*half_files)
                         p = p.add_predict_data_source(config.DEFAULT_TEST_DATA_DIR)
                 save_to_folder(p, input_path_to_pipeline_dir)
-                pipeline_file_path = os.path.join(input_path_to_pipeline_dir, io.generate_pipeline_filename( text_input_new_project_name))
+                pipeline_file_path = os.path.join(input_path_to_pipeline_dir, io.generate_pipeline_filename(text_input_new_project_name))
                 session[key_pipeline_path] = pipeline_file_path
                 st.balloons()
                 st.success(f"""
-Success! Your new project pipeline has been saved to disk to the following path: 
-
-{os.path.join(input_path_to_pipeline_dir, f'{text_input_new_project_name}.pipeline')}
-
+Success! Your new project pipeline has been saved to disk to the following path: {pipeline_file_path})
 """.strip())
                 n_secs_til_refresh = session[default_n_seconds_sleep]
                 st.info(
@@ -301,13 +301,11 @@ Success! Your new project pipeline has been saved to disk to the following path:
             logger.debug(f'Open LOAD EXISTING option')
             st.markdown('## Load existing project pipeline')
 
-            existing_pipeline_files: List[str] = \
-                [config.default_pipeline_file_path_or_name] + [file for file in os.listdir(config.PIPELINE_OUTPUT_PATH)]
+            existing_pipelines: List[str] = \
+                [config.default_pipeline_file_path_or_name] + [pipeline_name for pipeline_name in os.listdir(config.PIPELINE_OUTPUT_PATH)]
 
-            input_text_path_to_pipeline_file = os.path.join(
-                config.PIPELINE_OUTPUT_PATH,
-                st.selectbox(label=f'Select directory name corresponding to videos you want to see (you would have specified this when creating the videos)', options=existing_pipeline_files)
-            )
+            input_pipeline_name = st.selectbox(label=f'Select directory name corresponding to videos you want to see (you would have specified this when creating the videos)', options=existing_pipelines)
+            input_text_path_to_pipeline_file = os.path.join(config.PIPELINE_OUTPUT_PATH, input_pipeline_name, io.generate_pipeline_filename(input_pipeline_name))
             # # Code frament of potential file selector...not yet working
             # input_text_path_to_pipeline_file = st_file_selector(pl)
             # pl = st.empty()
@@ -359,9 +357,9 @@ Success! Your new project pipeline has been saved to disk to the following path:
         return
 
     if is_pipeline_loaded:
-        logger.debug(f"Leaving home: pipeline_file_path = {pipeline_file_path}")
-        if not os.path.isfile(pipeline_file_path):
-            err = f'Pipeline file path got lost along the way. Path = {pipeline_file_path}'
+        logger.debug(f"Leaving home: pipeline_file_path = {session[key_pipeline_path]}")
+        if not os.path.isfile(session[key_pipeline_path]):
+            err = f'Pipeline file path got lost along the way. Path = {session[key_pipeline_path]}'
             st.error(FileNotFoundError(err))
             st.stop()
 
