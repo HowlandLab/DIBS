@@ -229,13 +229,11 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
 
     _real_feature_specs = [
         (distance, c.FOREPAW_LEFT, c.FOREPAW_RIGHT),
-
         (distance, c.FOREPAW_LEFT, c.NOSETIP),
         (distance, c.FOREPAW_RIGHT, c.NOSETIP),
-
         (distance, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT),
         (distance, c.FOREPAW_LEFT, c.HINDPAW_RIGHT),
-
+        (distance, c.HINDPAW_RIGHT, c.HINDPAW_LEFT),
         (distance, inter_names[0], c.NOSETIP), # avg of fore paws
         (distance, inter_names[1], c.NOSETIP), # avg of hind paws
         # angle_between works

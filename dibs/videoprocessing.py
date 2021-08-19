@@ -23,7 +23,7 @@ def make_video_from_multiple_sources(
         output_dir,
         text_prefix,
         output_fps=15,
-        fourcc='avc1',
+        fourcc='mp4v',
         **kwargs):
     """ NOTE: Mostly copied from "make_labeled_video_according_to_frame"
     Make a video clip, from all input videos in data_source_to_video_path based on the
