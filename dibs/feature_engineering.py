@@ -146,20 +146,24 @@ def shifted_distance(arr1, period=1) -> (np.ndarray, str):
     return movement, 'avg'
 
 
-def convex_hull_area(*arrays):
+def convex_hull_area(*arrays, dimension=2):
     """
     Return area of convex polynomial formed by coordinates in input array.
 
+    :param arrays : list of ndarrays where each array is of the form bodypart_x, bodypart_y, ...
+    :param dimension: Dimension of coordinate system
+
+    :returns array : ndarray containing area of convex polygon formed by joining all the bodyparts.
     """
 
-    check_arg.ensure_numpy_arrays_are_same_shape(arrays)
     [check_arg.ensure_type(arr, np.ndarray) for arr in arrays]
 
     def calculate_area(points):
-        return ConvexHull(np.array(np.split(points, points.shape[0]/2))).area
+        return ConvexHull(np.array(np.split(points, points.shape[0] / dimension))).area
 
     big_arr = np.concatenate(arrays, axis=1)
-    assert big_arr.shape[1] % 2 == 0  # We need x,y coordinates for each feature and hence total cols should be even
+    assert big_arr.shape[
+               1] % dimension == 0  # We need x,y coordinates for each feature and hence total cols should be even
     return np.apply_along_axis(calculate_area, axis=1, arr=big_arr), 'avg'
 
 
