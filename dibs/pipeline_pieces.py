@@ -5,7 +5,7 @@ from typing import Union, Dict, List, Tuple, Optional
 from collections import defaultdict
 from dibs import check_arg, config
 from dibs.logging_enhanced import get_current_function
-from dibs.feature_engineering import distance, velocity, average
+from dibs.feature_engineering import distance, shifted_distance, velocity, average, convex_hull_area
 
 import streamlit as st
 
@@ -20,7 +20,6 @@ from sklearn import metrics
 from sklearn.decomposition import PCA
 from sklearn.cluster import SpectralClustering
 
-
 from dibs import logging_enhanced
 from dibs.feature_engineering import integrate_df_feature_into_bins
 
@@ -28,14 +27,13 @@ logger = config.initialize_logger(__name__)
 
 
 class WithParams(object):
-
     # specify custom parameter checkers, especially useful if multiple types are valid, if only a certain range
     # for a numerical value is valid, or if only a specific set of strings is valid
-    _param_checkers = False # HACK: TODO: Was causing issues with dill!!
+    _param_checkers = False  # HACK: TODO: Was causing issues with dill!!
     # Turn of parameter type checking completely if you want
     _check_parameter_types = True
 
-    def __init__(self, params: Dict=None):
+    def __init__(self, params: Dict = None):
         if params is not None:
             self.set_params(params)
 
@@ -54,13 +52,14 @@ class WithParams(object):
                         if callable(checker):
                             checker(value)
                         else:
-                            raise RuntimeError(f'Expected callable custom parameter checker for {self.__class__.__name__}'
-                                               f' when checking value associated with {param_name}. \n'
-                                               f'Instead of a checker we got: {checker}.\n'
-                                               f'Please put a function name or lambda definition instead.')
-                    else: # use default checking method.  Will enforce all parameters are the same type as the
-                          # defaults for this class, which might be hard coded, or might be parsed from config.ini
-                          # by config.py
+                            raise RuntimeError(
+                                f'Expected callable custom parameter checker for {self.__class__.__name__}'
+                                f' when checking value associated with {param_name}. \n'
+                                f'Instead of a checker we got: {checker}.\n'
+                                f'Please put a function name or lambda definition instead.')
+                    else:  # use default checking method.  Will enforce all parameters are the same type as the
+                        # defaults for this class, which might be hard coded, or might be parsed from config.ini
+                        # by config.py
                         check_arg.ensure_type(value, type(old_value))
 
         for param_name, value in params.items():
@@ -70,7 +69,8 @@ class WithParams(object):
     def get_params(self) -> Dict:
         # Return all properties on this object that are not callable or hidden.
         # All such names are assumed parameters to the model.
-        return {name: value for name in dir(self) if not name.startswith('_') and not callable(value := getattr(self, name))}
+        return {name: value for name in dir(self) if
+                not name.startswith('_') and not callable(value := getattr(self, name))}
 
     def params_as_string(self) -> str:
         return '\n'.join([f'{name}: value' for name, value in self.get_params().items()])
@@ -98,26 +98,32 @@ class WithStreamlitParamsDialog(WithParams):
                 new_value = st.text_input(f'{name}', value=value)
                 setattr(self, name, new_value)
             else:
-                st.markdown(f'We do not currently know how to accept input for this data type: {name}: {value};; {type(value)}')
+                st.markdown(
+                    f'We do not currently know how to accept input for this data type: {name}: {value};; {type(value)}')
 
 
 class FeatureEngineerer(object):
     """ Examples: Custom built feature engineering for each task"""
 
-    random_state = config.FEATURE_ENGINEERER.random_state # Controls train/test split.... TODO: Make this better
+    random_state = config.FEATURE_ENGINEERER.random_state  # Controls train/test split.... TODO: Make this better
 
     @property
-    def _intermediate_feature_specs(self): return [] # empty list if user doesn't specify
+    def _intermediate_feature_specs(self):
+        return []  # empty list if user doesn't specify
 
     @property
-    def _real_feature_specs(self): raise NotImplementedError('You must specify a list of _real_feature_specs when you implement a feature engineering class')
+    def _real_feature_specs(self):
+        raise NotImplementedError(
+            'You must specify a list of _real_feature_specs when you implement a feature engineering class')
 
     @property
-    def _kwargs(self): return dict() # Use to pass any args to feature eng functions TODO: Might have to allow more flexible args
+    def _kwargs(self):
+        return dict()  # Use to pass any args to feature eng functions TODO: Might have to allow more flexible args
+
     # Empty dict if user does not define
 
     def __init__(self):
-        self._map_feature_to_integrate_method = dict() # Map of aggregators, populated by engineer_features method
+        self._map_feature_to_integrate_method = dict()  # Map of aggregators, populated by engineer_features method
 
     @property
     def _all_engineered_features(self):
@@ -130,7 +136,7 @@ class FeatureEngineerer(object):
         arg_names_formatted = '_'.join(arg_names)
         basename = f'{func.__name__}_{arg_names_formatted}'
         if intermediate:
-            return 'intermediate_feat_'+basename
+            return 'intermediate_feat_' + basename
         else:
             return basename
 
@@ -146,7 +152,8 @@ class FeatureEngineerer(object):
                           f'First part of a _real_feature_specs entry should be a callable (a function object)'
                 logger.error(msg)
                 raise RuntimeError(msg)
-            logger.debug(f'Engineering model input feature: {output_col_name}. Function {func.__name__} will be applied to columns: {arg_names}')
+            logger.debug(
+                f'Engineering model input feature: {output_col_name}. Function {func.__name__} will be applied to columns: {arg_names}')
 
             #     logger.error(msg)
             #     raise RuntimeError(msg)
@@ -158,7 +165,7 @@ class FeatureEngineerer(object):
             for arg_name in arg_names:
                 if arg_name in in_df:
                     args.append(in_df[arg_name].values)
-                elif (x_name := arg_name+'_x') in in_df and (y_name := arg_name+'_y') in in_df:
+                elif (x_name := arg_name + '_x') in in_df and (y_name := arg_name + '_y') in in_df:
                     args.append(in_df[[x_name, y_name]].values)
                 else:
                     msg = 'When engineering a feature, all supplied arguments should refer to columns in the source data frame (the input data).\n' \
@@ -167,12 +174,11 @@ class FeatureEngineerer(object):
                     logger.error(msg)
                     raise RuntimeError(msg)
 
-
             # arr, aggregate_strat = func(*args, **self._kwargs)
-            arr, aggregate_strat = func(*args) #, kwargs=self._kwargs) # TODO: Pass kwargs
+            arr, aggregate_strat = func(*args)  # , kwargs=self._kwargs) # TODO: Pass kwargs
             # HACK: TODO: Add the '_x' '_y' ...
             if len(arr.shape) >= 2 and arr.shape[1] == 2:
-                output_col_name = [output_col_name+'_x', output_col_name+'_y']
+                output_col_name = [output_col_name + '_x', output_col_name + '_y']
             in_df[output_col_name] = arr
             # HACK: TODO: Have to use tuple in case this is a list
             #       TODO: SUPER JANK!
@@ -192,7 +198,7 @@ class FeatureEngineerer(object):
         for spec in self._real_feature_specs:
             output_col_name = self._extract_name_from_spec(spec)
             func = spec[0]
-            arg_names = spec[1:] # Should be in df
+            arg_names = spec[1:]  # Should be in df
             _compile_feature_def(output_col_name, func, arg_names)
 
         if average_over_n_frames > 0:
@@ -215,6 +221,7 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         HINDPAW_LEFT = config.get_part('HINDPAW_LEFT')
         HINDPAW_RIGHT = config.get_part('HINDPAW_RIGHT')
         NOSETIP = config.get_part('NOSETIP')
+        TAILBASE = config.get_part('TAILBASE')
 
     _intermediate_feature_specs = [
         # 1
@@ -232,12 +239,20 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         (distance, c.FOREPAW_LEFT, c.NOSETIP),
         (distance, c.FOREPAW_RIGHT, c.NOSETIP),
         (distance, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT),
+        (distance, c.FOREPAW_LEFT, c.HINDPAW_LEFT),
         (distance, c.FOREPAW_LEFT, c.HINDPAW_RIGHT),
+        (distance, c.FOREPAW_RIGHT, c.HINDPAW_LEFT),
         (distance, c.HINDPAW_RIGHT, c.HINDPAW_LEFT),
-        (distance, inter_names[0], c.NOSETIP), # avg of fore paws
-        (distance, inter_names[1], c.NOSETIP), # avg of hind paws
-        # angle_between works
-
+        (distance, c.NOSETIP, c.TAILBASE),
+        (distance, inter_names[0], c.NOSETIP),  # avg of fore paws
+        (distance, inter_names[1], c.NOSETIP),  # avg of hind paws
+        (shifted_distance, c.NOSETIP),
+        (shifted_distance, c.FOREPAW_LEFT),
+        (shifted_distance, c.FOREPAW_RIGHT),
+        (shifted_distance, c.HINDPAW_LEFT),
+        (shifted_distance, c.HINDPAW_RIGHT),
+        (shifted_distance, c.TAILBASE),
+        (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE)
         # velocity
         # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
 
@@ -246,6 +261,7 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
 
 class Embedder(WithStreamlitParamsDialog):
     """ Examples: pca, tsne, umap """
+
     def __init__(self, params=None):
         super().__init__(params)
         self._model = None
@@ -270,6 +286,7 @@ class Embedder(WithStreamlitParamsDialog):
     def metrics(self):
         raise NotImplementedError()
 
+
 class TSNE(Embedder):
     # TSNE
     implementation: str = config.TSNE.implementation
@@ -284,7 +301,7 @@ class TSNE(Embedder):
     random_state = config.EMBEDDER.random_state
 
     # Non settable.  Not considered by set_params/get_params
-    _num_training_data_points: int = None # must be set at runtime
+    _num_training_data_points: int = None  # must be set at runtime
     _num_training_features: int = None
 
     def _st_params_dialogue(self, show_extra_info: bool):
@@ -294,18 +311,24 @@ class TSNE(Embedder):
                     ' Maaten, L. V. D., & Hinton, G. (2008). Visualizing data using t-SNE. Journal of machine learning research, 9(Nov), 2579-2605'
                     ' Section 2 includes perplexity.')
         # TODO: med/high: add radio select button for choosing absolute value or choosing ratio value #######################
-        perplexity = st.number_input(label=f'TSNE Perplexity', value=self.perplexity, min_value=0.1, max_value=1000.0, step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
+        perplexity = st.number_input(label=f'TSNE Perplexity', value=self.perplexity, min_value=0.1, max_value=1000.0,
+                                     step=10.0)  # TODO: handle default perplexity value (ends up as 0 on fresh pipelines)
         # Extra info: tsne-perplexity
         if show_extra_info:
-            st.info('Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
+            st.info(
+                'Perplexity can be thought of as a smooth measure of the effective number of neighbors that are considered for a given data point.')
             # https://towardsdatascience.com/t-sne-clearly-explained-d84c537f53a: "A perplexity is more or less a target number of neighbors for our central point. Basically, the higher the perplexity is the higher value variance has"
-        learning_rate = st.number_input(label=f'TSNE Learning Rate', value=self.learning_rate, min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
+        learning_rate = st.number_input(label=f'TSNE Learning Rate', value=self.learning_rate,
+                                        min_value=0.01)  # TODO: high is learning rate of 200 really the max limit? Or just an sklearn limit?
         # Extra info: learning rate
-        early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=self.early_exaggeration, min_value=0., step=0.1, format='%.2f')
+        early_exaggeration = st.number_input(f'TSNE Early Exaggeration', value=self.early_exaggeration, min_value=0.,
+                                             step=0.1, format='%.2f')
         # Extra info: early exaggeration
-        n_iter = st.number_input(label=f'TSNE N Iterations', value=self.n_iter, min_value=config.minimum_tsne_n_iter, max_value=5_000)
+        n_iter = st.number_input(label=f'TSNE N Iterations', value=self.n_iter, min_value=config.minimum_tsne_n_iter,
+                                 max_value=5_000)
         # Extra info: number of iterations
-        n_components = st.number_input(f'TSNE N Components/Dimensions', value=self.n_components, min_value=2, max_value=3, step=1, format='%i')
+        n_components = st.number_input(f'TSNE N Components/Dimensions', value=self.n_components, min_value=2,
+                                       max_value=3, step=1, format='%i')
         # Extra info: number of components (dimensions)
         self.make_this_better_perplexity = perplexity
         self.learning_rate = learning_rate
@@ -326,7 +349,8 @@ class TSNE(Embedder):
         self._num_training_features = len(df.columns)
         # Check args
         check_arg.ensure_type(df, pd.DataFrame)
-        logger.debug(f'Pre-TSNE info: Perplexity={self.perplexity} / Raw perplexity={self.make_this_better_perplexity} / num_training_data_points={self._num_training_data_points} / number of df_features_train={self._num_training_features} / number of df_features_train_scaled=TODO: Is this value meaningful?')
+        logger.debug(
+            f'Pre-TSNE info: Perplexity={self.perplexity} / Raw perplexity={self.make_this_better_perplexity} / num_training_data_points={self._num_training_data_points} / number of df_features_train={self._num_training_features} / number of df_features_train_scaled=TODO: Is this value meaningful?')
         # Execute
         start_time = time.perf_counter()
         logger.debug(f'Now reducing data with {self.implementation} implementation...')
@@ -358,7 +382,7 @@ class TSNE(Embedder):
         elif self.implementation == 'OPENTSNE':
             tsne = OpenTsneObj(
                 **{
-                    k:v for k,v in dict(
+                    k: v for k, v in dict(
                         n_components=self.n_components,
                         perplexity=self.perplexity,
                         learning_rate=self.learning_rate,
@@ -384,7 +408,7 @@ class TSNE(Embedder):
                         negative_gradient_method='bh',  # Note: default 'fft' does not work with dims >2
                         # callbacks=None,
                     ).items()
-                    if v is not None # NOTE: Providing MISSING values allows for OpenTSNE to do optimization itself
+                    if v is not None  # NOTE: Providing MISSING values allows for OpenTSNE to do optimization itself
                 }
             )
             arr_result = tsne.fit(df.values)
@@ -394,7 +418,7 @@ class TSNE(Embedder):
             raise RuntimeError()
         end_time = time.perf_counter()
         logger.info(f'Number of seconds it took to train TSNE ({self.implementation}): '
-                    f'{round(end_time- start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
+                    f'{round(end_time - start_time, 1)} seconds (# rows of data: {arr_result.shape[0]}).')
         return arr_result
 
     @property
@@ -439,7 +463,7 @@ class ISOMAP(Embedder):
     # TODO: ADD TO CONFIG?
     n_neighbors: int = 7  # TODO: low:
     n_jobs: int = 1
-    n_components: int = 2 # TODO: I have no reason for picking this value!!!
+    n_components: int = 2  # TODO: I have no reason for picking this value!!!
 
     def embed(self, data):
         logger.debug(f'Reducing dimensions using ISOMAP now...')
@@ -463,8 +487,9 @@ class UMAP(Embedder):
     """ Uniform Manifold __ __ """
     n_neighbors: int = 5
     learning_rate: float = 1.0
-    n_components: int = 2 # TODO: No reason to pick this number
+    n_components: int = 2  # TODO: No reason to pick this number
     n_jobs: int = 1
+
     # TODO: UMAP
 
     def embed(self, data):
@@ -522,8 +547,8 @@ class CVAE(Embedder):
 
 class LocallyLinearDimReducer(Embedder):
     n_neighbors: int = 5
-    n_components: int = 2 # TODO: I have no reason to chose this!!!
-    n_jobs: int = 1 # TODO: Could be more??
+    n_components: int = 2  # TODO: I have no reason to chose this!!!
+    n_jobs: int = 1  # TODO: Could be more??
     random_state = config.EMBEDDER.random_state
 
     def embed(self, df: pd.DataFrame) -> np.ndarray:
@@ -548,26 +573,9 @@ class LocallyLinearDimReducer(Embedder):
         return arr_result
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class Clusterer(WithStreamlitParamsDialog):
     """ Examples: gmm, dbscan, spectral_clustering """
+
     def __init__(self, params=None):
         super().__init__(params)
         self._model = None
@@ -599,18 +607,22 @@ class BayesianGMM(Clusterer):
         st.markdown(f'### Advanced GMM parameters')
         reg_covar = st.number_input(f'GMM "reg. covariance" ', value=self.reg_covar, format='%f')
         tol = st.number_input(f'GMM tolerance', value=self.tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
-        max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1, format='%i')
-        n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
-                                 value=self.n_init, min_value=1, step=1, format="%i")
+        max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1,
+                                   format='%i')
+        n_init = st.number_input(
+            f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
+            value=self.n_init, min_value=1, step=1, format="%i")
 
-        n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2, max_value=40, step=1)
+        n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2,
+                                 max_value=40, step=1)
 
         # Extra info: GMM number of initializations
         self.n_components = n_components
         st.markdown(f'_You have currently selected __{self.n_components}__ clusters_')
         if show_extra_info:
-            st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
-                    ' are labeled in the final output.')
+            st.info(
+                'Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
+                ' are labeled in the final output.')
         self.reg_covar = reg_covar
         self.tol = tol
         self.max_iter = max_iter
@@ -650,17 +662,21 @@ class GMM(Clusterer):
         st.markdown(f'### Advanced GMM parameters')
         reg_covar = st.number_input(f'GMM "reg. covariance" ', value=self.reg_covar, format='%f')
         tol = st.number_input(f'GMM tolerance', value=self.tol, min_value=1e-10, max_value=50., step=0.1, format='%.2f')
-        max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1, format='%i')
-        n_init = st.number_input(f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
-                                 value=self.n_init, min_value=1, step=1, format="%i")
+        max_iter = st.number_input(f'GMM max iterations', value=self.max_iter, min_value=1, max_value=100_000, step=1,
+                                   format='%i')
+        n_init = st.number_input(
+            f'GMM "n_init" ("Number of initializations to perform. the best results is kept")  . It is recommended that you use a value of 20',
+            value=self.n_init, min_value=1, step=1, format="%i")
 
-        n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2, max_value=40, step=1)
+        n_components = st.slider(f'GMM Components (number of clusters)', value=self.n_components, min_value=2,
+                                 max_value=40, step=1)
 
         self.n_components = n_components
         st.markdown(f'_You have currently selected __{self.n_components}__ clusters_')
         if show_extra_info:
-            st.info('Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
-                    ' are labeled in the final output.')
+            st.info(
+                'Increasing the maximum number of GMM components will increase the maximum number of behaviours that'
+                ' are labeled in the final output.')
 
         self.reg_covar = reg_covar
         self.tol = tol
@@ -715,9 +731,9 @@ class SPECTRAL(Clusterer):
 
 
 class DBSCAN(Clusterer):
-    _X = None # input data
-    eps = 2.0 # default 0.5
-    min_samples = 50 # default 5
+    _X = None  # input data
+    eps = 2.0  # default 0.5
+    min_samples = 50  # default 5
 
     def train(self, df):
         from sklearn.cluster import DBSCAN
@@ -728,8 +744,8 @@ class DBSCAN(Clusterer):
             metric='euclidean',
             metric_params=None,
             algorithm='auto',
-            leaf_size=30, # Might want to tweak this
-            p=None, # Power of Minkowski metric for calculating points, defaults to p=2 (equivalent to euclidean)
+            leaf_size=30,  # Might want to tweak this
+            p=None,  # Power of Minkowski metric for calculating points, defaults to p=2 (equivalent to euclidean)
             n_jobs=-1,
         ).fit(df.values)
         self._model = db
@@ -741,9 +757,9 @@ class DBSCAN(Clusterer):
         n_noise_ = list(labels).count(-1)
         return {
             'metrics':
-                'Estimated number of clusters: %d' % n_clusters_ +\
-                'Estimated number of noise points: %d' % n_noise_ +\
-                    ## TODO: Need labels_true... need answers
+                'Estimated number of clusters: %d' % n_clusters_ + \
+                'Estimated number of noise points: %d' % n_noise_ + \
+                ## TODO: Need labels_true... need answers
                 # "Homogeneity: %0.3f" % metrics.homogeneity_score(labels_true, labels) +\
                 # "Completeness: %0.3f" % metrics.completeness_score(labels_true, labels) +\
                 # "V-measure: %0.3f" % metrics.v_measure_score(labels_true, labels) +\
@@ -753,17 +769,9 @@ class DBSCAN(Clusterer):
         }
 
 
-
-
-
-
-
-
-
-
-
 class CLF(WithStreamlitParamsDialog):
     """ Examples: SVM, random forest, neural network """
+
     def __init__(self, params=None):
         super().__init__(params)
         self._model = None
@@ -823,7 +831,8 @@ class RANDOMFOREST(CLF):
         )
 
     def _st_params_dialogue(self, show_extra_info):
-        n_estimators = st.number_input('Random Forest N estimators', value=self.n_estimators, min_value=1, max_value=1_000, format='%i')
+        n_estimators = st.number_input('Random Forest N estimators', value=self.n_estimators, min_value=1,
+                                       max_value=1_000, format='%i')
         self.n_estimators = n_estimators
 
     def train(self, X, y):
@@ -868,7 +877,6 @@ class RANDOMFOREST(CLF):
 #         raise NotImplementedError()
 
 class PrincipalComponents(Embedder):
-
     n_components = config.PrincipalComponents.n_components
     svd_solver = config.PrincipalComponents.svd_solver
     random_state = config.EMBEDDER.random_state
