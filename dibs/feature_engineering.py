@@ -22,6 +22,7 @@ DELETE THIS STRING
 Author also specifies that: the features are also smoothed over, or averaged across,
     a sliding window of size equivalent to 60ms (30ms prior to and after the frame of interest).
 """
+from scipy.spatial import ConvexHull
 from tqdm import tqdm
 from typing import List, Optional, Tuple
 import inspect
@@ -29,11 +30,10 @@ import itertools
 import math
 import numpy as np
 import pandas as pd
-
+from scipy.ndimage.interpolation import shift
 from dibs import check_arg, config, logging_enhanced, statistics
 
 from sklearn.utils import shuffle as sklearn_shuffle_dataframe
-
 
 logger = config.initialize_logger(__name__)
 
@@ -42,11 +42,12 @@ logger = config.initialize_logger(__name__)
 
 def time_shifted(v, tau: int):
     """ Create time shifted copy of an input feature to allow simple time series modelling """
-    v = pd.Series(v) # TODO: Test, should take a numpy array and turn it into a Series
+    v = pd.Series(v)  # TODO: Test, should take a numpy array and turn it into a Series
     return v.shift(periods=tau), 'avg'
 
 
-def attach_time_shifted_data(df: pd.DataFrame, bodypart: str, tau: int, output_feature_name: str, copy=False) -> pd.DataFrame:
+def attach_time_shifted_data(df: pd.DataFrame, bodypart: str, tau: int, output_feature_name: str,
+                             copy=False) -> pd.DataFrame:
     # Check args
     check_arg.ensure_type(df, pd.DataFrame)
     check_arg.ensure_type(bodypart, str)
@@ -65,12 +66,13 @@ def attach_time_shifted_data(df: pd.DataFrame, bodypart: str, tau: int, output_f
         tau_array: pd.Series = arr.shift(periods=tau)
         # With output array of values, attach to DataFrame
         string_difference = b.strip(bodypart)
-        df[f'{output_feature_name+string_difference}'] = tau_array
+        df[f'{output_feature_name + string_difference}'] = tau_array
 
     return df
 
 
-def attach_train_test_split_col(df, test_col: str, test_pct: float, random_state: int, sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
+def attach_train_test_split_col(df, test_col: str, test_pct: float, random_state: int,
+                                sort_results_by: Optional[List[str]] = None, copy: bool = False) -> pd.DataFrame:
     """ TODO: Move this somewhere more relevant... it is used in the Basepipeline class
     TODO: For something like cross validation, we would want to allow this to be generated outside the dataset
     :param df:
@@ -101,8 +103,8 @@ def distance(arr1, arr2, p=2) -> (np.ndarray, str):
             [[5.   2.   3.75]]
             [[20.  15.5  7. ]]
     :param p: order of distance norm
-    :returns: (float)
-        Example output: 20.573040611440984
+    :returns: (Array)
+        Example output: [20.573040611440984]
 
     """
     check_arg.ensure_type(arr1, np.ndarray)
@@ -111,7 +113,7 @@ def distance(arr1, arr2, p=2) -> (np.ndarray, str):
 
     # Execute
     try:
-        distance = np.sum((arr1 - arr2)**p, axis=1)**(1./p)
+        distance = np.sum((arr1 - arr2) ** p, axis=1) ** (1. / p)
     except ValueError as ve:
         # Raises ValueError if array shape is not the same
         err = f'Error occurred when calculating distance between two arrays. ' \
@@ -120,6 +122,45 @@ def distance(arr1, arr2, p=2) -> (np.ndarray, str):
         logger.error(err)
         raise ve
     return distance, 'avg'
+
+
+def shifted_distance(arr1, period=1) -> (np.ndarray, str):
+    """
+    Calculate distance shifted/travelled in given period.
+    :param arr1: (Array)
+    :param period: int representing the number you want to shift array
+    :returns (Array)
+    """
+
+    check_arg.ensure_type(arr1, np.ndarray)
+
+    try:
+        arr1_shifted = pd.DataFrame(arr1).shift(period).values
+        movement = np.nan_to_num(distance(arr1, arr1_shifted)[0], nan=0)
+    except ValueError as ve:
+        # Raises ValueError if array shape is not the same
+        err = f'Error occurred when calculating shifted distance of period {period}. ' \
+              f'Array 1 = "{arr1}" (shape = "{arr1.shape}").'
+        logger.error(err)
+        raise ve
+    return movement, 'avg'
+
+
+def convex_hull_area(*arrays):
+    """
+    Return area of convex polynomial formed by coordinates in input array.
+
+    """
+
+    check_arg.ensure_numpy_arrays_are_same_shape(arrays)
+    [check_arg.ensure_type(arr, np.ndarray) for arr in arrays]
+
+    def calculate_area(points):
+        return ConvexHull(np.array(np.split(points, points.shape[0]/2))).area
+
+    big_arr = np.concatenate(arrays, axis=1)
+    assert big_arr.shape[1] % 2 == 0  # We need x,y coordinates for each feature and hence total cols should be even
+    return np.apply_along_axis(calculate_area, axis=1, arr=big_arr), 'avg'
 
 
 def average(*arrays) -> (np.ndarray, str):
@@ -149,14 +190,15 @@ def velocity(arr1) -> (np.ndarray, str):
     pass
 
 
-def delta_of_array(arr: np.ndarray, action_duration: float=1.0) -> np.ndarray:
+def delta_of_array(arr: np.ndarray, action_duration: float = 1.0) -> np.ndarray:
     # Check args
     check_arg.ensure_type(arr, np.ndarray)
     if len(np.shape) != 2 or np.shape[1] != 1:
-        raise RuntimeError(f'delta_of_array can only handle 2 dimensional arrays with a single columns. Got arr.shape: {arr.shape} instead.')
+        raise RuntimeError(
+            f'delta_of_array can only handle 2 dimensional arrays with a single columns. Got arr.shape: {arr.shape} instead.')
     arr = arr.flatten()
     delta_array = np.zeros(len(arr))
-    delta_array[1:] = arr[:-1] - arr[1:] # delta at t0 remains 0; Could use NaN but those can reproduce unexpectedly.
+    delta_array[1:] = arr[:-1] - arr[1:]  # delta at t0 remains 0; Could use NaN but those can reproduce unexpectedly.
     delta_array: np.ndarray = delta_of_array(arr) / action_duration
     return delta_array
 
@@ -223,7 +265,8 @@ def average_values_over_moving_window(data, method, n_frames: int) -> np.ndarray
             next(iterators[i], None)
     # Execute
     # TODO: rename `asdf`
-    asdf = [averaging_function(*iters_tuple) for iters_tuple in itertools.zip_longest(*iterators, fillvalue=float('nan'))]
+    asdf = [averaging_function(*iters_tuple) for iters_tuple in
+            itertools.zip_longest(*iterators, fillvalue=float('nan'))]
 
     return_array = np.array(asdf)
 
@@ -261,7 +304,8 @@ def average_array_into_bins(arr, n_rows_per_bin, average_method: str):
     return integrated_arr
 
 
-def integrate_df_feature_into_bins(df: pd.DataFrame, map_features_to_bin_methods: dict, n_rows: int, copy: bool = False) -> pd.DataFrame:
+def integrate_df_feature_into_bins(df: pd.DataFrame, map_features_to_bin_methods: dict, n_rows: int,
+                                   copy: bool = False) -> pd.DataFrame:
     """
     TODO
     :param df: (DataFrame)
@@ -306,7 +350,8 @@ def integrate_df_feature_into_bins(df: pd.DataFrame, map_features_to_bin_methods
 
 #### Newer, reworked feature engineer from previous ############################
 
-def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.DataFrame, List[float]]:  # TODO: implement new adaptive-filter_data for new data pipelineing
+def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[
+    pd.DataFrame, List[float]]:  # TODO: implement new adaptive-filter_data for new data pipelineing
     """ *NEW* --> Successor function to old method in likelikhood processing. Uses new DataFrame type for input/output.
     Takes in a ____ TODO: low: ...
 
@@ -363,7 +408,6 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
 
     # # Source
     if 'source' in set_in_df_columns:
-        source_filenames_values = np.unique(in_df['source'].values)
         if len(scorer_values) != 1:
             err = f'There should be 1 unique "source" value. If there is more than 1, too many values, ' \
                   f'makes no sense to adaptively filter over different datasets.'
@@ -382,7 +426,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
 
     # Loop over columns, aggregate which indices in the data fall under which category.
     #   x, y, and likelihood are the three main types of columns output from DLC.
-    x_index, y_index, l_index, percent_filterd_per_bodypart__perc_rect = [], [], [], []
+    x_index, y_index, l_index = [], [], []
     map_back_index_to_col_name = {}
     coords_cols_names = []
     for idx_col, col in enumerate(df.columns):
@@ -399,11 +443,16 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
         elif column_suffix == 'coords':  # todo: low: delete this elif. Coords should be dropped with the io.read_csv implementation?
             # Record and check later...likely shouldn't exist anymore since its just a numbered col with no data.
             coords_cols_names.append(col)
-        elif col == 'scorer': pass  # Ignore 'scorer' column. It tracks the DLC data source.
-        elif col == 'source': pass  # Keeps track of CSV/h5 source
-        elif col == 'frame': pass  # Keeps track of frame numbers
-        elif col == 'file_source': pass
-        elif col == 'data_source': pass
+        elif col == 'scorer':
+            pass  # Ignore 'scorer' column. It tracks the DLC data source.
+        elif col == 'source':
+            pass  # Keeps track of CSV/h5 source
+        elif col == 'frame':
+            pass  # Keeps track of frame numbers
+        elif col == 'file_source':
+            pass
+        elif col == 'data_source':
+            pass
         else:
             err = f'{inspect.stack()[0][3]}(): An inappropriate column header was found: ' \
                   f'{column_suffix}. Column name = "{col}". ' \
@@ -428,14 +477,12 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
 
     # The below variable is instantiated with same rows as total minus 1 (for reasons TBD) and
     #   with column room for x and y values (it appears as though the likelihood values disappear)
-    array_data_filtered = np.full((data_x.shape[0], (data_x.shape[1]) * 2), fill_value=np.NaN)  # TODO: HIGH: Initialized as NAN to be populated later  # currdf_filt: np.ndarray = np.zeros((data_x.shape[0]-1, (data_x.shape[1]) * 2)) #
+    array_data_filtered = np.zeros((data_x.shape[0], (data_x.shape[1]) * 2))
 
     logger.debug(f'{inspect.stack()[0][3]}(): Computing data threshold to forward fill any sub-threshold (x,y)...')
-    percent_filterd_per_bodypart__perc_rect: List = [0. for _ in range(data_likelihood.shape[1])]  # for _ in range(data_lh.shape[1]): perc_rect.append(0)
+    percent_filtered_per_bodypart: List = [0. for _ in range(data_likelihood.shape[1])]
 
     # Loop over data and do adaptive filtering.
-    # logger.debug(f'{inspect.stack()[0][3]}: Loop over data and do adaptive filtering.')
-    idx_col = 0
     for idx_col_i in tqdm(range(data_likelihood.shape[1]),
                           desc=f'{logging_enhanced.get_current_function()}(): Adaptively filtering DLC columns...',
                           disable=True if config.stdout_log_level.strip().upper() != 'DEBUG' else False):
@@ -457,21 +504,22 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
         data_likelihood_col_i = data_likelihood[:, idx_col_i].astype(np.float)
 
         # Record percent filtered (for "reasons")
-        percent_filterd_per_bodypart__perc_rect[idx_col_i] = np.sum(data_likelihood_col_i < likelihood_threshold) / data_likelihood.shape[0]
+        percent_filtered_per_bodypart[idx_col_i] = np.sum(data_likelihood_col_i < likelihood_threshold) / \
+                                                   data_likelihood.shape[0]
 
         # Note: the slicing below is just slicing the x and y columns.
-        for i in range(data_likelihood.shape[0] - 1):  # TODO: low: rename `i`?
-            if data_likelihood_col_i[i + 1] < likelihood_threshold:
-                array_data_filtered[i + 1, (2 * idx_col_i):(2 * idx_col_i + 2)] = \
-                    array_data_filtered[i, (2 * idx_col_i):(2 * idx_col_i + 2)]
+        for i in range(1, data_likelihood.shape[0] - 1):
+            if data_likelihood_col_i[i] < likelihood_threshold:
+                array_data_filtered[i, (2 * idx_col_i):(2 * idx_col_i + 2)] = array_data_filtered[i - 1,
+                                                                              (2 * idx_col_i):(2 * idx_col_i + 2)]
             else:
-                array_data_filtered[i + 1, (2 * idx_col_i):(2 * idx_col_i + 2)] = \
-                    np.hstack([data_x[i, idx_col_i], data_y[i, idx_col_i]])
+                array_data_filtered[i, (2 * idx_col_i):(2 * idx_col_i + 2)] = np.hstack(
+                    [data_x[i, idx_col_i], data_y[i, idx_col_i]])
 
     # ### Adaptive filtering is all done. Clean up and return.
     # # Remove first row in data array (values are all zeroes)
     # array_filtered_data_without_first_row = np.array(array_data_filtered[1:]).astype(np.float)
-    array_filtered_data_without_first_row = np.array(array_data_filtered[:]).astype(np.float)
+    array_filtered_data_without_first_row = np.array(array_data_filtered[1:]).astype(np.float)
 
     # Create DataFrame with columns by looping over x/y indices.
     columns_ordered: List[str] = []
@@ -496,7 +544,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[pd.Da
         logger.error(missing_rows_err)
         raise ValueError(missing_rows_err)
 
-    return df_adaptively_filtered_data, percent_filterd_per_bodypart__perc_rect
+    return df_adaptively_filtered_data, percent_filtered_per_bodypart
 
 
 if __name__ == '__main__':
