@@ -14,11 +14,12 @@ from dibs.logging_enhanced import get_current_function
 
 logger = config.initialize_logger(__name__)
 
+
 # HOW TO GET FPS: fps = video.get(cv2.cv.CV_CAP_PROP_FPS)
 
 def make_video_from_multiple_sources(
-        data_source_with_video_clip_tuples, # has clips in order to be read
-        data_source_to_video_path, # for opening video files to read
+        data_source_with_video_clip_tuples,  # has clips in order to be read
+        data_source_to_video_path,  # for opening video files to read
         output_file_name,
         output_dir,
         text_prefix,
@@ -60,7 +61,8 @@ def make_video_from_multiple_sources(
 
     # Kwargs
     font_scale = kwargs.get('font_scale', config.DEFAULT_FONT_SCALE)
-    rectangle_colour_bgr: Tuple[int, int, int] = kwargs.get('rectangle_bgr', config.DEFAULT_TEXT_BACKGROUND_BGR)  # 000=Black box?
+    rectangle_colour_bgr: Tuple[int, int, int] = kwargs.get('rectangle_bgr',
+                                                            config.DEFAULT_TEXT_BACKGROUND_BGR)  # 000=Black box?
     text_colour_bgr: Tuple[int, int, int] = kwargs.get('text_colour_bgr', config.DEFAULT_TEXT_BGR)
     # text_prefix = kwargs.get('text_prefix', '')
     text_offset_x = kwargs.get('text_offset_x', 50)
@@ -91,7 +93,6 @@ def make_video_from_multiple_sources(
         logger.debug(f"Is it opened? {cv2_source_video_object.isOpened()}")
         return cv2_source_video_object
 
-
     data_source_to_open_video_file = {
         data_source: _open_video_file(video_path)
         for data_source, video_path in data_source_to_video_path.items()
@@ -110,15 +111,16 @@ def make_video_from_multiple_sources(
 
     # Open video writer object
     four_character_code = cv2.VideoWriter_fourcc(*fourcc)
-    full_output_video_path = os.path.join(output_dir, f'{output_file_name}.mp4') # AARONT: TODO: Why is this mp4 and fourcc is avc1?
+    full_output_video_path = os.path.join(output_dir,
+                                          f'{output_file_name}.mp4')  # AARONT: TODO: Why is this mp4 and fourcc is avc1?
     logger.debug(f'Video saving to: {full_output_video_path}')
 
     # AARONT: TODO: Allow argument for video writer to be passed in, then we can call this function repeatedly and pass a vid writer through.
     video_writer = cv2.VideoWriter(
-        full_output_video_path,                                 # Full output file path
-        four_character_code,                                    # fourcc -- four character code
-        output_fps,                                             # fps
-        (width, height)                                         # frameSize
+        full_output_video_path,  # Full output file path
+        four_character_code,  # fourcc -- four character code
+        output_fps,  # fps
+        (width, height)  # frameSize
     )
 
     # Return list of tuples representing a clip from a video, all from the same source.
@@ -143,7 +145,8 @@ def make_video_from_multiple_sources(
             # # New attempt implementation for functional addition of text/color
             # # def put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, text_color_tuple: Tuple[int], rectangle_colour_bgr: Tuple[int], disposition_x: int = 0, disposition_y: int = 0):
             # # 1/2: top level text
-            frame = put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, color, rectangle_colour_bgr)
+            frame = put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y,
+                                               color, rectangle_colour_bgr)
             frame = add_border(frame, color=text_colour_bgr, pixel_width=10)
 
             # 2/2: Bottom level text (STILL WIP! -- put_text_over_box_on_image() needs to be debugged first before uncomment below
@@ -160,6 +163,7 @@ def make_video_from_multiple_sources(
     cv2.destroyAllWindows()
     logger.debug(f'{get_current_function()}(): Done writing video.')
     return
+
 
 ### In development
 # Previuosly: fourcc='mp4v', but then videos weren't being created well
@@ -203,7 +207,8 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
 
     # Kwargs
     font_scale = kwargs.get('font_scale', config.DEFAULT_FONT_SCALE)
-    rectangle_colour_bgr: Tuple[int, int, int] = kwargs.get('rectangle_bgr', config.DEFAULT_TEXT_BACKGROUND_BGR)  # 000=Black box?
+    rectangle_colour_bgr: Tuple[int, int, int] = kwargs.get('rectangle_bgr',
+                                                            config.DEFAULT_TEXT_BACKGROUND_BGR)  # 000=Black box?
     text_colour_bgr: Tuple[int, int, int] = kwargs.get('text_colour_bgr', config.DEFAULT_TEXT_BGR)
     text_prefix = kwargs.get('text_prefix', '')
     text_offset_x = kwargs.get('text_offset_x', 50)
@@ -270,10 +275,10 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
 
     # AARONT: TODO: Allow argument for video writer to be passed in, then we can call this function repeatedly and pass a vid writer through.
     video_writer = cv2.VideoWriter(
-        full_output_video_path,                                 # Full output file path
-        four_character_code,                                    # fourcc -- four character code
-        output_fps,                                             # fps
-        (width, height)                                         # frameSize
+        full_output_video_path,  # Full output file path
+        four_character_code,  # fourcc -- four character code
+        output_fps,  # fps
+        (width, height)  # frameSize
     )
 
     # Loop over all requested frames, add text, then append to list for later video creation
@@ -295,7 +300,8 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
         # # New attempt implementation for functional addition of text/color
         # # def put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, text_color_tuple: Tuple[int], rectangle_colour_bgr: Tuple[int], disposition_x: int = 0, disposition_y: int = 0):
         # # 1/2: top level text
-        frame = put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, text_color_tuple, rectangle_colour_bgr)
+        frame = put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y,
+                                           text_color_tuple, rectangle_colour_bgr)
         frame = add_border(frame, color=text_colour_bgr, pixel_width=10)
 
         # 2/2: Bottom level text (STILL WIP! -- put_text_over_box_on_image() needs to be debugged first before uncomment below
@@ -314,7 +320,9 @@ def make_labeled_video_according_to_frame(labels_list: Union[List, Tuple], frame
     return
 
 
-def put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y, text_color_tuple: Tuple[int, int, int], rectangle_colour_bgr: Tuple[int, int, int], disposition_x: int = 0, disposition_y: int = 0) -> np.ndarray:
+def put_text_over_box_on_image(frame, text_for_frame, font, font_scale, text_offset_x, text_offset_y,
+                               text_color_tuple: Tuple[int, int, int], rectangle_colour_bgr: Tuple[int, int, int],
+                               disposition_x: int = 0, disposition_y: int = 0) -> np.ndarray:
     text_offset_x = text_offset_x + disposition_x
     text_offset_y = text_offset_y + disposition_y
     text_width, text_height = cv2.getTextSize(text_for_frame, font, fontScale=font_scale, thickness=1)[0]
@@ -362,11 +370,12 @@ def generate_frame_filename(frame_idx: int, ext=config.FRAMES_OUTPUT_FORMAT) -> 
     # TODO: low: move this func. Writing to file likely won't happen much in future, but do not deprecate this.
     total_num_length = 6
     leading_zeroes = max(total_num_length - len(str(frame_idx)), 0)
-    name = f'frame_{"0"*leading_zeroes}{frame_idx}.{ext}'
+    name = f'frame_{"0" * leading_zeroes}{frame_idx}.{ext}'
     return name
 
 
-def write_video_with_existing_frames(video_path, frames_dir_path, output_vid_name, output_fps=config.OUTPUT_VIDEO_FPS):  # TODO: <---------------------------------- Used just fine --------------------------------------
+def write_video_with_existing_frames(video_path, frames_dir_path, output_vid_name,
+                                     output_fps=config.OUTPUT_VIDEO_FPS):  # TODO: <---------------------------------- Used just fine --------------------------------------
     """
     TODO: Purpose seems to have been making video creation faster and/or allowing different formats to be created easily.
           AND for use in multi-processing frame writing?
@@ -402,7 +411,8 @@ def write_video_with_existing_frames(video_path, frames_dir_path, output_vid_nam
 
     # Loop over all images and write to file with video writer
     log_every, i = 0, 250
-    for image in tqdm(frames, desc='Writing video...', disable=True if config.stdout_log_level=='DEBUG' else False):  # TODO: low: add progress bar
+    for image in tqdm(frames, desc='Writing video...',
+                      disable=True if config.stdout_log_level == 'DEBUG' else False):  # TODO: low: add progress bar
         video_writer.write(cv2.imread(os.path.join(frames_dir_path, image)))
         # if i % log_every == 0:
         #     logger.debug(f'Working on iter: {i}')
@@ -412,7 +422,8 @@ def write_video_with_existing_frames(video_path, frames_dir_path, output_vid_nam
     return
 
 
-def write_individual_frame_to_file(is_frame_retrieved: bool, frame: np.ndarray, label, frame_idx, output_path=config.FRAMES_OUTPUT_PATH):
+def write_individual_frame_to_file(is_frame_retrieved: bool, frame: np.ndarray, label, frame_idx,
+                                   output_path=config.FRAMES_OUTPUT_PATH):
     """ * NEW *
     (For use in multiprocessing frame-writing.
     :param is_frame_retrieved:
@@ -459,5 +470,3 @@ def write_individual_frame_to_file(is_frame_retrieved: bool, frame: np.ndarray, 
             image_name = generate_frame_filename(frame_idx)
             cv2.imwrite(os.path.join(output_path, image_name), frame)
     return 1
-
-
