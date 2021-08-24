@@ -257,10 +257,6 @@ class BasePipelineAttributeHolder(object):
     def cross_val_scores(self):
         return self._cross_val_scores
 
-    @property
-    def training_data_sources(self) -> List[str]:
-        return list(np.unique(self.df_features_train_raw['data_source'].values))
-
     @staticmethod
     def _video_path_finder(data_sources: list) -> Dict[str, str]:
         # Use name matching on video path to find videos
@@ -302,6 +298,10 @@ class BasePipelineAttributeHolder(object):
     @property
     def predict_video_sources(self) -> Dict[str, str]:
         return self._video_path_finder(self.predict_data_sources)
+
+    @property
+    def training_data_sources(self) -> List[str]:
+        return list(np.unique(self.df_features_train_raw['data_source'].values))
 
     @property
     def predict_data_sources(self):
