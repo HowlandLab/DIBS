@@ -113,7 +113,7 @@ def distance(arr1, arr2, p=2) -> (np.ndarray, str):
 
     # Execute
     try:
-        distance = np.sum((arr1 - arr2) ** p, axis=1) ** (1. / p)
+        distance_array = np.sum((arr1 - arr2) ** p, axis=1) ** (1. / p)
     except ValueError as ve:
         # Raises ValueError if array shape is not the same
         err = f'Error occurred when calculating distance between two arrays. ' \
@@ -121,7 +121,7 @@ def distance(arr1, arr2, p=2) -> (np.ndarray, str):
               f'Array 2 = "{arr2}" (shape = "{arr2.shape}"). Error raised is: {repr(ve)}.'
         logger.error(err)
         raise ve
-    return distance, 'avg'
+    return distance_array, 'avg'
 
 
 def shifted_distance(arr1, period=1) -> (np.ndarray, str):
@@ -135,8 +135,8 @@ def shifted_distance(arr1, period=1) -> (np.ndarray, str):
     check_arg.ensure_type(arr1, np.ndarray)
 
     try:
-        arr1_shifted = pd.DataFrame(arr1).shift(period).values
-        movement = np.nan_to_num(distance(arr1, arr1_shifted)[0], nan=0)
+        arr1_shifted = pd.DataFrame(arr1).shift(period).values.reshape((arr1.shape[0], -1))
+        movement = np.nan_to_num(distance(arr1.reshape((arr1.shape[0], -1)), arr1_shifted)[0], nan=0)
     except ValueError as ve:
         # Raises ValueError if array shape is not the same
         err = f'Error occurred when calculating shifted distance of period {period}. ' \

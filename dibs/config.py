@@ -310,6 +310,9 @@ class TSNE:
     n_iter: int = configuration.getint('TSNE', 'n_iter')
     n_jobs: int = configuration.getint('TSNE', 'n_jobs')
     perplexity: Union[str, float] = configuration.get('TSNE', 'perplexity')
+    metric = configuration.get('TSNE', 'metric')
+    early_exaggeration_iter = configuration.getint('TSNE', 'early_exaggeration_iter')
+    exaggeration: float = configuration.getfloat('TSNE', 'exaggeration')
     try:
         perplexity = float(perplexity)
     except ValueError:

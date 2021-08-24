@@ -229,6 +229,7 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         # 2
         (average, c.HINDPAW_LEFT, c.HINDPAW_RIGHT),
         # 3...
+        (convex_hull_area, c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE)
     ]
 
     inter_names = [FeatureEngineerer._extract_name_from_spec(spec, intermediate=True)
@@ -252,7 +253,8 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         (shifted_distance, c.HINDPAW_LEFT),
         (shifted_distance, c.HINDPAW_RIGHT),
         (shifted_distance, c.TAILBASE),
-        (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE)
+        (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE),
+        (shifted_distance, inter_names[2])
         # velocity
         # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
 
@@ -293,13 +295,15 @@ class TSNE(Embedder):
     n_components: int = config.TSNE.n_components
     n_iter: int = config.TSNE.n_iter
     early_exaggeration: float = config.TSNE.early_exaggeration
+    early_exaggeration_iter = config.TSNE.early_exaggeration_iter
     n_jobs: int = config.TSNE.n_jobs  # n cores used during process
     verbose: int = config.TSNE.verbose
     init: str = config.TSNE.init
     make_this_better_perplexity: Union[float, str] = config.TSNE.perplexity
     learning_rate: float = config.TSNE.learning_rate
     random_state = config.EMBEDDER.random_state
-
+    metric = config.TSNE.metric
+    exaggeration = config.TSNE.exaggeration
     # Non settable.  Not considered by set_params/get_params
     _num_training_data_points: int = None  # must be set at runtime
     _num_training_features: int = None
@@ -387,16 +391,16 @@ class TSNE(Embedder):
                         perplexity=self.perplexity,
                         learning_rate=self.learning_rate,
                         early_exaggeration=self.early_exaggeration,
-                        early_exaggeration_iter=250,  # TODO: med: review
+                        early_exaggeration_iter=self.early_exaggeration_iter,
                         n_iter=self.n_iter,
-                        # exaggeration=None,
+                        # exaggeration=self.exaggeration,
                         # dof=1,
                         # theta=0.5,
                         # n_interpolation_points=3,
                         # min_num_intervals=50,
                         # ints_in_interval=1,
-                        # initialization="pca",
-                        metric="euclidean",  # TODO: med: review
+                        initialization=self.init,
+                        metric=self.metric,  # TODO: med: review
                         # metric_params=None,
                         # initial_momentum=0.5,
                         # final_momentum=0.8,
