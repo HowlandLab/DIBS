@@ -15,6 +15,7 @@ import sys
 
 from dibs import check_arg, config, logging_enhanced
 from dibs.logging_enhanced import get_current_function
+from dibs.feature_engineering import filter_dlc_output
 
 logger = config.initialize_logger(__name__)
 
@@ -114,8 +115,8 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     df['data_source'] = file_name_without_extension
     # Number the frames
     df['frame'] = list(range(len(df)))
-
-    return df
+    df_filtered = filter_dlc_output(df)
+    return df_filtered
 
 
 def read_h5(data_file_path, **kwargs) -> pd.DataFrame:
