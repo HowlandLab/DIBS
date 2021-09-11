@@ -551,5 +551,151 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[
     return df_adaptively_filtered_data, percent_filtered_per_bodypart
 
 
+def filter_dlc_output(in_df: pd.DataFrame, likelihood_threshold=0.9, copy=False) -> pd.DataFrame:
+    """
+    This function is a copy of above mentioned adaptive_filter function where we perform linear interpolation instead
+    of forward fill. # TODO: This function can be made much more simpler if certain assumptions about input are made.
+    :param in_df: (DataFrame) expected: raw DataFrame of DLC results right after reading in using dibs.read_csv().
+    :param likelihood_threshold:
+    :param copy:
+
+    :returns df_filtered
+    """
+    # TODO: HIGH: for this function that does not have expected cols (like 'scorer', etc.) it should not fail!
+    # Checking args
+    check_arg.ensure_type(in_df, pd.DataFrame)
+    # Continue
+    # # Scorer
+    set_in_df_columns = set(in_df.columns)
+    if 'scorer' not in set_in_df_columns:
+        col_not_found_err = f'Column named "scorer" not found but should exist (as a result from dibs.read_csv()) // ' \
+                            f'All columns: {in_df.columns}'
+        logger.error(col_not_found_err)
+        raise ValueError(col_not_found_err)  # TODO: should this raise an error?
+    scorer_values = np.unique(in_df['scorer'].values)
+    if len(scorer_values) != 1:
+        err = f'There should be 1 unique scorer value. If there are more than 1, too many values. Value are: {scorer_values}.'
+        logger.error(err)
+        raise ValueError(err)  # TODO: low: should this raise an error?
+    scorer_value: str = scorer_values[0]
+
+    # # Source
+    if 'source' in set_in_df_columns:
+        if len(scorer_values) != 1:
+            err = f'There should be 1 unique "source" value. If there is more than 1, too many values, ' \
+                  f'makes no sense to adaptively filter over different datasets.'
+            logger.error(err)
+            raise ValueError(err)  # TODO: low: should this raise an error?
+        source = in_df['source'].values[0]
+    else:
+        source = None
+
+    # if 'file_source' in set_in_df_columns:
+    file_source = in_df['file_source'][0] if 'file_source' in set_in_df_columns else None
+    data_source = in_df['data_source'][0] if 'data_source' in set_in_df_columns else None
+
+    # Resolve kwargs
+    df = in_df.copy() if copy else in_df
+
+    # Loop over columns, aggregate which indices in the data fall under which category.
+    #   x, y, and likelihood are the three main types of columns output from DLC.
+    x_index, y_index, l_index = [], [], []
+    map_back_index_to_col_name = {}
+    coords_cols_names = []
+    for idx_col, col in enumerate(df.columns):
+        # Assign ___ TODO
+        map_back_index_to_col_name[idx_col] = col
+        # Columns take the regular form `FEATURE_(x|y|likelihood|coords|)`, so split by final _ OK
+        column_suffix = col.split('_')[-1]
+        if column_suffix == "likelihood":
+            l_index.append(idx_col)
+        elif column_suffix == "x":
+            x_index.append(idx_col)
+        elif column_suffix == "y":
+            y_index.append(idx_col)
+        elif column_suffix == 'coords':  # todo: low: delete this elif. Coords should be dropped with the io.read_csv implementation?
+            # Record and check later...likely shouldn't exist anymore since its just a numbered col with no data.
+            coords_cols_names.append(col)
+        elif col == 'scorer':
+            pass  # Ignore 'scorer' column. It tracks the DLC data source.
+        elif col == 'source':
+            pass  # Keeps track of CSV/h5 source
+        elif col == 'frame':
+            pass  # Keeps track of frame numbers
+        elif col == 'file_source':
+            pass
+        elif col == 'data_source':
+            pass
+        else:
+            err = f'{inspect.stack()[0][3]}(): An inappropriate column header was found: ' \
+                  f'{column_suffix}. Column name = "{col}". ' \
+                  f'Check on CSV to see if has an unexpected output format from DLC.'
+            logger.error(err)
+            # raise ValueError(err)
+    if len(coords_cols_names) > 1:
+        err = f'An unexpected number of columns were detected that contained the substring "coords". ' \
+              f'Normally, there is only 1 "coords" column in a DLC output CSV, but this is an abnormal case. ' \
+              f'Coords columns: {coords_cols_names} / df.head(): {df.head().to_string()}'
+        logger.error(err)
+        raise ValueError(err)
+
+    # Sanity check
+    if len(coords_cols_names) > 0: raise ValueError(f'coords should not exist anymore')
+
+    # Slice data into separate arrays based on column names (derived earlier from the respective index)
+    data_x: np.ndarray = np.array(df.iloc[:, np.array(x_index)])
+    data_y: np.ndarray = np.array(df.iloc[:, np.array(y_index)])
+    data_likelihood: np.ndarray = np.array(df.iloc[:, np.array(l_index)])
+    # Note: at this point, the above 3 data arrays will all have the exact same shape
+
+    array_data_filtered = np.zeros((data_x.shape[0], (data_x.shape[1]) * 3))
+
+    percent_filtered_per_bodypart: List = [0. for _ in range(data_likelihood.shape[1])]
+
+    # Loop over data and do adaptive filtering.
+    for idx_col_i in tqdm(range(data_likelihood.shape[1]),
+                          desc=f'{logging_enhanced.get_current_function()}(): Filtering DLC columns using interpolation',
+                          disable=True if config.stdout_log_level.strip().upper() != 'DEBUG' else False):
+
+        # Change data type to float because its currently string. Is it though?
+        data_likelihood_col_i = data_likelihood[:, idx_col_i].astype(np.float)
+
+        # Record percent filtered (for "reasons")
+        percent_filtered_per_bodypart[idx_col_i] = np.sum(data_likelihood_col_i < likelihood_threshold) / data_likelihood.shape[0]
+
+        nan_mask = data_likelihood_col_i < likelihood_threshold
+        x, y = pd.DataFrame(data_x[:, idx_col_i].astype(np.float)), pd.DataFrame(data_y[:, idx_col_i].astype(np.float))
+        x[nan_mask] = np.nan
+        y[nan_mask] = np.nan
+        array_data_filtered[:, 3*idx_col_i] = x.interpolate(method='linear', limit=500, limit_direction='both').values.reshape(x.shape[0])
+        array_data_filtered[:, 3*idx_col_i + 1] = y.interpolate(method='linear', limit=500, limit_direction='both').values.reshape(x.shape[0])
+        array_data_filtered[:, 3*idx_col_i + 2] = data_likelihood_col_i
+
+    # Create DataFrame with columns by looping over x/y indices.
+    columns_ordered: List[str] = []
+    for x_idx, y_idx, l_idx in zip(x_index, y_index, l_index):
+        columns_ordered += [map_back_index_to_col_name[x_idx], map_back_index_to_col_name[y_idx], map_back_index_to_col_name[l_idx]]
+
+    # Create frame, replace 'scorer' column. Return.
+    df_filtered = pd.DataFrame(array_data_filtered, columns=columns_ordered)
+    df_filtered['scorer'] = scorer_value
+    # Re-add source, etc
+    if source is not None:
+        df_filtered['source'] = source
+    if file_source is not None:
+        df_filtered['file_source'] = file_source
+    if data_source is not None:
+        df_filtered['data_source'] = data_source
+
+    df_filtered['frame'] = range(len(df_filtered))
+    if len(in_df) != len(df_filtered):
+        missing_rows_err = f'Input df has {len(df)} rows but output df ' \
+                           f'has {len(df_filtered)}. Should be same number.'
+        logger.error(missing_rows_err)
+        raise ValueError(df_filtered)
+
+    return df_filtered
+
+
 if __name__ == '__main__':
     pass
