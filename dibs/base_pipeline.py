@@ -176,6 +176,12 @@ class BasePipelineAttributeHolder(object):
         return self._df_features_train_scaled[self.dims_cols_names].copy()
 
     @property
+    def df_lengths_per_video(self):
+        """ Group by data source, and get the lengths of each section """
+        self._df_features_train_scaled
+        return [len(df) for df in self._df_features_train_scaled.groupby('data_source')]
+
+    @property
     def transition_matrix(self):
         gmm_a = self.df_clusterer_assignments
         logger.debug(gmm_a)
@@ -904,7 +910,14 @@ class BasePipeline(BasePipelineAttributeHolder):
             ]
 
         # classifier is trained in high dimensional feature space, where prediction of new data will occur
-        X = df_train[list(self.all_engineered_features)]
+        from dibs.pipeline_pieces import TimeDependentCLF
+        if isinstance(self._clf, TimeDependentCLF):
+            X = [
+                x[1][list(self.all_engineered_features)]
+                for x in df_train.groupby('data_source')
+            ]
+        else:
+            X = df_train[list(self.all_engineered_features)]
         y = df_train[self.clusterer_assignment_col_name]
 
         logger.debug(f'Training {self._clf.__class__.__name__} classifier now...')

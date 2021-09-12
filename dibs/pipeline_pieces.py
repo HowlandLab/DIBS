@@ -11,7 +11,6 @@ import streamlit as st
 
 # Models
 # from bhtsne import tsne as TSNE_bhtsne # Aaron on Ferrari; June 6th/2021: Does not want to install, but we don't use this anymore anyways
-# from cvae import cvae
 from openTSNE import TSNE as OpenTsneObj
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.manifold import LocallyLinearEmbedding, Isomap, TSNE as TSNE_sklearn
@@ -260,6 +259,10 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
 
     ]
 
+######################################################################################################################
+## EMBEDDERS
+######################################################################################################################
+
 
 class Embedder(WithStreamlitParamsDialog):
     """ Examples: pca, tsne, umap """
@@ -287,6 +290,28 @@ class Embedder(WithStreamlitParamsDialog):
 
     def metrics(self):
         raise NotImplementedError()
+
+
+class PrincipalComponents(Embedder):
+    n_components = config.PrincipalComponents.n_components
+    svd_solver = config.PrincipalComponents.svd_solver
+    random_state = config.EMBEDDER.random_state
+
+    def embed(self, X):
+        pca = PCA(
+            n_components=self.n_components,
+            svd_solver=self.svd_solver,
+            random_state=self.random_state
+        )
+        logger.debug(f'Training {self.__class__} Dimensionality Reducer now...')
+        X_reduced = pca.fit_transform(X.values)
+        self._model = pca
+        return X_reduced
+
+    def metrics(self):
+        return {
+            'explained_variance': self._model.explained_variance_ratio_
+        }
 
 
 class TSNE(Embedder):
@@ -358,23 +383,24 @@ class TSNE(Embedder):
         # Execute
         start_time = time.perf_counter()
         logger.debug(f'Now reducing data with {self.implementation} implementation...')
-        if self.implementation == 'SKLEARN':
-            arr_result = TSNE_sklearn(
-                n_components=self.n_components,
-                perplexity=self.perplexity,
-                early_exaggeration=self.early_exaggeration,
-                learning_rate=self.learning_rate,  # alpha*eta = n  # TODO: low: follow up with this
-                n_iter=self.n_iter,
-                # n_iter_without_progress=300,
-                # min_grad_norm=1e-7,
-                # metric="euclidean",
-                init=self.init,
-                verbose=self.verbose,
-                random_state=self.random_state,
-                # method='barnes_hut',
-                # angle=0.5,
-                n_jobs=self.n_jobs,
-            ).fit_transform(df.values)
+        # # NOTE: Sklearns TSNE implementation gave poor results and required excessive parameter tuning
+        # if self.implementation == 'SKLEARN':
+        #     arr_result = TSNE_sklearn(
+        #         n_components=self.n_components,
+        #         perplexity=self.perplexity,
+        #         early_exaggeration=self.early_exaggeration,
+        #         learning_rate=self.learning_rate,  # alpha*eta = n  # TODO: low: follow up with this
+        #         n_iter=self.n_iter,
+        #         # n_iter_without_progress=300,
+        #         # min_grad_norm=1e-7,
+        #         # metric="euclidean",
+        #         init=self.init,
+        #         verbose=self.verbose,
+        #         random_state=self.random_state,
+        #         # method='barnes_hut',
+        #         # angle=0.5,
+        #         n_jobs=self.n_jobs,
+        #     ).fit_transform(df.values)
         # elif self.tsne_implementation == 'BHTSNE':
         #     arr_result = TSNE_bhtsne(
         #         df,
@@ -383,15 +409,16 @@ class TSNE(Embedder):
         #         theta=0.5,
         #         rand_seed=self.random_state,
         #     )
-        elif self.implementation == 'OPENTSNE':
+        # elif self.implementation == 'OPENTSNE':
+        if self.implementation == 'OPENTSNE':
             tsne = OpenTsneObj(
                 **{
                     k: v for k, v in dict(
                         n_components=self.n_components,
                         perplexity=self.perplexity,
-                        learning_rate=self.learning_rate,
-                        early_exaggeration=self.early_exaggeration,
-                        early_exaggeration_iter=self.early_exaggeration_iter,
+                        # learning_rate=self.learning_rate,
+                        # early_exaggeration=self.early_exaggeration,
+                        # early_exaggeration_iter=self.early_exaggeration_iter,
                         n_iter=self.n_iter,
                         # exaggeration=self.exaggeration,
                         # dof=1,
@@ -516,6 +543,7 @@ class CVAE(Embedder):
     n_components: int = 2  # TODO: No reason to pick this
 
     def embed(self, data: pd.DataFrame):
+        # from cvae import cvae # TODO: Which CVAE library were we using?
         logger.debug(f'Reducing dims using CVAE now...')
         data_array = data.values
         embedder = cvae.CompressionVAE(
@@ -575,6 +603,10 @@ class LocallyLinearDimReducer(Embedder):
 
         arr_result = local_line.fit_transform(data_arr)
         return arr_result
+
+######################################################################################################################
+## CLUSTERERS
+######################################################################################################################
 
 
 class Clusterer(WithStreamlitParamsDialog):
@@ -772,6 +804,10 @@ class DBSCAN(Clusterer):
                 "Silhouette Coefficient: %0.3f" % metrics.silhouette_score(self._X, labels)
         }
 
+######################################################################################################################
+## CLFs
+######################################################################################################################
+
 
 class CLF(WithStreamlitParamsDialog):
     """ Examples: SVM, random forest, neural network """
@@ -818,6 +854,8 @@ class SVM(CLF):
 
     def predict(self, df):
         raise NotImplementedError()
+        # TODO: Implement SVM!
+        return self._model.predict(df.values)
 
 
 class RANDOMFOREST(CLF):
@@ -870,33 +908,28 @@ class RANDOMFOREST(CLF):
         return self._model.predict(df)
 
 
-# class DimReducer(WithParams, WithStreamlitDialog):
-#     # Eg SVD, PCA, kPCA
-#     _model = None
+class TimeDependentCLF(CLF):
+    """ Expects X to be split into segments """
+    pass
 
-#     def train(self, X):
-#         raise NotImplementedError()
-
-#     def explained_variance(self):
-#         raise NotImplementedError()
-
-class PrincipalComponents(Embedder):
-    n_components = config.PrincipalComponents.n_components
-    svd_solver = config.PrincipalComponents.svd_solver
-    random_state = config.EMBEDDER.random_state
-
-    def embed(self, X):
-        pca = PCA(
-            n_components=self.n_components,
-            svd_solver=self.svd_solver,
-            random_state=self.random_state
+class HMM(TimeDependentCLF):
+    def train(self, X, y):
+        from hmmlearn.hmm import GaussianHMM, GMMHMM
+        clf = GaussianHMM(
+            n_components=len(np.unique(y)), # number of states from labels
+            covariance_type='full', # default is 'diag'
+            algorithm='viterbi',
         )
-        logger.debug(f'Training {self.__class__} Dimensionality Reducer now...')
-        X_reduced = pca.fit_transform(X.values)
-        self._model = pca
-        return X_reduced
 
-    def metrics(self):
-        return {
-            'explained_variance': self._model.explained_variance_ratio_
-        }
+        X_ = np.concatenate(X, axis=0)
+
+        clf.fit(
+            X_, lengths=[x.shape[0] for x in X] # Get lengths of each video
+        )
+        self._model = clf
+
+
+    def predict(self, arr):
+        return self._model.predict(arr)
+        pass
+
