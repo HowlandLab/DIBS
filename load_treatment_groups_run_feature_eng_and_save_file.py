@@ -9,95 +9,135 @@ from dibs import io
 from dibs.pipeline_pieces import NeoHowlandFeatureEngineering
 
 class DataForOneVideo(object):
-    csvs_path = config.DEFAULT_TRAIN_DATA_DIR
-    def __init__(self, *, animal, dlc_csv, roi_csv):
+    root_path = config.DEFAULT_TRAIN_DATA_DIR
+    dlc_csvs_dir = 'csv_filtered'
+    simba_roi_dir = 'csv_descriptive'
+    videos_dir = 'videos'
+    def __init__(self, *, animal, dlc_df, roi_df, video_path):
         self.animal = animal
-        self.dlc_csv = dlc_csv
-        self.roi_csv = roi_csv
+        self.dlc_df = dlc_df
+        self.roi_df = roi_df
+        self.video_path = video_path
 
 class TreatmentGroupsData(object):
     def __init__(self, *, group):
-        self.group = group
-        self.datas = []
+        self.name = group
+        self.datas: list[DataForOneVideo] = []
 
     def add_data(self, data: DataForOneVideo):
         self.datas.append(data)
 
 
+from contextlib import contextmanager
+from pathlib import Path
+
+@contextmanager
+def set_directory(path, cd_back=True):
+    """Sets the cwd within the context"""
+
+    try:
+        assert (not cd_back or '/' not in path), 'Only expect to go up/down 1 dir at a time'
+        os.chdir(path)
+        yield
+    finally:
+        if cd_back:
+            os.chdir('..')
+
 # 1. Load data
 def eng_data():
-    training_data_dir = DataForOneVideo.csvs_path
+    with set_directory(DataForOneVideo.root_path, cd_back=False):
+        groups = [] # list of treatment groups data things
 
-    for inode in os.listdir(training_data_dir):
-        if not os.path.isdir(os.path.join(training_data_dir, inode)):
-            continue
-        # is a dir
-        group = TreatmentGroupsData(inode) # is a treatment group
-
-        #
-
-        for file in os.listdir(os.path.join(training_data_dir, group)):
-            if not file.endswith('.csv'):
+        for inode in os.listdir():
+            if not os.path.isdir(inode):
                 continue
-            # is a csv
-            animal = file[0:file.find('_')]
-            if 'DLC' in file:
-                dlc_csv
+            # is a dir
+            group = TreatmentGroupsData(group=inode) # is a treatment group
+            with set_directory(inode):
+                dlc_csvs = os.listdir(DataForOneVideo.dlc_csvs_dir)
+                roi_csvs = os.listdir(DataForOneVideo.simba_roi_dir)
+                video_paths = os.listdir(DataForOneVideo.videos_dir)
 
-    names_to_paths = {
-        file: os.path.join(training_data_dir, file) for file in os.listdir(training_data_dir)
-    }
-    dirs = {
-        name: path for name, path in names_to_paths.items() if os.path.isdir(path)
-    }
-    print(dirs)
-    assert dirs
+                # get list of animals based on dlc data, which must exist.  Everything else can be missing
+                for file in dlc_csvs:
+                    animal = file.split('_')[0]
+                    print(f'Reading data for animal {animal}')
+                    dlc_df = io.read_dlc_csv(os.path.join(DataForOneVideo.dlc_csvs_dir, file))
+                    try:
+                        roi_csv_path = next(file for file in roi_csvs if file.startswith(animal))
+                        roi_df = pd.read_csv(os.path.join(DataForOneVideo.simba_roi_dir, roi_csv_path))
+                    except StopIteration:
+                        roi_df = None
+                    try:
+                        video_path = os.path.join(DataForOneVideo.videos_dir, next(file for file in video_paths if file.startswith(animal)))
+                    except StopIteration:
+                        video_path = None
+                    group.add_data(
+                        DataForOneVideo(
+                            animal=animal,
+                            dlc_df=dlc_df,
+                            roi_df=roi_df,
+                            video_path=video_path
+                        )
+                    )
 
-    # Only look at dirs with csv files inside of them
-    treatment_groups = {
-        name for name,path in names_to_paths.items()
-        if any(file.endswith('.csv') for file in os.listdir(path))
-    }
-    print(treatment_groups)
-    assert treatment_groups
+                # Have list of groups now
+            groups.append(group)
 
-    def get_csvs(path):
-        return [os.path.join(path, file) for file in os.listdir(path) if file.endswith('.csv')]
+        def extract_simba_roi(roi_df, n_frames):
+            print(f'roi_df: {roi_df}; \nn_frames: {n_frames}')
+            cols = list(roi_df.columns)
+            roi_index = cols.index('Shape_name')
+            entry_frame_index = cols.index('Entry_frame')
+            exit_frame_index = cols.index('Exit_frame')
 
-    group_to_csvs = {
-        group: get_csvs(dirs[group])
-        for group in treatment_groups
-    }
+            vals = np.array([None for _ in range(n_frames)], dtype=object)
+            for row in roi_df.values:
+                row = list(row)
+                simba_roi = row[roi_index]
+                enter, exit = row[entry_frame_index], row[exit_frame_index]
+                # print(f'Filling {enter} to {exit} with {simba_roi}')
+                vals[enter: exit] = simba_roi
+            # concat the ROI stuffs, just join them all and forward fill
+            df = pd.DataFrame(dict(simba_roi=vals))
+            df.ffill(inplace=True)
+            return df['simba_roi'].values
 
-    print(group_to_csvs)
-    assert group_to_csvs
+        # 2. Run feature eng
+        full_dfs = []
+        for group in groups:
+            for data in group.datas:
+                print(f'Building engineered and aggregated dataframe for animal {data.animal}')
+                # 1. Put the simba ROI data back onto the DLC data frame
+                df = data.dlc_df
+                animal_string = data.animal
+                assert isinstance(animal_string, str)
+                df['animal'] = animal_string
+                if data.roi_df is None:
+                    df['simba_roi'] = None
+                else:
+                    df['simba_roi'] = extract_simba_roi(data.roi_df, len(data.dlc_df))
 
-    # 2. Run feature eng
-    dlc_only_dfs = []
-    for group, csvs in group_to_csvs.items():
-        # split on _ and take first thing to get animal number
-        dlc_csvs = {file.split('_')[0]: file for file in csvs if 'DLC' in file}
-        print(dlc_csvs)
-        simba_roi_csvs = {file for file in csvs if 'DLC' not in file}
-        for csv in csvs:
-            print(csv)
-            df = io.read_csv(csv)
-            eng_df = fe.engineer_features(df)
-            eng_df['treatment_group'] = group
-            dlc_only_dfs.append(eng_df)
+                eng_df = fe.engineer_features(df)
+                assert 'simba_roi' in eng_df.columns
+                group_string = group.name
+                assert isinstance(group_string, str)
+                eng_df['treatment_group'] = group_string
+                full_dfs.append(eng_df)
 
     # TODO: Load which are we are in classification and attach to dfs
 
     # 3. Save flat csv of everything
     global flat_df
-    flat_df = pd.concat(dlc_only_dfs)
+    flat_df = pd.concat(full_dfs)
     flat_df.to_csv('flat_df.csv')
 
 def load_flat_df():
-    return pd.read_csv('flat_df.csv')
+    return pd.read_csv(os.path.join(config.DEFAULT_TRAIN_DATA_DIR, 'flat_df.csv'))
 
 def logistic_reg_on_videos():
     from sklearn.linear_model import LogisticRegressionCV
+    from sklearn.model_selection import train_test_split
     from sklearn.metrics import classification_report, confusion_matrix
 
     # TODO: Training on rows directly doesn't make sense.
@@ -113,9 +153,25 @@ def logistic_reg_on_videos():
     X = flat_df[eng_features]
     y = flat_df[y_col]
 
-    model.fit(X, y)
-    # rep = classification_report() # TODO: Need test split I guess..??
-    print(model)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8)
+
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    rep = classification_report(y_true=y_test, y_pred=y_pred)
+    print(model, rep)
+
+    print('Features and coefs:')
+    for feat, coef in zip(eng_features, model.coef_[0]):
+        print(feat, coef)
+
+    import shelve
+    with shelve.open('model_etc.shelve') as db:
+        db['model'] = model
+        db['X_train'] = X_train
+        db['X_test'] = X_test
+        db['y_train'] = y_train
+        db['y_test'] = y_test
+    return model, rep
 
 
 fe = NeoHowlandFeatureEngineering()
@@ -126,7 +182,8 @@ y_col = 'treatment_group'
 if __name__ == '__main__':
     eng_data()
     print('loading flat_df'); flat_df = load_flat_df()
-    # print('doing logistic regression'); logistic_reg_on_videos()
+    print('doing logistic regression'); model, rep = logistic_reg_on_videos()
+    print(model, rep)
 
 
 
