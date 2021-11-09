@@ -68,7 +68,7 @@ class TestFeatureEngineering(TestCase):
     @skip  # TODO: Temporary skip due to performance issues
     def test__adaptively_filter_dlc_output__shouldReturnSameNumberOfRowsAsInput__always(self):
         # Arrange
-        df_input = dibs.io.read_csv(single_test_file_location, nrows=dibs.config.max_rows_to_read_in_from_csv)
+        df_input = dibs.io.read_dlc_csv(single_test_file_location, nrows=dibs.config.max_rows_to_read_in_from_csv)
         input_num_rows = len(df_input)
         # Act
         df_output, _ = dibs.feature_engineering.adaptively_filter_dlc_output(df_input)
@@ -177,7 +177,7 @@ actual actual_output_arr: {actual_output_arr}
         Upon creating a new "average bodypart", it should add 2 extra columns, one for the x and one for the y values
         """
         # Arrange
-        df = dibs.io.read_csv(single_test_file_location)
+        df = dibs.io.read_dlc_csv(single_test_file_location)
         df_cols_set = set(df.columns)
         output_feature_name = 'AvgFeature'
         expected_num_cols: int = len(df_cols_set) + 2

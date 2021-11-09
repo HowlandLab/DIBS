@@ -28,7 +28,7 @@ class TestIO(TestCase):
         h5_data_source_file_path = h5_test_file_path
 
         # Act
-        read_csv_output: np.ndarray = dibs.io.read_csv(csv_data_source_file_path).values
+        read_csv_output: np.ndarray = dibs.io.read_dlc_csv(csv_data_source_file_path).values
         read_h5_output: np.ndarray = dibs.io.read_h5(h5_data_source_file_path).values
 
         are_numpy_arrays_equal = (read_csv_output == read_h5_output).all()

@@ -125,8 +125,8 @@ class FeatureEngineerer(object):
         self._map_feature_to_integrate_method = dict()  # Map of aggregators, populated by engineer_features method
 
     @property
-    def _all_engineered_features(self):
-        return (self._extract_name_from_spec(spec) for spec in self._real_feature_specs)
+    def all_engineered_features(self):
+        return [self._extract_name_from_spec(spec) for spec in self._real_feature_specs]
 
     @staticmethod
     def _extract_name_from_spec(spec, intermediate=False):

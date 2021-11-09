@@ -323,7 +323,7 @@ class BasePipelineAttributeHolder(object):
 
     @property
     def all_engineered_features(self) -> Tuple[str]:
-        return self._feature_engineerer._all_engineered_features
+        return self._feature_engineerer.all_engineered_features
 
     @property
     def all_engineered_features_list(self) -> List[str]:
@@ -496,7 +496,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                                  not in set(self.df_features_train_raw['data_source'].values)]
         for path in train_data_paths_args:
             if os.path.isfile(path):
-                df_new_data = io.read_csv(path)
+                df_new_data = io.read_dlc_csv(path)
                 self._df_features_train_raw = self.df_features_train_raw.append(df_new_data)
                 self._is_training_data_set_different_from_model_input = True
                 logger.debug(f'Added file to train data: {path}')
@@ -508,7 +508,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                                            and file_name not in set(self.df_features_train_raw['data_source'].values)]
                 for file_path in data_sources:
                     logger.debug(f'Reading in: {file_path}')
-                    df_new_data_i = io.read_csv(file_path)
+                    df_new_data_i = io.read_dlc_csv(file_path)
                     self._df_features_train_raw = self.df_features_train_raw.append(df_new_data_i)
                     self._is_training_data_set_different_from_model_input = True
                     logger.debug(f'Added file to train data: {file_path}')
@@ -532,7 +532,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                                   not in set(self.df_features_predict_raw['data_source'].values)]
         for path in predict_data_path_args:
             if os.path.isfile(path):
-                df_new_data = io.read_csv(path)
+                df_new_data = io.read_dlc_csv(path)
                 self._df_features_predict_raw = self.df_features_predict_raw.append(df_new_data)
                 self._has_unengineered_predict_data = True
                 logger.debug(f'Added file to predict data: {path}')
@@ -543,7 +543,7 @@ class BasePipeline(BasePipelineAttributeHolder):
                                            if file_name.split('.')[-1] in config.valid_dlc_output_extensions
                                            and file_name not in set(self.df_features_predict_raw['data_source'].values)]
                 for file_path in data_sources:
-                    df_new_data_i = io.read_csv(file_path)
+                    df_new_data_i = io.read_dlc_csv(file_path)
                     self._df_features_predict_raw = self.df_features_predict_raw.append(df_new_data_i)
                     self._has_unengineered_predict_data = True
                     logger.debug(f'Added file to predict data: {file_path}')
@@ -687,6 +687,7 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Execute
         if create_new_scaler:
             # TODO: AARONT: Analyze or produce metrics to analyze the impacts of scaling
+            #               What does this actually do??
             self._scaler = StandardScaler()
             # self._scaler = MinMaxScaler()
             self._scaler.fit(df_data[features])

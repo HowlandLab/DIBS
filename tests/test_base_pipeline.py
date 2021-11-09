@@ -759,7 +759,7 @@ Total ALL  data rows: {total_rows}
         # Arrange
         p = default_pipeline_class('asdfasdfdfs44444')
         p = p.add_train_data_source(csv__train_data__file_path__TRAINING_DATA)
-        original_number_of_data_rows = len(dibs.io.read_csv(csv__train_data__file_path__TRAINING_DATA))
+        original_number_of_data_rows = len(dibs.io.read_dlc_csv(csv__train_data__file_path__TRAINING_DATA))
 
         # Act
         p = p.build()

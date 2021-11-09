@@ -25,7 +25,7 @@ logger = config.initialize_logger(__name__)
 
 # TODO: med/high: change function to accept either CSV or h5 files from DLC. Functionally, should be the same except for
 #  deciding to use read_h5() or read_csv()
-def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
+def read_dlc_csv(csv_file_path: str, do_our_filtering=True, **kwargs) -> pd.DataFrame:
     """
     Reads in a CSV that is assumed to be an output of DLC. The raw CSV is re-formatted to be more
     friendly towards data manipulation later in the B-SOiD feature engineering pipeline.
@@ -115,6 +115,9 @@ def read_csv(csv_file_path: str, **kwargs) -> pd.DataFrame:
     df['data_source'] = file_name_without_extension
     # Number the frames
     df['frame'] = list(range(len(df)))
+    if not do_our_filtering:
+        logger.info('reading in DLC csv WITHOUT applying our filtering to it')
+        return df
     df_filtered = filter_dlc_output(df)
     return df_filtered
 
