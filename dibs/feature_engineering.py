@@ -121,6 +121,19 @@ def distance(arr1, arr2, p=2) -> (np.ndarray, str):
               f'Array 2 = "{arr2}" (shape = "{arr2.shape}"). Error raised is: {repr(ve)}.'
         logger.error(err)
         raise ve
+    if np.any(distance_array > 300.):
+        print(f'distances calculated are nonsense: {distance_array}')
+
+    # TODO: IMPORTANT: Fixing things.......... AHHHH
+    #      We could do this here.
+    #      Step 1. Calcualte distances.
+    #           2. Flag any distances that are non-sense
+    #           3. Interpolate on the input data again (at those locations)
+    #           4. Check to see if the values are sane now.  If not, back to step 1
+    #  MAIN PROBLEM WITH THIS:
+    #          It's very inefficient.  We would be redoing the interpolation on the inputs for all of the features.
+    #  We COULD return another array, the indexes for the inputs that we think need to be looked at.... No that will get very complex
+
     return distance_array, 'avg'
 
 
@@ -551,7 +564,7 @@ def adaptively_filter_dlc_output(in_df: pd.DataFrame, copy=False) -> Tuple[
     return df_adaptively_filtered_data, percent_filtered_per_bodypart
 
 
-def filter_dlc_output(in_df: pd.DataFrame, likelihood_threshold=0.9, copy=False) -> pd.DataFrame:
+def filter_dlc_output(in_df: pd.DataFrame, likelihood_threshold=0.8, copy=False) -> pd.DataFrame:
     """
     This function is a copy of above mentioned adaptive_filter function where we perform linear interpolation instead
     of forward fill. # TODO: This function can be made much more simpler if certain assumptions about input are made.
@@ -664,9 +677,45 @@ def filter_dlc_output(in_df: pd.DataFrame, likelihood_threshold=0.9, copy=False)
         percent_filtered_per_bodypart[idx_col_i] = np.sum(data_likelihood_col_i < likelihood_threshold) / data_likelihood.shape[0]
 
         nan_mask = data_likelihood_col_i < likelihood_threshold
+        # TODO: Use the nan_mask to add a binary column representing occlusion for this feature
         x, y = pd.DataFrame(data_x[:, idx_col_i].astype(np.float)), pd.DataFrame(data_y[:, idx_col_i].astype(np.float))
+        x_arr, y_arr = x.values.flatten(), y.values.flatten()
+        # TODO: Might have an off by one error here... Have to make sure the indexes line up correctly!
+        # TODO:
+        x_shifts = x_arr[:-1] - x_arr[1:]
+        y_shifts = y_arr[:-1] - y_arr[1:]
+        x_shifts_mask = np.abs(x_shifts) > 50. # TODO: magic number 50. pixels...
+        y_shifts_mask = np.abs(y_shifts) > 50.
+        if np.any(xy_mask_diff := x_shifts_mask != y_shifts_mask):
+            logger.warn(f'x/y_shifts_mask are not the same, differ at {np.sum(xy_mask_diff)} locations')
+
+        x_mask_list, y_mask_list = list(np.where(x_shifts_mask)[0]), list(np.where(y_shifts_mask)[0])
+        xy_shift_mask = np.zeros_like(x_shifts_mask, np.bool_)
+
+        while x_mask_list:
+            start = x_mask_list.pop()
+            if x_mask_list:
+                end = x_mask_list.pop()
+            else:
+                end = None # TODO: validate this or something.... LOL
+            xy_shift_mask[start:end] = True
+
+        while y_mask_list:
+            start = y_mask_list.pop()
+            if y_mask_list:
+                end = y_mask_list.pop()
+            else:
+                end = None # TODO: validate this or something.... LOL
+                # None acts like empty
+            xy_shift_mask[start:end] = True
+
+        logger.warn(f'xy_shift_mask: {xy_shift_mask}')
+
+        raise RuntimeError('THIS IS BROKEN! Need to make the shifts error detection better!')
         x[nan_mask] = np.nan
+        x[xy_shift_mask] = np.nan
         y[nan_mask] = np.nan
+        y[xy_shift_mask] = np.nan
         array_data_filtered[:, 3*idx_col_i] = x.interpolate(method='linear', limit=500, limit_direction='both').values.reshape(x.shape[0])
         array_data_filtered[:, 3*idx_col_i + 1] = y.interpolate(method='linear', limit=500, limit_direction='both').values.reshape(x.shape[0])
         array_data_filtered[:, 3*idx_col_i + 2] = data_likelihood_col_i
