@@ -25,7 +25,7 @@ from . import (
 
 # User-facing IO API
 from .io import (
-    read_csv,
+    read_dlc_csv,
     read_pipeline,
 )
 

@@ -1035,15 +1035,19 @@ def review_behaviours(p: base_pipeline.BasePipeline, pipeline_file_path):
     ### Section: create drop-down menu to review videos
     ex_video_dirs: List[str] = [directory for directory in os.listdir(config.EXAMPLE_VIDEOS_OUTPUT_PATH) if os.path.isdir(os.path.join(config.EXAMPLE_VIDEOS_OUTPUT_PATH, directory))]
     ex_video_dirs_selection = st.selectbox(label=f'Select directory name corresponding to videos you want to see (you would have specified this when creating the videos)', options=ex_video_dirs)
+    logger.debug(f'ex_video_dirs_selection: {ex_video_dirs_selection}')
 
     if ex_video_dirs_selection:
         ex_video_dir = os.path.join(config.EXAMPLE_VIDEOS_OUTPUT_PATH, ex_video_dirs_selection)
+        logger.debug(f'ex_video_dir: {ex_video_dir}')
         example_videos_file_list: List[str] = [video_file_name for video_file_name in os.listdir(ex_video_dir) if video_file_name.split('.')[-1] in valid_video_extensions]  # # TODO: low/med: add user intervention on default path to check?
         # TODO: HACK: Relies on the string 'assignment_##' (number number) for sorting the video examples. If the file format ever changes will break.
         videos_dict: Dict[str: str] = {**{'': ''}, **{video_file_name: os.path.join(ex_video_dir, video_file_name) for video_file_name in example_videos_file_list}}
 
         video_selection: str = st.selectbox(label=f"Select video to view. Total videos found in example videos folder ({config.EXAMPLE_VIDEOS_OUTPUT_PATH}): {len(videos_dict)-1}", options=list(videos_dict.keys()))
         if video_selection:
+            logger.debug(f'video_selection: {video_selection}')
+            logger.debug(f'videos_dict[video_selection]: {videos_dict[video_selection]}')
             try:
                 st.video(get_video_bytes(videos_dict[video_selection]))
             except FileNotFoundError as fe:
