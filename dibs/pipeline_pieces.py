@@ -19,6 +19,7 @@ from sklearn.svm import SVC
 from sklearn import metrics
 from sklearn.decomposition import PCA
 from sklearn.cluster import SpectralClustering
+import umap
 
 from dibs import logging_enhanced
 from dibs.feature_engineering import integrate_df_feature_into_bins
@@ -201,7 +202,7 @@ class FeatureEngineerer(object):
             arg_names = spec[1:]  # Should be in df
             _compile_feature_def(output_col_name, func, arg_names)
 
-        if average_over_n_frames > 0:
+        if average_over_n_frames > 1:
             check_arg.ensure_int(average_over_n_frames)
             logger.debug(f'{get_current_function()}(): # of rows in DataFrame before binning = {len(in_df)}')
             in_df = integrate_df_feature_into_bins(in_df, self._map_feature_to_integrate_method, average_over_n_frames)
@@ -222,6 +223,7 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         HINDPAW_RIGHT = config.get_part('HINDPAW_RIGHT')
         NOSETIP = config.get_part('NOSETIP')
         TAILBASE = config.get_part('TAILBASE')
+        CENTER = config.get_part('CENTER')
 
     _intermediate_feature_specs = [
         # 1
@@ -229,7 +231,7 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         # 2
         (average, c.HINDPAW_LEFT, c.HINDPAW_RIGHT),
         # 3...
-        (convex_hull_area, c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE)
+        # (convex_hull_area, c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE)
     ]
 
     inter_names = [FeatureEngineerer._extract_name_from_spec(spec, intermediate=True)
@@ -239,22 +241,29 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         (distance, c.FOREPAW_LEFT, c.FOREPAW_RIGHT),
         (distance, c.FOREPAW_LEFT, c.NOSETIP),
         (distance, c.FOREPAW_RIGHT, c.NOSETIP),
-        (distance, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT),
-        (distance, c.FOREPAW_LEFT, c.HINDPAW_LEFT),
-        (distance, c.FOREPAW_LEFT, c.HINDPAW_RIGHT),
-        (distance, c.FOREPAW_RIGHT, c.HINDPAW_LEFT),
+        # (distance, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT),
+        # (distance, c.FOREPAW_LEFT, c.HINDPAW_LEFT),
+        # (distance, c.FOREPAW_LEFT, c.HINDPAW_RIGHT),
+        # (distance, c.FOREPAW_RIGHT, c.HINDPAW_LEFT),
         (distance, c.HINDPAW_RIGHT, c.HINDPAW_LEFT),
+        (distance, c.NOSETIP, c.HINDPAW_LEFT),
+        (distance, c.NOSETIP, c.HINDPAW_RIGHT),
+        (distance, c.CENTER, c.HINDPAW_LEFT),
+        (distance, c.CENTER, c.HINDPAW_RIGHT),
         (distance, c.NOSETIP, c.TAILBASE),
-        (distance, inter_names[0], c.NOSETIP),  # avg of fore paws
-        (distance, inter_names[1], c.NOSETIP),  # avg of hind paws
+        (distance, c.NOSETIP, c.CENTER),
+        (distance, c.TAILBASE, c.CENTER),
+        # (distance, inter_names[0], c.NOSETIP),  # avg of fore paws
+        # (distance, inter_names[1], c.NOSETIP),  # avg of hind paws
         (shifted_distance, c.NOSETIP),
         (shifted_distance, c.FOREPAW_LEFT),
         (shifted_distance, c.FOREPAW_RIGHT),
         (shifted_distance, c.HINDPAW_LEFT),
         (shifted_distance, c.HINDPAW_RIGHT),
         (shifted_distance, c.TAILBASE),
-        (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE),
-        (shifted_distance, inter_names[2])
+        (shifted_distance, c.CENTER),
+        (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE, c.CENTER),
+        # (shifted_distance, inter_names[2])
         # velocity
         # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
 
