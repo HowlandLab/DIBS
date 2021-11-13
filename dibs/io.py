@@ -3,6 +3,7 @@ Functions related to opening/saving files should go here
 
 """
 
+from contextlib import contextmanager
 from typing import List
 import joblib
 import inspect
@@ -16,6 +17,7 @@ import sys
 from dibs import check_arg, config, logging_enhanced
 from dibs.logging_enhanced import get_current_function
 from dibs.feature_engineering import filter_dlc_output
+from dibs.pipeline_pieces import FeatureEngineerer
 
 logger = config.initialize_logger(__name__)
 
@@ -120,6 +122,131 @@ def read_dlc_csv(csv_file_path: str, do_our_filtering=True, **kwargs) -> pd.Data
         return df
     df_filtered = filter_dlc_output(df)
     return df_filtered
+
+
+class DataForOneVideo(object):
+    dlc_csvs_dir = 'csv_filtered'
+    simba_roi_dir = 'csv_descriptive'
+    videos_dir = 'videos'
+    def __init__(self, *, animal, dlc_df, roi_df, video_path):
+        self.animal = animal
+        self.dlc_df = dlc_df
+        self.roi_df = roi_df
+        self.video_path = video_path
+
+
+class TreatmentGroupsData(object):
+    def __init__(self, *, group):
+        self.name = group
+        self.datas: list[DataForOneVideo] = []
+
+    def add_data(self, data: DataForOneVideo):
+        self.datas.append(data)
+
+
+@contextmanager
+def set_directory(path, cd_back=True):
+    """Sets the cwd within the context"""
+
+    try:
+        assert (not cd_back or '/' not in path), 'Only expect to go up/down 1 dir at a time'
+        os.chdir(path)
+        yield
+    finally:
+        if cd_back:
+            os.chdir('..')
+
+
+def extract_simba_roi(roi_df, n_frames):
+    """
+    From a pre-loaded simba_roi dataframe, and a number of frames
+    (REALLY, number of rows in the associated dataframe........ MIGHT have to validate this!!!!!)
+    expand the data that is in (roi_name, entry_frame, exit_frame) format, take that and expand it to n_frames
+    values all in roi_name, one for each frame, in order (sorted, like the input df, by temporalness)
+    """
+    print(f'roi_df: {roi_df}; \nn_frames: {n_frames}')
+    cols = list(roi_df.columns)
+    roi_index = cols.index('Shape_name')
+    entry_frame_index = cols.index('Entry_frame')
+    exit_frame_index = cols.index('Exit_frame')
+
+    vals = np.array([None for _ in range(n_frames)], dtype=object)
+    for row in roi_df.values:
+        row = list(row)
+        simba_roi = row[roi_index]
+        enter, exit = row[entry_frame_index], row[exit_frame_index]
+        # print(f'Filling {enter} to {exit} with {simba_roi}')
+        vals[enter: exit] = simba_roi
+    # concat the ROI stuffs, just join them all and forward fill
+    df = pd.DataFrame(dict(simba_roi=vals))
+    df.ffill(inplace=True) # forward fill the None/NaN values or whatever
+    return df['simba_roi'].values
+
+
+def load_data_based_on_directory_spec_and_engineer_features(fe: FeatureEngineerer):
+    initial_dir = os.getcwd()
+    with set_directory(config.DEFAULT_TRAIN_DATA_DIR, cd_back=False):
+        groups = [] # list of treatment groups data things
+
+        for inode in os.listdir():
+            if not os.path.isdir(inode):
+                continue
+            # is a dir
+            group = TreatmentGroupsData(group=inode) # is a treatment group
+            with set_directory(inode):
+                dlc_csvs = os.listdir(DataForOneVideo.dlc_csvs_dir)
+                roi_csvs = os.listdir(DataForOneVideo.simba_roi_dir)
+                video_paths = os.listdir(DataForOneVideo.videos_dir)
+
+                # get list of animals based on dlc data, which must exist.  Everything else can be missing
+                for file in dlc_csvs:
+                    animal = file.split('_')[0]
+                    print(f'Reading data for animal {animal}')
+                    dlc_df = read_dlc_csv(os.path.join(DataForOneVideo.dlc_csvs_dir, file))
+                    try:
+                        roi_csv_path = next(file for file in roi_csvs if file.startswith(animal))
+                        roi_df = pd.read_csv(os.path.join(DataForOneVideo.simba_roi_dir, roi_csv_path))
+                    except StopIteration:
+                        roi_df = None
+                    try:
+                        video_path = os.path.join(DataForOneVideo.videos_dir, next(file for file in video_paths if file.startswith(animal)))
+                    except StopIteration:
+                        video_path = None
+                    group.add_data(
+                        DataForOneVideo(
+                            animal=animal,
+                            dlc_df=dlc_df,
+                            roi_df=roi_df,
+                            video_path=video_path
+                        )
+                    )
+
+                # Have list of groups now
+            groups.append(group)
+
+        # 2. Run feature eng
+        full_dfs = []
+        for group in groups:
+            for data in group.datas:
+                print(f'Building engineered and aggregated dataframe for animal {data.animal}')
+                # 1. Put the simba ROI data back onto the DLC data frame
+                df = data.dlc_df
+                animal_string = data.animal
+                assert isinstance(animal_string, str)
+                df['animal'] = animal_string
+                if data.roi_df is None:
+                    df['simba_roi'] = None
+                else:
+                    df['simba_roi'] = extract_simba_roi(data.roi_df, len(data.dlc_df))
+
+                eng_df = fe.engineer_features(df)
+                assert 'simba_roi' in eng_df.columns
+                group_string = group.name
+                assert isinstance(group_string, str)
+                eng_df['treatment_group'] = group_string
+                full_dfs.append(eng_df)
+    os.chdir(initial_dir)
+    return pd.concat(full_dfs)
 
 
 def read_h5(data_file_path, **kwargs) -> pd.DataFrame:

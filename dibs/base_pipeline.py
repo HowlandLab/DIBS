@@ -759,6 +759,9 @@ class BasePipeline(BasePipelineAttributeHolder):
         check_arg.ensure_columns_in_DataFrame(df_features_predict, features)
 
         # Get scaled data
+        # AARONT: TODO: IMPORTANT!!!! Scaler is currently built based on aggregate of training data, should be built video by video
+        #               , df by df, and same for the predicted data.  These should all be standardized to themselves..... OR,
+        #               , real, standardized to some anchor in the real world... That we don't have.
         df_scaled_data: pd.DataFrame = self._create_scaled_data(df_features_predict, features, create_new_scaler=False)
 
         # Save data. Return.
