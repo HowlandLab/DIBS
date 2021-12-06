@@ -5,7 +5,9 @@ from typing import Union, Dict, List, Tuple, Optional
 from collections import defaultdict
 from dibs import check_arg, config
 from dibs.logging_enhanced import get_current_function
-from dibs.feature_engineering import distance, shifted_distance, velocity, average, convex_hull_area
+from dibs.feature_engineering import (
+    distance, shifted_distance, velocity, average, convex_hull_area, copy_likelihood
+)
 
 import streamlit as st
 
@@ -165,6 +167,9 @@ class FeatureEngineerer(object):
             for arg_name in arg_names:
                 if arg_name in in_df:
                     args.append(in_df[arg_name].values)
+                elif func.__name__ == 'copy_likelihood':
+                    # HACK: Major hacks.  This function needs the likelihood only
+                    args.append(in_df[f'{arg_name}_likelihood'].values)
                 elif (x_name := arg_name + '_x') in in_df and (y_name := arg_name + '_y') in in_df:
                     args.append(in_df[[x_name, y_name]].values)
                 else:
@@ -240,29 +245,35 @@ class NeoHowlandFeatureEngineering(FeatureEngineerer):
         (distance, c.FOREPAW_LEFT, c.FOREPAW_RIGHT),
         (distance, c.FOREPAW_LEFT, c.NOSETIP),
         (distance, c.FOREPAW_RIGHT, c.NOSETIP),
-        # (distance, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT),
-        # (distance, c.FOREPAW_LEFT, c.HINDPAW_LEFT),
-        # (distance, c.FOREPAW_LEFT, c.HINDPAW_RIGHT),
-        # (distance, c.FOREPAW_RIGHT, c.HINDPAW_LEFT),
         (distance, c.HINDPAW_RIGHT, c.HINDPAW_LEFT),
         (distance, c.NOSETIP, c.HINDPAW_LEFT),
         (distance, c.NOSETIP, c.HINDPAW_RIGHT),
+        (copy_likelihood, c.NOSETIP),
+        ## Without center
+        (distance, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT),
+        (distance, c.FOREPAW_LEFT, c.HINDPAW_LEFT),
+        (distance, c.FOREPAW_LEFT, c.HINDPAW_RIGHT),
+        (distance, c.FOREPAW_RIGHT, c.HINDPAW_LEFT),
+        (distance, inter_names[0], c.NOSETIP),  # avg of fore paws
+        (distance, inter_names[1], c.NOSETIP),  # avg of hind paws
+        ### (shifted_distance, inter_names[2]),
+        # (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE),
+        ## End without center
+        ## Start with center
         (distance, c.CENTER, c.HINDPAW_LEFT),
         (distance, c.CENTER, c.HINDPAW_RIGHT),
         (distance, c.NOSETIP, c.TAILBASE),
         (distance, c.NOSETIP, c.CENTER),
         (distance, c.TAILBASE, c.CENTER),
-        # (distance, inter_names[0], c.NOSETIP),  # avg of fore paws
-        # (distance, inter_names[1], c.NOSETIP),  # avg of hind paws
+        (shifted_distance, c.CENTER),
+        (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE), # Shouldn't need center for convex hull
+        ## End with center
         (shifted_distance, c.NOSETIP),
         (shifted_distance, c.FOREPAW_LEFT),
         (shifted_distance, c.FOREPAW_RIGHT),
         (shifted_distance, c.HINDPAW_LEFT),
         (shifted_distance, c.HINDPAW_RIGHT),
         (shifted_distance, c.TAILBASE),
-        (shifted_distance, c.CENTER),
-        (convex_hull_area,  c.FOREPAW_LEFT, c.FOREPAW_RIGHT, c.HINDPAW_RIGHT, c.NOSETIP, c.HINDPAW_LEFT, c.TAILBASE, c.CENTER),
-        # (shifted_distance, inter_names[2])
         # velocity
         # df = feature_engineering.attach_feature_velocity_of_bodypart(df, self.intermediate_bodypart_avgForepaw, action_duration=1 / config.VIDEO_FPS, output_feature_name=self.feat_name_velocity_AvgForepaw)
 
@@ -525,19 +536,19 @@ class ISOMAP(Embedder):
 
 class UMAP(Embedder):
     """ Uniform Manifold __ __ """
-    n_neighbors: int = 5
-    learning_rate: float = 1.0
-    n_components: int = 2  # TODO: No reason to pick this number
-    n_jobs: int = 1
+    # n_neighbors: int = 5 # Using power law instead
+    # learning_rate: float = 1.0
+    n_components: int = 3  # TODO: No reason to pick this number
+    # n_jobs: int = 1 # not supported
 
     # TODO: UMAP
 
     def embed(self, data):
         reducer = umap.UMAP(
-            n_neighbors=self.n_neighbors,
+            n_neighbors=int(round(np.sqrt(data.shape[0]))), # power law
+            min_dist=0.0, # default 0.1
             n_components=self.n_components,
-            learning_rate=self.learning_rate,
-            n_jobs=self.n_jobs,
+            learning_rate=1.0, # self.learning_rate,
             low_memory=False,
         )
 
@@ -812,6 +823,101 @@ class DBSCAN(Clusterer):
                 # "Adjusted Mutual Information: %0.3f" % metrics.adjusted_mutual_info_score(labels_true, labels) +\
                 "Silhouette Coefficient: %0.3f" % metrics.silhouette_score(self._X, labels)
         }
+
+
+class HDBSCAN(Clusterer):
+    _X = None  # input data
+    # eps = 2.0  # default 0.5
+    # min_samples = 50  # default None...
+
+    def train(self, df):
+        import hdbscan
+        self._X = df.values
+        # db: HDBSCAN = HDBSCAN(
+        #     eps=self.eps,
+        #     min_samples=self.min_samples,
+        #     metric='euclidean',
+        #     metric_params=None,
+        #     algorithm='auto',
+        #     leaf_size=30,  # Might want to tweak this
+        #     p=None,  # Power of Minkowski metric for calculating points, defaults to p=2 (equivalent to euclidean)
+        #     n_jobs=-1,
+        # ).fit(df.values)
+
+        umap_embeddings = df.values
+        highest_numulab = -np.infty
+        numulab = []
+        min_cluster_range = np.array(range(6, 21)) * 0.5 # bsoid used range(6, 21)
+        logger.info('Running HDBSCAN on {} instances in {} D space...'.format(*umap_embeddings.shape))
+        for min_c in min_cluster_range:
+            min_cluster_size=int(round(0.001 * min_c * umap_embeddings.shape[0])),
+            trained_classifier = hdbscan.HDBSCAN(
+                prediction_data=True,
+                min_cluster_size=int(round(0.001 * min_c * umap_embeddings.shape[0])),
+                cluster_selection_epsilon=0.0,
+                min_samples=10, # defaults to None which means defaulting to min_cluster_size
+                # **hdbscan_params,
+            ).fit(umap_embeddings)
+            num_clusters = len(np.unique(trained_classifier.labels_))
+            logger.info(f'Running HDBSCAN with min_cluster_size {min_cluster_size} (min_c: {min_c}) gave {num_clusters} clusters')
+            numulab.append(num_clusters)
+            max_clusters_allowed = 20
+            if numulab[-1] > highest_numulab and numulab[-1] < max_clusters_allowed:
+                logger.info('Adjusting minimum cluster size to maximize cluster number...')
+                highest_numulab = numulab[-1]
+                best_clf = trained_classifier
+        assignments = best_clf.labels_
+        soft_clusters = hdbscan.all_points_membership_vectors(best_clf)
+        soft_assignments = np.argmax(soft_clusters, axis=1)
+        # trained_classifier = hdbscan.HDBSCAN(prediction_data=True,
+        #                                      min_cluster_size=round(umap_embeddings.shape[0] * 0.007),  # just < 1%/cluster
+        #                                      **hdbscan_params).fit(umap_embeddings)
+        # assignments = best_clf.labels_
+        logger.info('Done predicting labels for {} instances in {} D space...'.format(*umap_embeddings.shape))
+        return soft_assignments #, soft_clusters, soft_assignments
+        # prediction_data=True,
+        # min_cluster_size=int(round(0.001 * min_c * umap_embeddings.shape[0])),
+
+        # db: HDBSCAN = HDBSCAN(
+        #     min_cluster_size=5,
+        #     min_samples=None,
+        #     cluster_selection_epsilon=1.0,
+        #     metric='euclidean',
+        #     alpha=1.0,
+        #     p=None,
+        #     algorithm='best',
+        #     leaf_size=40,
+        #     # memory=Memory(cachedir=None, verbose=0), # Some type of argument based cache
+        #     approx_min_span_tree=True,
+        #     gen_min_span_tree=False,
+        #     core_dist_n_jobs=4,
+        #     cluster_selection_method='eom',
+        #     allow_single_cluster=False,
+        #     prediction_data=False, # b-soid had set to True, only useful if using functions from hdbscan.prediction
+        #     match_reference_implementation=False,
+        #     # **kwargs, # Not sure what they use kwargs for
+        # )
+        # db.fit(df.values)
+        # self._model = db
+        # return self._model.labels_
+
+    def metrics(self):
+        labels = self._model.labels_
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        n_noise_ = list(labels).count(-1)
+        return {
+            'metrics':
+                'Estimated number of clusters: %d' % n_clusters_ + \
+                'Estimated number of noise points: %d' % n_noise_ + \
+                ## TODO: Need labels_true... need answers
+                # "Homogeneity: %0.3f" % metrics.homogeneity_score(labels_true, labels) +\
+                # "Completeness: %0.3f" % metrics.completeness_score(labels_true, labels) +\
+                # "V-measure: %0.3f" % metrics.v_measure_score(labels_true, labels) +\
+                # "Adjusted Rand Index: %0.3f" % metrics.adjusted_rand_score(labels_true, labels) +\
+                # "Adjusted Mutual Information: %0.3f" % metrics.adjusted_mutual_info_score(labels_true, labels) +\
+                "Silhouette Coefficient: %0.3f" % metrics.silhouette_score(self._X, labels)
+        }
+
 
 ######################################################################################################################
 ## CLFs

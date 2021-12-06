@@ -6,7 +6,8 @@ ffmpeg-python
 future
 hdbscan>=0.8.26
 ipython
-joblib>=1.0.0
+# joblib>=1.0.0
+joblib==0.17.0 # hdbscan version 0.8.26 can not handle joblib>=1.0 BREAKS pandas-profiling
 jupyter
 matplotlib>=3.3.3
 networkx>=2.5.1

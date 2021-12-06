@@ -337,10 +337,10 @@ assert isinstance(TSNE.n_iter, int) and TSNE.n_iter >= minimum_tsne_n_iter, \
 
 
 ### UMAP ################################################################################
-class UMAP:
-    n_neighbors = configuration.getint('UMAP', 'n_neighbors')
-    n_components = configuration.getint('UMAP', 'n_components')
-    min_dist = configuration.getfloat('UMAP', 'min_dist')
+# class UMAP:
+#     n_neighbors = configuration.getint('UMAP', 'n_neighbors')
+#     n_components = configuration.getint('UMAP', 'n_components')
+#     min_dist = configuration.getfloat('UMAP', 'min_dist')
 
 
 ### PCA

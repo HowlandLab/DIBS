@@ -796,6 +796,7 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
             p._clusterer_is_built = False
             p._classifier_is_built = False # TODO: Don't force rebuilding classifier
             st.markdown('The embedder, clusterer and classifier will be rebuilt')
+            p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
         button_change_embedder_set = st.button('Toggle: Change embedding algorithm', key=key_button_change_embedder)
         if button_change_embedder_set:
             session[key_button_change_embedder] = not session[key_button_change_embedder]
@@ -814,6 +815,7 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
             p._clusterer_is_built = False
             p._classifier_is_built = False # TODO: Don't force rebuilding classifier
             st.markdown('The clusterer and classifier will be rebuilt')
+            p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
         button_change_clusterer_set = st.button('Toggle: Change clustering algorithm', key=key_button_change_clusterer)
         if button_change_clusterer_set:
             session[key_button_change_clusterer] = not session[key_button_change_clusterer]

@@ -40,6 +40,10 @@ logger = config.initialize_logger(__name__)
 
 ### Attach features as columns to a DataFrame of DLC data
 
+def copy_likelihood(x):
+    """ Uses hacks to receive the likelihood values and return them.  We could do something more clever here in the future """
+    return x, 'avg'
+
 def time_shifted(v, tau: int):
     """ Create time shifted copy of an input feature to allow simple time series modelling """
     v = pd.Series(v)  # TODO: Test, should take a numpy array and turn it into a Series
@@ -122,7 +126,8 @@ def distance(arr1, arr2, p=2) -> (np.ndarray, str):
         logger.error(err)
         raise ve
     if np.any(distance_array > 300.):
-        print(f'distances calculated are nonsense: {distance_array}')
+        bad_distances = distance_array[distance_array > 300.]
+        print(f'distances calculated are nonsense: {bad_distances}; Number bad distances: {len(bad_distances)}')
 
     # TODO: IMPORTANT: Fixing things.......... AHHHH
     #      We could do this here.
@@ -148,8 +153,9 @@ def shifted_distance(arr1, period=1) -> (np.ndarray, str):
     check_arg.ensure_type(arr1, np.ndarray)
 
     try:
-        arr1_shifted = pd.DataFrame(arr1).shift(period).values.reshape((arr1.shape[0], -1))
-        movement = np.nan_to_num(distance(arr1.reshape((arr1.shape[0], -1)), arr1_shifted)[0], nan=0)
+        arr1_shifted = pd.DataFrame(arr1).shift(period).values #.reshape((arr1.shape[0], -1))
+        # movement = np.nan_to_num(distance(arr1.reshape((arr1.shape[0], -1)), arr1_shifted)[0], nan=0)
+        movement = np.nan_to_num(distance(arr1, arr1_shifted)[0], nan=0)
     except ValueError as ve:
         # Raises ValueError if array shape is not the same
         err = f'Error occurred when calculating shifted distance of period {period}. ' \
@@ -711,11 +717,12 @@ def filter_dlc_output(in_df: pd.DataFrame, likelihood_threshold=0.8, copy=False)
 
         logger.warn(f'xy_shift_mask: {xy_shift_mask}')
 
-        raise RuntimeError('THIS IS BROKEN! Need to make the shifts error detection better!')
         x[nan_mask] = np.nan
-        x[xy_shift_mask] = np.nan
         y[nan_mask] = np.nan
-        y[xy_shift_mask] = np.nan
+        ## AARONT: TODO: HIGH!!! Fix this or use the method from Simba
+        # raise RuntimeError('THIS IS BROKEN! Need to make the shifts error detection better!')
+        # x[xy_shift_mask] = np.nan
+        # y[xy_shift_mask] = np.nan
         array_data_filtered[:, 3*idx_col_i] = x.interpolate(method='linear', limit=500, limit_direction='both').values.reshape(x.shape[0])
         array_data_filtered[:, 3*idx_col_i + 1] = y.interpolate(method='linear', limit=500, limit_direction='both').values.reshape(x.shape[0])
         array_data_filtered[:, 3*idx_col_i + 2] = data_likelihood_col_i
