@@ -651,6 +651,15 @@ class BasePipeline(BasePipelineAttributeHolder):
         self._df_features_train = df_features
         # Wrap up
         self._is_training_data_set_different_from_model_input = False
+
+        # TODO: Time each step and log for the user.
+        # Scale data
+        ## AARONT: TODO: This is a bit hacky, I put it here because we never want to use the
+        #                engineered features without scaling them, and we never want to redo scaling if we haven't
+        #                redone feature engineering (scaling only applies to engineered features, why would we do it
+        #                otherwise??)
+        self._scale_training_data_and_add_train_test_split(create_new_scaler=True)
+
         return self
 
     def _engineer_features_predict(self):
@@ -759,6 +768,9 @@ class BasePipeline(BasePipelineAttributeHolder):
         check_arg.ensure_columns_in_DataFrame(df_features_predict, features)
 
         # Get scaled data
+        # AARONT: TODO: IMPORTANT!!!! Scaler is currently built based on aggregate of training data, should be built video by video
+        #               , df by df, and same for the predicted data.  These should all be standardized to themselves..... OR,
+        #               , real, standardized to some anchor in the real world... That we don't have.
         df_scaled_data: pd.DataFrame = self._create_scaled_data(df_features_predict, features, create_new_scaler=False)
 
         # Save data. Return.
@@ -801,12 +813,6 @@ class BasePipeline(BasePipelineAttributeHolder):
             self._engineer_features_train()
             if pipeline_file_path:
                 io.save_to_folder(self, pipeline_file_path, df_export=self.df_features_train, stage='feature_eng')
-
-        # TODO: Time each step and log for the user.
-        # Scale data
-        self._scale_training_data_and_add_train_test_split(create_new_scaler=True)
-        if pipeline_file_path:
-            io.save_to_folder(self, pipeline_file_path, df_export=self.df_features_train_scaled, stage='feature_eng_scaled')
         # Rebuild any parts that require updating.
         # These flags are set to False on initialization, when setting parameters,
         # and if any previous piece of the pipeline has been changed.
@@ -843,7 +849,10 @@ class BasePipeline(BasePipelineAttributeHolder):
         # Wrap up
         end = time.perf_counter()
         self.seconds_to_build = round(end - start, 2)
-        io.save_to_folder(self, pipeline_file_path)
+        if pipeline_file_path:
+            io.save_to_folder(self, pipeline_file_path)
+        else:
+            logger.warn('pipeline_file_path arg was not provided, will not save to disk!')
         # logger.info(f'{get_current_function()}(): Total build time: {self.seconds_to_build} seconds. Rows of data: {len(self._df_features_train_scaled)} / tsne_n_jobs={self._embedder.n_jobs} / cross_validation_n_jobs = {self.cross_validation_n_jobs}')  # TODO: med: amend this line later. Has extra info for debugging purposes.
         return self
 

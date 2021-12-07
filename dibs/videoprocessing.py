@@ -24,7 +24,7 @@ def make_video_from_multiple_sources(
         output_dir,
         text_prefix,
         output_fps=15,
-        fourcc='mp4v',
+        fourcc='H264', #'mp4v', Video is not displaying in Firefox, trying alternative format H264
         **kwargs):
     """ NOTE: Mostly copied from "make_labeled_video_according_to_frame"
     Make a video clip, from all input videos in data_source_to_video_path based on the
@@ -110,7 +110,8 @@ def make_video_from_multiple_sources(
     height, width, _layers = frame.shape
 
     # Open video writer object
-    four_character_code = cv2.VideoWriter_fourcc(*fourcc)
+    # four_character_code = cv2.VideoWriter_fourcc(*fourcc)
+    four_character_code = 0x00000021 # same as H264; https://stackoverflow.com/questions/49530857/python-opencv-video-format-play-in-browser
     full_output_video_path = os.path.join(output_dir,
                                           f'{output_file_name}.mp4')  # AARONT: TODO: Why is this mp4 and fourcc is avc1?
     logger.debug(f'Video saving to: {full_output_video_path}')

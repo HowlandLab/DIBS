@@ -448,8 +448,30 @@ Success! Your new project pipeline has been saved to disk to the following path:
 
                 # Original implementation below: dont delete yet!
                 st.markdown(f"_Input a file path below to data which will be used to train the model._\n\n_You may input a file path or a path to a directory. If a directory is entered, all CSVs directly within will be added as training data_")
-                if config.DEFAULT_TRAIN_DATA_DIR:
-                    input_new_data_source = st.selectbox('Select dataset to add: ', options=['']+[file for file in os.listdir(config.DEFAULT_TRAIN_DATA_DIR)])
+                training_data_dir = config.DEFAULT_TRAIN_DATA_DIR # TODO: Add option to use default or select different location...?
+                if training_data_dir:
+                    # TODO: Auto loader? Or just choose? Just choose
+                    files_or_dirs = [os.path.join(training_data_dir, file) for file in os.listdir(training_data_dir)]
+                    csv_files = [file for file in files_or_dirs if file.endswith('.csv')]
+                    if csv_files: # No dirs, no groups
+                        input_new_data_source = st.selectbox('Select dataset to add: ', options=['']+files_or_dirs) # Use files_or_dirs rather than just csvs so that we can see anything strange
+                    else:
+                        # TODO: Make the pipeline a loader class or method or something so we can do either treatment group or flat loading???
+                        # NOTE: Everything is relative to the DIBS working dir
+                        dirs = [d for d in files_or_dirs if os.path.isdir(d)]
+                        logger.debug(dirs)
+                        if dirs:
+                            # Only look at dirs with csv files inside of them
+                            treatment_groups = [d for d in dirs if any(file.endswith('.csv') for file in os.listdir(d))]
+                            logger.debug(treatment_groups)
+                            csvs = []
+                            for group in treatment_groups:
+                                csvs.extend([os.path.join(group, file) for file in os.listdir(group) if file.endswith('.csv')])
+                                logger.debug(csvs)
+                            input_new_data_source = st.selectbox('Select dataset to add: ', options=['']+files_or_dirs) # Use files_or_dirs rather than just csvs so that we can see anything strange
+                        else:
+                            raise RuntimeError('No csv files found in provided DEFAULT_TRAINING_DATA_DIR')
+
                     if input_new_data_source:
                         input_new_data_source = os.path.join(config.DEFAULT_TRAIN_DATA_DIR, input_new_data_source)
                 else:
@@ -458,7 +480,7 @@ Success! Your new project pipeline has been saved to disk to the following path:
                     # Check if file exists
                     if not os.path.isfile(input_new_data_source) and not os.path.isdir(input_new_data_source):
                         st.error(FileNotFoundError(f'File not found: {input_new_data_source}. Data not added to pipeline.'))
-                    elif os.path.isdir(input_new_data_source) and len([file for file in os.listdir(input_new_data_source) if file.endswith('csv')]) == 0:
+                    elif os.path.isdir(input_new_data_source) and len([file for file in os.listdir(input_new_data_source) if file.endswith('.csv')]) == 0:
                         err = f'Zero CSV files were found in the submitted folder: {input_new_data_source}'
                         st.error(err)
                     # Add to pipeline, save
@@ -774,6 +796,7 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
             p._clusterer_is_built = False
             p._classifier_is_built = False # TODO: Don't force rebuilding classifier
             st.markdown('The embedder, clusterer and classifier will be rebuilt')
+            p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
         button_change_embedder_set = st.button('Toggle: Change embedding algorithm', key=key_button_change_embedder)
         if button_change_embedder_set:
             session[key_button_change_embedder] = not session[key_button_change_embedder]
@@ -792,6 +815,7 @@ def show_actions(p: base_pipeline.BasePipeline, pipeline_file_path):
             p._clusterer_is_built = False
             p._classifier_is_built = False # TODO: Don't force rebuilding classifier
             st.markdown('The clusterer and classifier will be rebuilt')
+            p = p.build(pipeline_file_path=os.path.dirname(pipeline_file_path))
         button_change_clusterer_set = st.button('Toggle: Change clustering algorithm', key=key_button_change_clusterer)
         if button_change_clusterer_set:
             session[key_button_change_clusterer] = not session[key_button_change_clusterer]
