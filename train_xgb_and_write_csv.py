@@ -61,8 +61,66 @@ prob_features = [
     if fnmatch(f, '*prob*')
 ]
 
-non_odour_non_prob_features = sorted(set(df.columns) - set(odour_features + prob_features + interaction_features))
+raw_dlc_features_only = [
+    "Ear_left_p",
+    "Ear_left_x",
+    "Ear_left_y",
+
+    "Ear_right_p",
+    "Ear_right_x",
+    "Ear_right_y",
+
+    "Lat_left_p",
+    "Lat_left_x",
+    "Lat_left_y",
+
+    "Lat_right_p",
+    "Lat_right_x",
+    "Lat_right_y",
+
+    "Center_p",
+    "Center_x",
+    "Center_y",
+
+    "Nose_p",
+    "Nose_x",
+    "Nose_y",
+
+    "Tail_base_p",
+    "Tail_base_x",
+    "Tail_base_y",
+
+    "Tail_end_x",
+    "Tail_end_y",
+    "Tail_end_p",
+]
+
+filter_p = use_raw_dlc_features = True
+
+if filter_p:
+    raw_dlc_features_only = [s for s in raw_dlc_features_only if '_p' not in s]
+
+if use_raw_dlc_features:
+    non_odour_non_prob_features = raw_dlc_features_only
+
+else:
+    non_odour_non_prob_features = sorted(set(df.columns) - set(
+        odour_features + prob_features + interaction_features + raw_dlc_features_only
+    ))
 print(len(df.columns), len(odour_features), len(prob_features))
+
+
+
+## Lets try our feature engineering?
+# from dibs import feature_engineering # Can't import with python 3.6...... BOOOO
+# TODO: etc
+
+
+
+
+
+
+
 
 ## AARONT: TODO: Odour was removed! Only use the interaction column now!
 # global_y_features = [f'Odour{i}' for i in range(1, 7)]
@@ -349,8 +407,11 @@ class Experiment(object):
             except:
                 # must be multi class
                 precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred_test, average='weighted')
+            # precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred_test, average='weighted')
 
             c_mat = confusion_matrix(y_test, y_pred_test)
+
+            print_importance(model)
 
             self.results.append(
                 Results(model, precision, recall, f1, c_mat, y_pred_test, y_test, test_dataset_i, total_time)
@@ -394,6 +455,7 @@ class Experiment(object):
 
         # HACKS: Just reach in and get the model!
         model = self.results[0][0]
+
         for x_test, orig_file_path in to_label_dataset:
             # print(f'orig_file_path: {orig_file_path}')
             # print(f'x_test: {x_test}; len(x_test): {len(x_test)}')
@@ -405,7 +467,10 @@ class Experiment(object):
             print(f'Currently labelling: {output_file_path}')
             # Create a dataframe from x_tests original plus some extra stuff
             out_df = pd.read_csv(orig_file_path, index_col=0)
-            out_df['Interaction'] = y_pred_test
+
+            # AARONT: TEMP: Put our interaction column next to the existing one
+            # out_df['Interaction'] = y_pred_test
+            out_df['NEW_Interaction'] = y_pred_test
             out_df['Probability_Interaction'] = y_pred_test_proba
             out_df.to_csv(output_file_path)
 
@@ -415,8 +480,6 @@ class Experiment(object):
             #     y_pred_test = self.dataset.y_post_processor(orig_df, y_pred_test)
             #     # TODO: HACK: Have to use the y_func with this arg to get the correct labels.
             #     y_test = self.dataset.y_func(orig_df, expand_to_original_labels=True)[0]
-
-
 
     def explain(self):
         for res in self.results:
@@ -444,6 +507,32 @@ class Experiment(object):
 
     # TODO: define and produce the analysis stats afterwards
 
+def print_importance(model):
+    if isinstance(model, xgb.XGBClassifier):
+        for importance_type in ('weight', 'total_gain', 'total_cover'):
+            importances = model.get_booster().get_score(importance_type=importance_type)
+            features_string = '\n'.join([f'{name:<30}: {val}' for name,val in sorted(
+                importances.items(),
+                key=lambda tup: tup[1], reverse=True
+            )])
+            print(f'''
+    (xgb XGBClassifier)    importance_type: {importance_type}; 
+    feature_importances: 
+    {features_string}
+    ''')
+
+        xgb.plot_importance(model, importance_type='total_gain')
+        plt.show()
+    if isinstance(model, DTree):
+        importance_vals = model.feature_importances_
+        # importance_names = model.feature_names_in_ # Need scikit learn version 1.0
+        importance_names = non_odour_non_prob_features # HACK: The names we used at the beginning
+        features_string = '\n'.join([f'{name:<30}: {val}' for name,val in zip(importance_names, importance_vals)])
+        print(f'''
+(sklearn DecisionTree) 
+feature_importances:
+{features_string}
+''')
 
 class ResultsAggregator(object):
     pass  # TODO: Aggregate experiments and produce a report
@@ -476,7 +565,9 @@ class ExperimentExpander(object):
 
 dataset_type = FullDataset
 # dataset_type = ProtoDataset
-global_i = 0
+# global_i = 0
+# global_i = 1
+global_i = 2
 
 ## TODO: NEXT: Write a dataset that combines the Y's, uses the facing/distance to the closest thing,
 #              and/or
@@ -518,13 +609,15 @@ dataset_X_buitin_Y_separate = dataset_type(global_data_files, X_only_builtins, Y
 # xgb_params = xgb_high_recall_set
 xgb_params = dict(
     n_jobs=14,
-    # tree_method='gpu_hist',
+    tree_method='gpu_hist',
+    # tree_method='exact', # More time but enumarates all possible splits
+    importance_type='total_gain',
     #                 base_score=base_score,
     #                 scale_pos_weight='AARONT_balanced',
     scale_pos_weight='AARONT_balanced',
     # eta=0.3, # default 0.3; learning rate
     gamma=100,  # default 0.0; min_split_loss (minimum loss reduction to create a split)
-    max_depth=4,  # default is 6; Experiments showed 2 or 3 worked best
+    max_depth=2,  # default is 6; Experiments showed 2 or 3 worked best
     use_label_encoder=False,
     objective='binary:logistic',
     #                 eval_metric=eval_metric,
@@ -534,29 +627,32 @@ xgb_params = dict(
     subsample=0.5,  # sample of the rows to use, sampled once every boosting iteration
     sampling_method='gradient_based',  # allows very small subsample, as low as 0.1
     grow_policy='lossguide',
-    #                 num_parallel_tree=num_parallel_tree,
-    min_child_weight=2,
+    num_parallel_tree=10,
+    colsample_bytree=0.75, colsample_bylevel=0.75, colsample_bynode=0.75,
+    min_child_weight=1,
+    # interaction_constraints=# TODO: THIS!!
 )
 
-## Turn this on if you want to compare against the method used by Simba
-# exp = Experiment(
-#     dataset_X_buitin_Y_separate,
-#     RandomForestClassifier,
-#     dict(
-#         n_estimators=2000,
-#         criterion='entropy',  # Gini is standard, shouldn't be a huge factor
-#         min_samples_leaf=2,
-#         max_features='sqrt',
-#         max_depth=None, # max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
-#         #     ccp_alpha=0.005, # NEW PARAMETER, I NEED TO DEFINE MY EXPERIMENT SETUPS BETTER, AND STORE SOME RESULTS!!
-#         # Probably need to whip up a database again, that's the only way I have been able to navigate this in the past
-#         # Alternatively I could very carefully define my experiments, and then run them all in a batch and create a
-#         # meaningful report.  This is probably the best way to proceed.  It will lead to the most robust iteration
-#         # and progress.
-#         class_weight='balanced',  # balance weights at nodes based on class frequencies
-#     )
-# )
-# exp.run()
+# Turn this on if you want to compare against the method used by Simba
+exp = Experiment(
+    dataset_X_buitin_Y_separate,
+    # RandomForestClassifier,
+    DTree,
+    dict(
+        # n_estimators=2000,
+        criterion='entropy',  # Gini is standard, shouldn't be a huge factor
+        min_samples_leaf=2,
+        max_features='sqrt',
+        max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
+        #     ccp_alpha=0.005, # NEW PARAMETER, I NEED TO DEFINE MY EXPERIMENT SETUPS BETTER, AND STORE SOME RESULTS!!
+        # Probably need to whip up a database again, that's the only way I have been able to navigate this in the past
+        # Alternatively I could very carefully define my experiments, and then run them all in a batch and create a
+        # meaningful report.  This is probably the best way to proceed.  It will lead to the most robust iteration
+        # and progress.
+        class_weight='balanced',  # balance weights at nodes based on class frequencies
+    )
+)
+exp.run()
 
 exp = Experiment(
     dataset_X_buitin_Y_separate,
