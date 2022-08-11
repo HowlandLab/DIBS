@@ -509,6 +509,7 @@ class Experiment(object):
 
 def print_importance(model):
     if isinstance(model, xgb.XGBClassifier):
+        print(f'xgb stuff: boosting rounds: {model.get_num_boosting_rounds()};')
         for importance_type in ('weight', 'total_gain', 'total_cover'):
             importances = model.get_booster().get_score(importance_type=importance_type)
             features_string = '\n'.join([f'{name:<30}: {val}' for name,val in sorted(
@@ -521,13 +522,13 @@ def print_importance(model):
     {features_string}
     ''')
 
-        xgb.plot_importance(model, importance_type='total_gain')
+        # xgb.plot_importance(model, importance_type='total_gain')
         plt.show()
     if isinstance(model, DTree):
         importance_vals = model.feature_importances_
         # importance_names = model.feature_names_in_ # Need scikit learn version 1.0
         importance_names = non_odour_non_prob_features # HACK: The names we used at the beginning
-        features_string = '\n'.join([f'{name:<30}: {val}' for name,val in zip(importance_names, importance_vals)])
+        features_string = '\n'.join([f'{name:<30}: {val:e}' for name,val in zip(importance_names, importance_vals)])
         print(f'''
 (sklearn DecisionTree) 
 feature_importances:
@@ -565,9 +566,9 @@ class ExperimentExpander(object):
 
 dataset_type = FullDataset
 # dataset_type = ProtoDataset
-# global_i = 0
+global_i = 0
 # global_i = 1
-global_i = 2
+# global_i = 2
 
 ## TODO: NEXT: Write a dataset that combines the Y's, uses the facing/distance to the closest thing,
 #              and/or
@@ -606,19 +607,53 @@ dataset_X_buitin_Y_separate = dataset_type(global_data_files, X_only_builtins, Y
 #     grow_policy='lossguide',
 # )
 
+
+if use_raw_dlc_features:
+    # one experiment, with interaction constraints:
+    # ---- start results ----
+    # run time: 0.6402802467346191
+    # recall 0.788244766505636
+    # f1: 0.495570741584409
+    # [[2428 1730]
+    #  [ 263  979]]
+    # ---- end results ----
+    #
+    # Without interaction constraints:
+    # ---- start results ----
+    # run time: 0.693350076675415
+    # recall 0.6086956521739131  <- Almost 20% lower recall.  With constraints was overall more aggressive
+    # f1: 0.529597197898424
+    # [[3301  857]
+    #  [ 486  756]]
+    # ---- end results ----
+    interaction_constraints = defaultdict(list)
+    for s in raw_dlc_features_only:
+        parts = s.split('_')
+        # prefix = f'{parts[0]}_{parts[1]}'
+        prefix = parts[0]
+        interaction_constraints[prefix].append(raw_dlc_features_only.index(s))
+        # prefix = parts[1]
+        # interaction_constraints[prefix].append(raw_dlc_features_only.index(s))
+    print(interaction_constraints)
+    interaction_constraints = list(interaction_constraints.values())
+    print(interaction_constraints)
+else:
+    interaction_constraints = None
+
 # xgb_params = xgb_high_recall_set
 xgb_params = dict(
     n_jobs=14,
     tree_method='gpu_hist',
     # tree_method='exact', # More time but enumarates all possible splits
-    importance_type='total_gain',
     #                 base_score=base_score,
     #                 scale_pos_weight='AARONT_balanced',
     scale_pos_weight='AARONT_balanced',
     # eta=0.3, # default 0.3; learning rate
     gamma=100,  # default 0.0; min_split_loss (minimum loss reduction to create a split)
-    max_depth=2,  # default is 6; Experiments showed 2 or 3 worked best
-    use_label_encoder=False,
+    max_depth=4,  # default is 6; Experiments showed 2 or 3 worked best
+    n_estimators=300, # The number of boosting rounds; default 100?
+    # early_stopping_rounds=20, # TODO: Tune early stopping??
+    # use_label_encoder=False,
     objective='binary:logistic',
     #                 eval_metric=eval_metric,
     #                 objective=objective,
@@ -627,10 +662,11 @@ xgb_params = dict(
     subsample=0.5,  # sample of the rows to use, sampled once every boosting iteration
     sampling_method='gradient_based',  # allows very small subsample, as low as 0.1
     grow_policy='lossguide',
-    num_parallel_tree=10,
-    colsample_bytree=0.75, colsample_bylevel=0.75, colsample_bynode=0.75,
-    min_child_weight=1,
-    # interaction_constraints=# TODO: THIS!!
+    # num_parallel_tree=10,
+    # colsample_bytree=0.75, colsample_bylevel=0.75, colsample_bynode=0.75,
+    # min_child_weight=1,
+    interaction_constraints=interaction_constraints,
+    asdf='not a param', # xgb does not raise an error for an unrecognized parameter...
 )
 
 # Turn this on if you want to compare against the method used by Simba
@@ -661,7 +697,16 @@ exp = Experiment(
 )
 exp.run()
 
-output_df = exp.generate_output_df()
+# output_df = exp.generate_output_df()
+
+
+
+
+
+
+
+
+
 
 # TODO: A very large experiment and then get the marginals for each variable...
 # TODO: Hook this up to DIBS so we can grab and play the videos of a model.
