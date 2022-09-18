@@ -102,7 +102,6 @@ if filter_p:
 
 if use_raw_dlc_features:
     non_odour_non_prob_features = raw_dlc_features_only
-
 else:
     non_odour_non_prob_features = sorted(set(df.columns) - set(
         odour_features + prob_features + interaction_features + raw_dlc_features_only
@@ -355,6 +354,15 @@ def Y_post_processor_1_to_many_classes(_df, y_pred):
     nearest_obj = _df[distance_features].values.argmin(axis=1) + 1
     return nearest_obj * y_pred  # y_pred is binary
 
+def Y_post_processor_min_bought_duration(_df, y_pred, min_consecutive_preds=None):
+    """ given y_pred a vector of binary predictions, enforce a minimum number of
+    concurrent predictions """
+    assert numpy.all(y_pred == 1 | y_pred == 0), f'ERROR: y_pred must be a binary vector.  Got this instead: {y_pred}'
+    raise NotImplementedError('AARONT: Did Tim get back to us about this? Can simba apply these transforms for us??')
+    if min_consecutive_preds is None:
+        # set the default based on Tim's project
+        pass
+
 
 class Experiment(object):
     def __init__(self, dataset, model_type, model_kwargs):
@@ -385,6 +393,7 @@ class Experiment(object):
                 model_kwargs['scale_pos_weight'] = (
                             (y_train == 0).sum() / (y_train >= 1).sum())  # * 0.5 # deweighting a bit
 
+            # TODO: Replace model with a wrapped pre/post processing model!
             model = self.model_type(**model_kwargs).fit(x_train, numpy.ravel(y_train))
             y_pred_test = model.predict(x_test)
 
@@ -411,7 +420,7 @@ class Experiment(object):
 
             c_mat = confusion_matrix(y_test, y_pred_test)
 
-            print_importance(model)
+            # print_importance(model)
 
             self.results.append(
                 Results(model, precision, recall, f1, c_mat, y_pred_test, y_test, test_dataset_i, total_time)
@@ -584,7 +593,14 @@ global_i = 0
 # dataset_X_builtin_plus_distance_and_facing_Y_separate = dataset_type(
 #     global_data_files, X_builtins_and_distance_and_facing, Y_all_odours, i=global_i)
 
-dataset_X_buitin_Y_separate = dataset_type(global_data_files, X_only_builtins, Y_get_interaction, i=global_i)
+dataset_X_buitin_Y_separate = dataset_type(
+    global_data_files,
+    x_func=X_only_builtins, # extract features for building model
+    y_func=Y_get_interaction, # extract labels for training model
+    y_post_processor=None, # encode model outputs to desired downstream format.  Required when taking
+    # TODO: Use y_post_processor to add max bout duration and Klienberg filtering
+    i=global_i
+)
 
 # OKAY: Actually train the things now.
 # xgb_really_high_recall_set = dict(
