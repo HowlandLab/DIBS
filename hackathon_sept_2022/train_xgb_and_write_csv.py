@@ -160,12 +160,14 @@ class ModelWrapper(object):
             model_kwargs = self.model_kwargs.copy()
             ### HACK: We do manual sample weighting for now, XGB doesn't support
             scale_pos_weight = model_kwargs.get('scale_pos_weight')
-            if scale_pos_weight == 'AARONT_balanced':
+            if isinstance(scale_pos_weight, str) and scale_pos_weight.startswith('AARONT_balanced'):
                 assert isinstance(y, (
                     numpy.ndarray, pd.Series)), f'Expected numpy array or pandas Series, got {y} instead'
                 # HACK: We will match the sklearn interface and calculate weight balancing ourselves...
+                _, modifier = scale_pos_weight.split(':')
+                modifier = float(modifier)
                 model_kwargs['scale_pos_weight'] = (
-                        (y == 0).sum() / (y >= 1).sum())  # * 0.5 # deweighting a bit
+                        (y == 0).sum() / (y >= 1).sum()) * modifier # * 0.5 # deweighting a bit
             ### END HACKS...
             print(f'X.shape: {X.shape}; y.shape: {y.shape}')
             model = self.model_type(**model_kwargs).fit(X, y) # NOTE: Used numpy.ravel(y) before. Might be a good idea still
@@ -288,6 +290,35 @@ def build_Y_combine_odours(expand_to_original_labels=False):
 ### We would probably want to put feature engineering here kinda, but really
 ### we only want to do the feature engineering once! So a bit of redesign would
 ### be in order, but not too much.
+
+def build_feature_selection():
+    cols_to_drop = None # Memo
+    def feature_selection(X, _df):
+        nonlocal cols_to_drop
+        print(f'AARONT: Starting feature selection')
+        assert isinstance(X, list) and len(X) == 1
+        features = pd.DataFrame(X[0])
+        if cols_to_drop is None:
+            # First time this was called, better be while fitting!
+            cols_to_drop = []
+            featureCorrelationMatrix = features.corr().abs()
+            col_corr = set()
+            print(f'len(features.columns): {len(features.columns)}')
+            num_cols_dropped = 0
+            for i in range(len(featureCorrelationMatrix.columns)):
+                for j in range(i):
+                    if (featureCorrelationMatrix.iloc[i, j] >= 0.95) and (
+                            featureCorrelationMatrix.columns[j] not in col_corr):
+                        colname = featureCorrelationMatrix.columns[i]  # getting the name of column
+                        col_corr.add(colname)
+                        if colname in features.columns:
+                            num_cols_dropped += 1
+                            cols_to_drop.append(colname)
+                            # del features[colname]  # deleting the column from the dataset
+            print(f'AARONT: Dropped {num_cols_dropped} columns')
+            # AARONT: TODO!!!!!!!!!!!!!!!!! We have to save the columns that are getting dropped so we can apply later!!
+        return [features.drop(columns=cols_to_drop).values]
+    return feature_selection
 
 
 # y post processors
@@ -616,8 +647,10 @@ if __name__ == '__main__':
         non_odour_non_prob_features = raw_dlc_features_only
     else:
         non_odour_non_prob_features = sorted(set(df.columns) - set(
-            odour_features + prob_features + interaction_features + raw_dlc_features_only
+            odour_features + prob_features + interaction_features#  + raw_dlc_features_only
         ))
+        msg = '\n'.join(non_odour_non_prob_features)
+        # print(f'non_odour_non_prob_features: {msg}')
     print(len(df.columns), len(odour_features), len(prob_features))
 
     if use_raw_dlc_features:
@@ -661,7 +694,7 @@ if __name__ == '__main__':
         # tree_method='exact', # More time but enumarates all possible splits
         #                 base_score=base_score,
         #                 scale_pos_weight='AARONT_balanced',
-        scale_pos_weight='AARONT_balanced',
+        scale_pos_weight='AARONT_balanced:1.5',
         # eta=0.3, # default 0.3; learning rate
         gamma=100,  # default 0.0; min_split_loss (minimum loss reduction to create a split)
         max_depth=4,  # default is 6; Experiments showed 2 or 3 worked best
@@ -698,7 +731,9 @@ if __name__ == '__main__':
     transformer = Transformer(
         x_extractor=build_X_only_builtins(non_odour_non_prob_features),
         y_extractor=build_Y_get_interaction(),
-        x_pre_processors=[],
+        x_pre_processors=[
+            build_feature_selection()
+        ],
         y_pre_processors=[], # Example: for odours we have to combine 6 labels into 1
         y_post_processors=[
             build_Y_post_processor_min_bought_duration(min_consecutive_preds=300),
