@@ -1,0 +1,3 @@
+[submodule "hackathon_sept_2022/hackathon"]
+	path = hackathon_sept_2022/hackathon
+	url = git@github.com:HowlandLab/hackathon.git
