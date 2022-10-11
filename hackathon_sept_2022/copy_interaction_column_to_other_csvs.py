@@ -6,9 +6,16 @@ import pandas as pd
 # INSTRUCTIONS: 3 args.  <good interactions directory> <good everything else directory> <output directory>
 # The output directory must not exist before running the script, we will create the new csvs in that directory to avoid data destruction.  You may move the new csvs whereever you need them afterwards
 
+
+if len(sys.argv) != 4:
+    raise RuntimeError('Something went wrong with input arguments, if you have read the instructions (above, in the source code), then try putting quotes around the input arguments (quotes around each separately)')
+
 good_interactions_indir=sys.argv[1]
 good_everything_else_indir=sys.argv[2]
 outdir=sys.argv[3]
+
+if os.path.exists(outdir):
+    raise RuntimeError('The outdir already exists!! We will not overwrite any data!  You must give a path to a directory that does not exist that we can create!')
 
 good_everything_else_files = {os.path.basename(f):f for f in glob.glob(os.path.join(good_everything_else_indir, '*.csv'))}
 
