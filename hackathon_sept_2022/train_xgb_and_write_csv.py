@@ -3,6 +3,7 @@ import glob
 import sys
 import pandas as pd
 import numpy
+import numpy as np
 import os
 import time
 from typing import Optional
@@ -15,7 +16,7 @@ from itertools import cycle
 from fnmatch import fnmatch
 from sklearn import tree
 import xgboost as xgb
-from sklearn.tree import DecisionTreeClassifier as DTree
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 # TODO: Import xgboost-gpu and use it
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
@@ -40,7 +41,7 @@ class CrossValidator(object):
 
 class Dataset(abc.ABC):
     def __init__(self, input_files):
-        assert isinstance(input_files, list)
+        # assert isinstance(input_files, list)
         self.df, self.data_files = None, None
         self.init_data(input_files)
         assert self.df is not None and self.data_files is not None
@@ -50,14 +51,16 @@ class Dataset(abc.ABC):
         raise NotImplemented('You must override init_data')
 
     def __iter__(self):
+        """ Use iterator to allow cross validation by returning multiple datasets if desired """
         assert self.df is not None
         yield self.df
 
     def __str__(self):
-        files_str = '\n\t'.join(self.data_files)
-        paths_str = f'Data files: {files_str}'
-        return f'{self.__class__.__name__}:\n' \
-               f'Paths: {paths_str}'
+        return f'{self.__class__.__name__}:'
+        # files_str = '\n\t'.join(self.data_files)
+        # paths_str = f'Data files: {files_str}'
+        # return f'{self.__class__.__name__}:\n' \
+        #        f'Paths: {paths_str}'
 
     def key(self):
         """ For aggregating experiments and taking averages """
@@ -78,6 +81,10 @@ class FullDataset(Dataset):
         dfs = [pd.read_csv(f, index_col=0) for f in self.data_files]
         self.df = pd.concat(dfs)
 
+class FullDatasetFromSingleDf(Dataset):
+    def init_data(self, df):
+        self.data_files = 'NA' # Sorry
+        self.df = df
 
 class Transformer(object):
     """ Dataset classes will use to prepare X and y inputs,
@@ -102,6 +109,20 @@ class Transformer(object):
         # If training with binary Interaction label, we need to transform the final output to be 6 labels.
         # This will require the RoI data.
         self.y_final_post_processor = y_final_post_processor
+
+    def __str__(self):
+        result_str = ''
+        if self.x_extractor:
+            result_str += '\n\tx_extractor: ' + self.x_extractor.__name__
+        if self.y_extractor:
+            result_str += '\n\ty_extractor: ' + self.y_extractor.__name__
+        if self.x_pre_processors:
+            result_str += '\n\tx_pre_processors: ' + ' -> '.join([f.__name__ for f in self.x_pre_processors])
+        if self.y_pre_processors:
+            result_str += '\n\ty_pre_processors: ' + ' -> '.join([f.__name__ for f in self.y_pre_processors])
+        if self.y_post_processors:
+            result_str += '\n\ty_post_processors: ' + ' -> '.join([f.__name__ for f in self.y_post_processors])
+        return result_str
 
     def forward(self, df, x_only=False, y_only=False):
         X = self.x_extractor(df)
@@ -152,6 +173,13 @@ class ModelWrapper(object):
         self.transformer = transformer
         self._trained_models = None
 
+    def __str__(self):
+        return f"""
+        Model type: {self.model_type}
+        Model kwargs: {self.model_kwargs}
+        Transformer: {self.transformer}
+        """
+
     def fit(self, df):
         assert isinstance(df, pd.DataFrame)
         assert self._trained_models is None
@@ -169,7 +197,6 @@ class ModelWrapper(object):
                 model_kwargs['scale_pos_weight'] = (
                         (y == 0).sum() / (y >= 1).sum()) * modifier # * 0.5 # deweighting a bit
             ### END HACKS...
-            print(f'X.shape: {X.shape}; y.shape: {y.shape}')
             model = self.model_type(**model_kwargs).fit(X, y) # NOTE: Used numpy.ravel(y) before. Might be a good idea still
             self._trained_models.append(model)
         return self # just for interface compatibility
@@ -184,13 +211,19 @@ class ModelWrapper(object):
         y_probs = []
         for X, model in zip(Xs, self._trained_models):
             # y should be
-            y_pred = model.predict(X)
-            y_prob = model.predict_proba(X)
+            with_cv = False
+            if not with_cv:
+                y_pred = model.predict(X)
+                y_prob = model.predict_proba(X)
+            else:
+                from sklearn.model_selection import cross_val_predict
+                Ys = [tup for tup in self.transformer.forward(df, y_only=True)]
+                y_true = Ys[0] # HACK: Single dataset
+                y_pred = cross_val_predict(model, X, y_true)
+                y_prob = cross_val_predict(model, X, y_true, method='predict_proba')
             assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
             y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
             y_pred, y_prob = self.transformer.backward(y_pred, y_prob, df)
-            print(f'y_pred: {type(y_pred)}; {y_pred}')
-            print(f'y_prob: {type(y_prob)}; {y_prob}')
             y_preds.append(y_pred)
             y_probs.append(y_prob)
         return y_preds[0], y_probs[0]
@@ -294,6 +327,7 @@ def build_Y_combine_odours(expand_to_original_labels=False):
 def build_feature_selection():
     cols_to_drop = None # Memo
     def feature_selection(X, _df):
+        """ NOTE: Time intensive and no benefit for XGB! """
         nonlocal cols_to_drop
         print(f'AARONT: Starting feature selection')
         assert isinstance(X, list) and len(X) == 1
@@ -316,39 +350,118 @@ def build_feature_selection():
                             cols_to_drop.append(colname)
                             # del features[colname]  # deleting the column from the dataset
             print(f'AARONT: Dropped {num_cols_dropped} columns')
-            # AARONT: TODO!!!!!!!!!!!!!!!!! We have to save the columns that are getting dropped so we can apply later!!
         return [features.drop(columns=cols_to_drop).values]
     return feature_selection
 
 
 # y post processors
 def build_Y_post_processor_1_to_many_classes(distance_features):
+    """ Odour or object distances are passed in """
     def Y_post_processor_1_to_many_classes(y_pred, _y_prob, df):
         """ given y_pred with binary values, assign a class to each based on the closest object """
-        # TODO: The thing
-
-        # Indexes will come back in [0, n_obj] (inclusive range math notation)
-        # So we +1 to assign the correct y label and
-        ### TODO: I think Tim said Simba has something internally for doing this already???
         nearest_obj = df[distance_features].values.argmin(axis=1) + 1
         return nearest_obj * y_pred  # y_pred is binary
     return Y_post_processor_1_to_many_classes
 
 def build_Y_post_processor_klienberg_filtering():
-    def Y_post_processor_klienberg_filtering(y_pred, y_prob, _df):
-        print('AARONT: In Klienberg filtering func, you may proceed to implement')
-        return y_pred, y_prob
+    def Y_post_processor_klienberg_filtering(y_pred, _y_prob, df):
+        # AARONT: TODO: Had 'math domain error downstream here, would have to fix that!  Turning off'
+        from simba.Kleinberg_burst_analysis import kleinberg
+        # kleinberg filtering setup args etc
+        classifierName = 'Interaction'
+        logs_path = 'logs_path'
+        hierarchy = 1
+        assert len(df) == len(y_pred)
+        currDf = df[y_pred == 1]
+        offsets = list(currDf.index.values)
+        # split into offsets by video
+
+        # kleinberg apply algorithm
+        print(f'offsets: {offsets}')
+        print(f'df cols: {df.columns}')
+        # AARONT: TODO: I think the math domain error is due to the offsets calculation, they need to have some spacing
+        #               or something like that and are not getting the spacing they need!
+        kleinbergBouts = kleinberg(offsets, s=2.0, gamma=0.3) # TODO: Params?
+        print(f'AARONT: k-filtering bouts: {kleinbergBouts}')
+        kleinbergDf = pd.DataFrame(kleinbergBouts, columns=['Hierarchy', 'Start', 'Stop'])
+        kleinbergDf['Stop'] += 1
+        file_name = 'Kleinberg_log_' + classifierName + '.csv'
+        logs_file_name = os.path.join(logs_path, file_name)
+        kleinbergDf.to_csv(logs_file_name)
+        kleinbergDf_2 = kleinbergDf[kleinbergDf['Hierarchy'] == hierarchy].reset_index(drop=True)
+        df[classifierName] = 0
+        for index, row in kleinbergDf_2.iterrows():
+            rangeList = list(range(row['Start'], row['Stop']))
+            for frame in rangeList:
+                df.at[frame, classifierName] = 1
+        y_pred = df[classifierName].values
+        return y_pred, _y_prob
     return Y_post_processor_klienberg_filtering
 
-def build_Y_post_processor_min_bought_duration(min_consecutive_preds):
-    def Y_post_processor_min_bought_duration(y_pred, _y_prob, _df):
+
+def FROM_SIMBA_plug_holes_shortest_bout(y_pred, min_bout_duration): #, fps=None, shortest_bout=None):
+    """
+    First, find all patterns like `1 0 0 0 ... 0 0 0 1` where the number of frames that are zeros is
+    less than or equal to min_bout_duration and fill them with 1's.
+    Then find all patterns like `0 1 1 1 ... 1 1 1 0` with the same length specification, and fill those
+    with 0's.
+    """
+    col_name = 'y_pred_col'
+    data_df = pd.DataFrame(y_pred, columns=[col_name])
+    # frames_to_plug = int(int(fps) * int(shortest_bout) / 1000)
+    frames_to_plug_lst = list(range(1, min_bout_duration + 1))
+    frames_to_plug_lst.reverse()
+    patternListofLists, negPatternListofList = [], []
+    for k in frames_to_plug_lst:
+        zerosInList, oneInlist = [0] * k, [1] * k
+        currList = [1]
+        currList.extend(zerosInList)
+        currList.extend([1])
+        currListNeg = [0]
+        currListNeg.extend(oneInlist)
+        currListNeg.extend([0])
+        patternListofLists.append(currList)
+        negPatternListofList.append(currListNeg)
+    fill_patterns = np.asarray(patternListofLists)
+    remove_patterns = np.asarray(negPatternListofList)
+
+    for currPattern in fill_patterns:
+        n_obs = len(currPattern)
+        data_df['rolling_match'] = (data_df[col_name].rolling(window=n_obs, min_periods=n_obs)
+                                    .apply(lambda x: (x == currPattern).all(), raw=True)
+                                    .mask(lambda x: x == 0)
+                                    .bfill(limit=n_obs - 1)
+                                    .fillna(0)
+                                    .astype(bool)
+                                    )
+        data_df.loc[data_df['rolling_match'] == True, col_name] = 1
+        data_df = data_df.drop(['rolling_match'], axis=1)
+
+    for currPattern in remove_patterns:
+        n_obs = len(currPattern)
+        data_df['rolling_match'] = (data_df[col_name].rolling(window=n_obs, min_periods=n_obs)
+                                    .apply(lambda x: (x == currPattern).all(), raw=True)
+                                    .mask(lambda x: x == 0)
+                                    .bfill(limit=n_obs - 1)
+                                    .fillna(0)
+                                    .astype(bool)
+                                    )
+        data_df.loc[data_df['rolling_match'] == True, col_name] = 0
+        data_df = data_df.drop(['rolling_match'], axis=1)
+
+    return data_df[col_name]
+
+
+def build_Y_post_processor_min_bought_duration(min_bout_duration):
+    def Y_post_processor_min_bought_duration(y_pred: np.ndarray, _y_prob, _df):
         """ given y_pred a vector of binary predictions, enforce a minimum number of
         concurrent predictions """
         assert numpy.all((y_pred == 1) | (y_pred == 0)), f'ERROR: y_pred must be a binary vector.  Got this instead: {y_pred}'
-        assert min_consecutive_preds is not None
+        assert isinstance(min_bout_duration, int)
 
-
-        print('AARONT: In min_bought duration and it looks good, you may implement now')
+        # print(f'y_pred BEFORE min_bought: (sum is {numpy.sum(y_pred)}; {y_pred}')
+        y_pred = FROM_SIMBA_plug_holes_shortest_bout(y_pred, min_bout_duration)
+        # print(f'y_pred AFTER min_bought: (sum is {numpy.sum(y_pred)}; {y_pred}')
         return y_pred, _y_prob
     return Y_post_processor_min_bought_duration
 
@@ -369,7 +482,7 @@ def print_importance(model):
 
         # xgb.plot_importance(model, importance_type='total_gain')
         plt.show()
-    if isinstance(model, DTree):
+    if isinstance(model, (DecisionTreeClassifier, RandomForestClassifier)):
         importance_vals = model.feature_importances_
         # importance_names = model.feature_names_in_ # Need scikit learn version 1.0
         importance_names = non_odour_non_prob_features # HACK: The names we used at the beginning
@@ -501,9 +614,10 @@ class Experiment(object):
             # print(f'orig_file_path: {orig_file_path}')
             y_pred_test, y_pred_test_proba = self.model_wrapper.predict(df)
 
-            print(f'WARNING::: y_pred_test_proba BEFORE this mysterious line: {y_pred_test_proba}')
-            y_pred_test_proba = y_pred_test_proba[:, 1]
-            print(f'WARNING::: y_pred_test_proba AFTER this mysterious line: {y_pred_test_proba}')
+            # print(f'WARNING::: y_pred_test_proba BEFORE this mysterious line: {y_pred_test_proba}')
+            # # LOL, Had errors so lets skip this
+            # y_pred_test_proba = y_pred_test_proba[:, 1]
+            # print(f'WARNING::: y_pred_test_proba AFTER this mysterious line: {y_pred_test_proba}')
 
             base_file_name = os.path.basename(orig_file_path)
             output_file_path = os.path.join(output_path, base_file_name)
@@ -513,11 +627,15 @@ class Experiment(object):
 
             # AARONT: TEMP: Put our interaction column next to the existing one
             if 'Interaction' in out_df.columns:
-                raise RuntimeError('SUGGESTION: You may want to save the existing interactions to make the data easier to analyze')
-            out_df['Interaction'] = y_pred_test
-            # out_df['NEW_Interaction'] = y_pred_test
-            out_df['Probability_Interaction'] = y_pred_test_proba
+                print('WARNING:::::::::::::::::: The data to label already has interactions so we are going to add our own column next to it to make analysis easier!!')
+                out_df['NEW_Interaction'] = y_pred_test
+                out_df['NEW_Probability_Interaction'] = y_pred_test_proba
+                #raise RuntimeError('SUGGESTION: You may want to save the existing interactions to make the data easier to analyze')
+            else:
+                out_df['Interaction'] = y_pred_test
+                out_df['Probability_Interaction'] = y_pred_test_proba
             out_df.to_csv(output_file_path)
+            # AARONT: TODO: Run kleinburg filtering here
 
     def generate_classification_report(self, out_path):
         from yellowbrick.classifier import ClassificationReport
@@ -555,31 +673,36 @@ class Experiment(object):
 
 if __name__ == '__main__':
     args = sys.argv
-    print('Recieved args:', args)
-    try:
-        training_input_path = args[1]
-    except:
-        training_input_path = ''
-    if not os.path.isdir(training_input_path):
-        raise RuntimeError(
-            f'Expected first argument to be an input path pull of csvs to glob!!!'
-            fr'Example: C:\Users\toddy\Documents\workspace\HowlandProjects\Final Object\targets_inserted'
-            f'Recieved this instead: {training_input_path}')
-    # TODO: Check all the training input csvs have the targets inserted!
+    # print('Recieved args:', args)
+    if len(args) > 1:
+        try:
+            training_input_path = args[1]
+        except:
+            training_input_path = ''
+        if not os.path.isdir(training_input_path):
+            raise RuntimeError(
+                f'Expected first argument to be an input path pull of csvs to glob!!!'
+                fr'Example: C:\Users\toddy\Documents\workspace\HowlandProjects\Final Object\targets_inserted'
+                f'Recieved this instead: {training_input_path}')
+        # TODO: Check all the training input csvs have the targets inserted!
 
-    to_label_input_path = args[2]
-    if not os.path.isdir(to_label_input_path):
-        raise RuntimeError(f'Expected the second argument to be a path to files that do not yet have targets inserted!')
+    if len(args) > 2:
+        to_label_input_path = args[2]
+        if not os.path.isdir(to_label_input_path):
+            raise RuntimeError(f'Expected the second argument to be a path to files that do not yet have targets inserted! (Can often be the same as first argument if there is no holdout set!)')
 
-    output_path = args[3]
-    if os.path.isdir(output_path):
-        raise RuntimeError(f'Expected the third argument to be an output path that does not exist yet! '
-                           f'WARNING: The output path alread exists!  I do not want to clober your data!!'
-                           f' Put it in an empty dir!!!.  output_path: {output_path}')
-    os.makedirs(output_path)
+        output_path = args[3]
+        if os.path.isdir(output_path):
+            raise RuntimeError(f'Expected the third argument to be an output path that does not exist yet! '
+                               f'WARNING: The output path alread exists!  I do not want to clober your data!!'
+                               f' Put it in an empty dir!!!.  output_path: {output_path}')
+        os.makedirs(output_path)
+    else:
+        to_label_input_path = None
+        output_path = None
 
     global_data_files = glob.glob(os.path.join(training_input_path, '*.csv'))
-    print(f'global_data_files: {global_data_files}')
+    # print(f'global_data_files: {global_data_files}')
     df = pd.read_csv(global_data_files[0], index_col=0)
 
     ## AARONT: TODO: Odour was removed! Only use the interaction column now!
@@ -587,7 +710,6 @@ if __name__ == '__main__':
     # distance_features = [f'{y_feature}_Animal_1_distance' for y_feature in global_y_features]
     # facing_features = [f'{y_feature}_Animal_1_facing' for y_feature in global_y_features]
 
-    to_label_files = glob.glob(os.path.join(to_label_input_path, '*.csv'))
 
     odour_features = [
         f for f in df.columns
@@ -638,7 +760,7 @@ if __name__ == '__main__':
         "Tail_end_p",
     ]
 
-    filter_p = use_raw_dlc_features = False
+    filter_p = use_raw_dlc_features = True
 
     if filter_p:
         raw_dlc_features_only = [s for s in raw_dlc_features_only if '_p' not in s]
@@ -647,11 +769,10 @@ if __name__ == '__main__':
         non_odour_non_prob_features = raw_dlc_features_only
     else:
         non_odour_non_prob_features = sorted(set(df.columns) - set(
-            odour_features + prob_features + interaction_features#  + raw_dlc_features_only
+            odour_features + prob_features + interaction_features + raw_dlc_features_only
         ))
         msg = '\n'.join(non_odour_non_prob_features)
         # print(f'non_odour_non_prob_features: {msg}')
-    print(len(df.columns), len(odour_features), len(prob_features))
 
     if use_raw_dlc_features:
         ######## TODO: Create an extra xgb wrapper that does the constraints!
@@ -694,9 +815,9 @@ if __name__ == '__main__':
         # tree_method='exact', # More time but enumarates all possible splits
         #                 base_score=base_score,
         #                 scale_pos_weight='AARONT_balanced',
-        scale_pos_weight='AARONT_balanced:1.5',
+        scale_pos_weight='AARONT_balanced:1.0',
         # eta=0.3, # default 0.3; learning rate
-        gamma=100,  # default 0.0; min_split_loss (minimum loss reduction to create a split)
+        # gamma=100,  # default 0.0; min_split_loss (minimum loss reduction to create a split)
         max_depth=4,  # default is 6; Experiments showed 2 or 3 worked best
         n_estimators=300, # The number of boosting rounds; default 100?
         # early_stopping_rounds=20, # TODO: Tune early stopping??
@@ -709,8 +830,8 @@ if __name__ == '__main__':
         subsample=0.5,  # sample of the rows to use, sampled once every boosting iteration
         sampling_method='gradient_based',  # allows very small subsample, as low as 0.1
         grow_policy='lossguide',
-        # num_parallel_tree=10,
-        # colsample_bytree=0.75, colsample_bylevel=0.75, colsample_bynode=0.75,
+        num_parallel_tree=10,
+        colsample_bytree=0.75, colsample_bylevel=0.75, colsample_bynode=0.75,
         # min_child_weight=1,
         interaction_constraints=interaction_constraints,
         asdf='not a param', # xgb does not raise an error for an unrecognized parameter...
@@ -720,11 +841,25 @@ if __name__ == '__main__':
     dataset_type = FullDataset
     # dataset_type = ProtoDataset
 
-    test_dataset_i = 0
+    test_dataset_i = 5
     train_files = [x for x in global_data_files]
-    del train_files[test_dataset_i]
-    train_dataset = dataset_type(train_files)
-    test_dataset = dataset_type([global_data_files[test_dataset_i]])
+
+    split_by_video = True
+    with_stratification = False
+    if split_by_video:
+        del train_files[test_dataset_i]
+        train_dataset = dataset_type(train_files)
+        test_dataset = dataset_type([global_data_files[test_dataset_i]])
+    else:
+        temp_dataset = dataset_type(train_files)
+        temp_df = next(x for x in temp_dataset)
+        from sklearn.model_selection import train_test_split
+        temp_df_train, temp_df_test = train_test_split(
+            temp_df, test_size=0.20, random_state=42, # shuffle=False,
+            stratify=temp_df['Interaction'].values if with_stratification else None)
+        train_dataset = FullDatasetFromSingleDf(temp_df_train)
+        test_dataset = FullDatasetFromSingleDf(temp_df_test)
+        # by frame
 
     # def __init__(self, *, x_extractor, y_extractor, x_pre_processors, y_pre_processors, y_post_processors,
     #              y_final_post_processor=None):
@@ -732,12 +867,13 @@ if __name__ == '__main__':
         x_extractor=build_X_only_builtins(non_odour_non_prob_features),
         y_extractor=build_Y_get_interaction(),
         x_pre_processors=[
-            build_feature_selection()
+            # build_feature_selection()
         ],
         y_pre_processors=[], # Example: for odours we have to combine 6 labels into 1
         y_post_processors=[
-            build_Y_post_processor_min_bought_duration(min_consecutive_preds=300),
-            build_Y_post_processor_klienberg_filtering()
+            # build_Y_post_processor_min_bought_duration(min_bout_duration=10),
+            # AARONT: TODO: Had 'math domain error downstream here, would have to fix that!  Turning off'
+            # build_Y_post_processor_klienberg_filtering()
         ],
         y_final_post_processor=None
     )
@@ -749,19 +885,25 @@ if __name__ == '__main__':
         # RandomForestClassifier,
         model_wrapper=ModelWrapper(
             transformer=transformer,
-            model_type = DTree,
+            # model_type=DecisionTreeClassifier,
+            model_type=RandomForestClassifier,
             model_kwargs=dict(
-                # n_estimators=2000,
+                # n_estimators=1000,
+                n_estimators=200,
+                bootstrap=True,
+                verbose=1,
+                n_jobs=-1,
                 criterion='entropy',  # Gini is standard, shouldn't be a huge factor
                 min_samples_leaf=2,
                 max_features='sqrt',
-                max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
+                # max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
+                random_state=42,
                 #     ccp_alpha=0.005, # NEW PARAMETER, I NEED TO DEFINE MY EXPERIMENT SETUPS BETTER, AND STORE SOME RESULTS!!
                 # Probably need to whip up a database again, that's the only way I have been able to navigate this in the past
                 # Alternatively I could very carefully define my experiments, and then run them all in a batch and create a
                 # meaningful report.  This is probably the best way to proceed.  It will lead to the most robust iteration
                 # and progress.
-                class_weight='balanced',  # balance weights at nodes based on class frequencies
+                # class_weight='balanced',  # balance weights at nodes based on class frequencies
             )
         )
     )
@@ -780,9 +922,10 @@ if __name__ == '__main__':
     exp.run()
     exp.generate_classification_report('XGB_classification_report.pdf')
 
-
+    if to_label_input_path and output_path:
+        to_label_files = glob.glob(os.path.join(to_label_input_path, '*.csv'))
+        output_df = exp.generate_output_df(to_label_files, output_path)
     raise RuntimeError('CONGRATS!! You made it to the end of the script and MIGHT want to start labeling the output!!')
-    # output_df = exp.generate_output_df()
 
 
 
@@ -860,7 +1003,7 @@ if __name__ == '__main__':
     #             # COULD have more permutations here
     #         ],
     #         # COULD have more model types here
-    #         DTree: [
+    #         DecisionTreeClassifier: [
     #             dict(
     #                 criterion='entropy',  # Gini is standard, shouldn't be a huge factor
     #                 min_samples_leaf=2,
