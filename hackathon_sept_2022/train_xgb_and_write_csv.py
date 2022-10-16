@@ -42,18 +42,19 @@ class CrossValidator(object):
 class Dataset(abc.ABC):
     def __init__(self, input_files):
         # assert isinstance(input_files, list)
-        self.df, self.data_files = None, None
+        self.df, self.data_files, self.cv_indexes = None, None, None
         self.init_data(input_files)
-        assert self.df is not None and self.data_files is not None
+        assert self.df is not None and self.data_files is not None and self.cv_indexes is not None
 
     @abc.abstractmethod
     def init_data(self, input_files):
         raise NotImplemented('You must override init_data')
 
-    def __iter__(self):
-        """ Use iterator to allow cross validation by returning multiple datasets if desired """
-        assert self.df is not None
-        yield self.df
+    def get_dataframe(self):
+        return self.df
+
+    def get_cv_indexes(self):
+        return self.cv_indexes
 
     def __str__(self):
         return f'{self.__class__.__name__}:'
@@ -68,17 +69,40 @@ class Dataset(abc.ABC):
             ('data_files', self.data_files),
         })
 
+    def init_cv_indexes(self, dfs):
+        # Record CV indexes
+        per_video_cv_indexes = []
+        start = 0
+        for df in dfs:
+            end = start + len(df)
+            per_video_cv_indexes.append(numpy.array(range(start, end)))
+            start = end
+
+        self.cv_indexes = []
+        from itertools import chain
+        for i in range(len(per_video_cv_indexes)):
+            train_idxs = list(chain.from_iterable([idxs for m, idxs in enumerate(per_video_cv_indexes) if m != i]))
+            test_idxs = per_video_cv_indexes[i]
+            self.cv_indexes.append( (train_idxs, test_idxs) )
+        nums = [len(train) + len(test) for (train, test) in self.cv_indexes]
+        import functools
+        num = functools.reduce(lambda x,y: x+y, nums, 0)
+        print(f'AARONT: Number of integers we created...: {num}; Number of cv splits: {len(self.cv_indexes)}')
+
 
 class ProtoDataset(Dataset):
     def init_data(self, input_files):
-        self.data_files = [input_files[0]]
-        self.df = pd.read_csv(self.data_files[0], index_col=0)
+        self.data_files = [input_files[0], input_files[1]]
+        dfs = [pd.read_csv(f, index_col=0) for f in self.data_files]
+        self.init_cv_indexes(dfs)
+        self.df = pd.concat(dfs)
 
 
 class FullDataset(Dataset):
     def init_data(self, input_files):
         self.data_files = input_files
         dfs = [pd.read_csv(f, index_col=0) for f in self.data_files]
+        self.init_cv_indexes(dfs)
         self.df = pd.concat(dfs)
 
 class FullDatasetFromSingleDf(Dataset):
@@ -126,21 +150,24 @@ class Transformer(object):
 
     def forward(self, df, x_only=False, y_only=False):
         X = self.x_extractor(df)
+        assert isinstance(X, (np.ndarray, pd.DataFrame)), f'x_extractor {self.x_extractor.__name__} failed; returned: {X}'
         y = self.y_extractor(df)
-        assert isinstance(X, list) and len(X) == 1 and isinstance(y, list) and len(y) == 1
+        assert isinstance(y, (np.ndarray, pd.DataFrame)), f'y_extractor {self.y_extractor.__name__} failed; returned: {y}'
         for x_pre in self.x_pre_processors:
             X = x_pre(X, df)
+            assert isinstance(X, (np.ndarray, pd.DataFrame)), f'x_pre {x_pre.__name__} failed; returned: {X}'
         for y_pre in self.y_pre_processors:
             y = y_pre(y, df)
+            assert isinstance(y, (np.ndarray, pd.DataFrame)), f'y_pre {y_pre.__name__} failed; returned: {y}'
         # NOTE FOR LATER: If you want to use RoI data to do separately later
         #                 you will have to change some stuff here
         assert not (x_only and y_only), 'Can only specify one of the only args lol'
         if x_only:
-            yield X[0]
+            return X
         elif y_only:
-            yield y[0]
+            return y
         else:
-            yield X[0], y[0]
+            return X, y
 
     def backward(self, y_pred, y_prob, df, with_final=False):
         """ y_pred and y_prob should be returned as 1-dim numpy arrays that can be used for analysis
@@ -171,7 +198,7 @@ class ModelWrapper(object):
         self.model_type = model_type
         self.model_kwargs = model_kwargs
         self.transformer = transformer
-        self._trained_models = None
+        self._trained_model = None
 
     def __str__(self):
         return f"""
@@ -180,69 +207,104 @@ class ModelWrapper(object):
         Transformer: {self.transformer}
         """
 
-    def fit(self, df):
+    def fit(self, dataset):
+        df = dataset.get_dataframe() # For non-CV just get the dataframe
         assert isinstance(df, pd.DataFrame)
-        assert self._trained_models is None
-        self._trained_models = []
-        for X, y in self.transformer.forward(df):
-            model_kwargs = self.model_kwargs.copy()
-            ### HACK: We do manual sample weighting for now, XGB doesn't support
-            scale_pos_weight = model_kwargs.get('scale_pos_weight')
-            if isinstance(scale_pos_weight, str) and scale_pos_weight.startswith('AARONT_balanced'):
-                assert isinstance(y, (
-                    numpy.ndarray, pd.Series)), f'Expected numpy array or pandas Series, got {y} instead'
-                # HACK: We will match the sklearn interface and calculate weight balancing ourselves...
-                _, modifier = scale_pos_weight.split(':')
-                modifier = float(modifier)
-                model_kwargs['scale_pos_weight'] = (
-                        (y == 0).sum() / (y >= 1).sum()) * modifier # * 0.5 # deweighting a bit
-            ### END HACKS...
-            model = self.model_type(**model_kwargs).fit(X, y) # NOTE: Used numpy.ravel(y) before. Might be a good idea still
-            self._trained_models.append(model)
+        assert self._trained_model is None
+
+        X, y = self.transformer.forward(df)
+        model_kwargs = self.model_kwargs.copy()
+        self._trained_model = self.model_type(**model_kwargs).fit(X, y) # NOTE: Used numpy.ravel(y) before. Might be a good idea still
         return self # just for interface compatibility
 
     def predict(self, df):
         """ You will always get back predictions and probabilities. Deal with it. """
-        assert self._trained_models, 'Need to call fit on this ModelWrapper first'
-        Xs = [tup for tup in self.transformer.forward(df, x_only=True)]
-        assert len(self._trained_models) == len(Xs)
-        assert len(Xs) == 1, 'NOTE: Multi label modelling not implemented'
-        y_preds = []
-        y_probs = []
-        for X, model in zip(Xs, self._trained_models):
-            # y should be
-            with_cv = False
-            if not with_cv:
-                y_pred = model.predict(X)
-                y_prob = model.predict_proba(X)
-            else:
-                from sklearn.model_selection import cross_val_predict
-                Ys = [tup for tup in self.transformer.forward(df, y_only=True)]
-                y_true = Ys[0] # HACK: Single dataset
-                y_pred = cross_val_predict(model, X, y_true)
-                y_prob = cross_val_predict(model, X, y_true, method='predict_proba')
-            assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
-            y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
-            y_pred, y_prob = self.transformer.backward(y_pred, y_prob, df)
-            y_preds.append(y_pred)
-            y_probs.append(y_prob)
-        return y_preds[0], y_probs[0]
+        assert self._trained_model, 'Need to call fit on this ModelWrapper first'
+        X = self.transformer.forward(df, x_only=True)
+
+        y_pred = self._trained_model.predict(X)
+        y_prob = self._trained_model.predict_proba(X)
+
+        assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
+        y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
+        y_pred, y_prob = self.transformer.backward(y_pred, y_prob, df)
+        return y_pred, y_prob
 
     def extract_X(self, df):
-        """ We need the y_test data to """
-        assert self._trained_models, 'Need to call fit on this ModelWrapper first'
-        xs = [tup for tup in self.transformer.forward(df, x_only=True)]
-        assert len(self._trained_models) == len(xs)
-        assert len(xs) == 1, 'NOTE: Multi label modelling not implemented'
-        return xs[0]
+        """ We need the X data """
+        X = self.transformer.forward(df, x_only=True)
+        return X
 
     def extract_y_test(self, df):
         """ We need the y_test data to """
-        assert self._trained_models, 'Need to call fit on this ModelWrapper first'
-        ys = [tup for tup in self.transformer.forward(df, y_only=True)]
-        assert len(self._trained_models) == len(ys)
-        assert len(ys) == 1, 'NOTE: Multi label modelling not implemented'
-        return ys[0]
+        y = self.transformer.forward(df, y_only=True)
+        return y
+
+
+class XgbCvModelWrapper(ModelWrapper):
+    """ Uses a model_type and kwargs to create a template for models.
+    Then uses a Transformer to do pre/post processing.
+    And all methods accept preloaded dataframes, just plain from disk dataframes."""
+    def __init__(self, *, model_type, model_kwargs, transformer: Transformer):
+        # NOTE: If you want to do any extra special model specific things like specify constraints
+        #       you should do that as an additional wrapper around your base model
+        assert model_type is None, 'HACK: When using the xgb interface it does not make sense to store a model_type'
+        self.model_type = model_type
+        self.model_kwargs = model_kwargs
+        self.transformer = transformer
+        self._trained_model = None
+
+    def __str__(self):
+        return f"""
+        Model type: {self.model_type}
+        Model kwargs: {self.model_kwargs}
+        Transformer: {self.transformer}
+        """
+
+    def fit(self, dataset):
+        cv_indexes = dataset.get_cv_indexes()
+        df = dataset.get_dataframe()
+        assert isinstance(df, pd.DataFrame)
+        assert self._trained_model is None
+
+        print('AARONT: Training model... (remove this line if everything works)')
+        X, y = self.transformer.forward(df)
+        mat_X = xgb.DMatrix(X, label=y)
+        model_kwargs = self.model_kwargs.copy()
+
+        def fpreproc(dtrain, dtest, params):
+            label = dtrain.get_label()
+            ratio = float(np.sum(label == 0)) / np.sum(label == 1)
+            params['scale_pos_weight'] = ratio
+            return (dtrain, dtest, params)
+
+        (_, _, model_kwargs) = fpreproc(mat_X, None, model_kwargs)
+
+        self._trained_model = xgb.XGBClassifier(**model_kwargs).fit(X, y)  # Fit model for later use?
+
+        xgb.cv(model_kwargs, mat_X, shuffle=False, show_stdv=True,
+               fpreproc=fpreproc, folds=cv_indexes, nfold=len(cv_indexes), seed=42
+               )
+               # callbacks=[xgb.callback.EvaluationMonitor(show_std=True)])
+               # stratified = False, # Hmm, undersampling????
+               # verbose_eval = False,
+               # metrics=, # Monitor more metrics
+               # early_stopping_rounds=) # Go faster
+        return self # just for interface compatibility
+
+    def predict(self, df):
+        """ You will always get back predictions and probabilities. Deal with it. """
+        assert self._trained_model, 'Need to call fit on this ModelWrapper first'
+        X = self.transformer.forward(df, x_only=True)
+        # mat_X = xgb.DMatrix(X)
+
+        y_pred = self._trained_model.predict(X)
+        y_prob = self._trained_model.predict_proba(X)
+
+        assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
+        y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
+        y_pred, y_prob = self.transformer.backward(y_pred, y_prob, df)
+        return y_pred, y_prob
 
 
 # y extractors
@@ -257,23 +319,26 @@ def build_Y_get_interaction(col='Interaction'):
     def Y_get_interaction(df: pd.DataFrame):
         ys = df[col]
         ys = ys.fillna(value=0.0)
-        return [ys]
+        return ys.values
     return Y_get_interaction
 
 
 # x extractors
 def build_X_only_builtins(non_odour_non_prob_features):
     def X_only_builtins(df):
-        return [df[non_odour_non_prob_features]]
+        return df[non_odour_non_prob_features]
     return X_only_builtins
 
 def build_X_pre_animal_distanc_only(distance_features):
     def X_pre_animal_distance_only(df):
+        raise NotImplementedError('AARONT: This is no longer a working implementation')
         return [df[x_feature] for x_feature in distance_features]
     return X_pre_animal_distance_only
 
 def build_X_buildins_and_distance(distance_features):
     def X_builtins_and_distance(df):
+        raise NotImplementedError('AARONT: This is also not a working implementation any longer')
+        # Probably can just put all the distance features in the thing... should be fine?  IDK
         return [df[non_odour_non_prob_features + [x_feature]] for x_feature in distance_features]
     return X_builtins_and_distance
 
@@ -282,7 +347,7 @@ def build_X_builtings_and_distance_combined(distance_features):
         min_dists = df[distance_features].min(axis=1)
         new_df = df.copy()
         new_df['min_distance_to_any_object'] = min_dists
-        return [new_df[non_odour_non_prob_features + ['min_distance_to_any_object']]]
+        return new_df[non_odour_non_prob_features + ['min_distance_to_any_object']]
     return X_builtins_and_distance_combined
 
 def build_X_builtins_and_distance_and_facing(distance_features, facing_features):
@@ -512,12 +577,12 @@ class ExperimentExpander(object):
         self.exps = [
             Experiment(
                 train_dataset=train_dataset,
-                test_dataset=test_dataset,
+                holdout_dataset=holdout_dataset,
                 model_wrapper=ModelWrapper(
                     model_type=model_type, model_kwargs=model_kwargs,
                     transformer=transformer)
             )
-            for (train_dataset, test_dataset, transformer) in datasets_and_transformers
+            for (train_dataset, holdout_dataset, transformer) in datasets_and_transformers
             for model_type in model_type_to_arg_dicts_dict
             for model_kwargs in model_type_to_arg_dicts_dict[model_type]
             if dict_or_raise(model_kwargs)
@@ -529,9 +594,9 @@ class ExperimentExpander(object):
             exp.run()
 
 class Experiment(object):
-    def __init__(self, *, train_dataset, test_dataset, model_wrapper: ModelWrapper):
+    def __init__(self, *, train_dataset, holdout_dataset, model_wrapper: ModelWrapper):
         self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
+        self.holdout_dataset = holdout_dataset
         self.model_wrapper = model_wrapper
         self.started_running = False
         self.finished_running = False
@@ -547,10 +612,10 @@ class Experiment(object):
         #                  done to enable this in the future
         start = time.time()
 
-        df_train = next(x for x in self.train_dataset)
-        df_test = next(x for x in self.test_dataset)
-        model = self.model_wrapper.fit(df_train)
+        model = self.model_wrapper.fit(self.train_dataset) # Pass the dataset so CV has access to indexes
 
+        df_test = self.holdout_dataset.get_dataframe()
+        df_train = self.train_dataset.get_dataframe()
         y_true_TRAIN = self.model_wrapper.extract_y_test(df_train)
         y_pred_TRAIN, _y_pred_prob_TRAIN = model.predict(df_train)
         X_TRAIN = self.model_wrapper.extract_X(df_train)
@@ -642,7 +707,7 @@ class Experiment(object):
         test_results: PartialResults = self.results.test_results
         X = test_results.X
         y_true = test_results.y_true
-        clf = self.results.model._trained_models[0]
+        clf = self.results.model._trained_model
         print(f'CLF!!!!!!!!!: {clf}')
         ## TODO: Why did he need 2 class names??? class_names = class_names = ['Not_' + classifierName, classifierName]
         clf_name = clf.__class__.__name__
@@ -656,7 +721,7 @@ class Experiment(object):
             raise RuntimeError('You probably want to have a way to show the results too right??? Right????  YOu can delete this if not!! Just this line will do it, (and the if statement above).  Nothing bad will happen I swear')
         return f'{self.__class__.__name__}: ' \
                f'\n\tTrain Dataset: {self.train_dataset};' \
-               f'\n\tTest Dataset: {self.test_dataset};' \
+               f'\n\tTest Dataset: {self.holdout_dataset};' \
                f'\n\tModel Wrapper: {self.model_wrapper};'
 
     def __repr__(self):
@@ -674,24 +739,24 @@ class Experiment(object):
 if __name__ == '__main__':
     args = sys.argv
     # print('Recieved args:', args)
-    if len(args) > 1:
-        try:
-            training_input_path = args[1]
-        except:
-            training_input_path = ''
-        if not os.path.isdir(training_input_path):
-            raise RuntimeError(
-                f'Expected first argument to be an input path pull of csvs to glob!!!'
-                fr'Example: C:\Users\toddy\Documents\workspace\HowlandProjects\Final Object\targets_inserted'
-                f'Recieved this instead: {training_input_path}')
-        # TODO: Check all the training input csvs have the targets inserted!
+    assert len(args) > 1, 'Need at least 2 arguments.  First is directory with training files, second is directory with holdout files'
 
-    if len(args) > 2:
-        to_label_input_path = args[2]
+    training_input_path = args[1]
+    holdout_input_path = args[2]
+    if not os.path.isdir(training_input_path):
+        raise RuntimeError(
+            f'Expected first argument to be an input path pull of csvs to glob!!!'
+            fr'Example: C:\Users\toddy\Documents\workspace\HowlandProjects\Final Object\targets_inserted'
+            f'Recieved this instead: {training_input_path}')
+    # TODO: Check all the training input csvs have the targets inserted!
+
+    if len(args) > 4:
+        assert len(args) > 3
+        to_label_input_path = args[3]
         if not os.path.isdir(to_label_input_path):
             raise RuntimeError(f'Expected the second argument to be a path to files that do not yet have targets inserted! (Can often be the same as first argument if there is no holdout set!)')
 
-        output_path = args[3]
+        output_path = args[4]
         if os.path.isdir(output_path):
             raise RuntimeError(f'Expected the third argument to be an output path that does not exist yet! '
                                f'WARNING: The output path alread exists!  I do not want to clober your data!!'
@@ -701,9 +766,10 @@ if __name__ == '__main__':
         to_label_input_path = None
         output_path = None
 
-    global_data_files = glob.glob(os.path.join(training_input_path, '*.csv'))
+    global_train_files = glob.glob(os.path.join(training_input_path, '*.csv'))
+    global_holdout_files = glob.glob(os.path.join(holdout_input_path, '*.csv'))
     # print(f'global_data_files: {global_data_files}')
-    df = pd.read_csv(global_data_files[0], index_col=0)
+    temp_df = pd.read_csv(global_train_files[0], index_col=0)
 
     ## AARONT: TODO: Odour was removed! Only use the interaction column now!
     # global_y_features = [f'Odour{i}' for i in range(1, 7)]
@@ -712,7 +778,7 @@ if __name__ == '__main__':
 
 
     odour_features = [
-        f for f in df.columns
+        f for f in temp_df.columns
         if fnmatch(f, '*Odour*')
     ]
 
@@ -722,7 +788,7 @@ if __name__ == '__main__':
     ]
 
     prob_features = [
-        f for f in df.columns
+        f for f in temp_df.columns
         if fnmatch(f, '*prob*')
     ]
 
@@ -768,7 +834,7 @@ if __name__ == '__main__':
     if use_raw_dlc_features:
         non_odour_non_prob_features = raw_dlc_features_only
     else:
-        non_odour_non_prob_features = sorted(set(df.columns) - set(
+        non_odour_non_prob_features = sorted(set(temp_df.columns) - set(
             odour_features + prob_features + interaction_features + raw_dlc_features_only
         ))
         msg = '\n'.join(non_odour_non_prob_features)
@@ -810,7 +876,7 @@ if __name__ == '__main__':
 
     # xgb_params = xgb_high_recall_set
     xgb_params = dict(
-        n_jobs=14,
+        n_jobs=14, # Wait... should this still be 14 jobs with GPU??
         tree_method='gpu_hist',
         # tree_method='exact', # More time but enumarates all possible splits
         #                 base_score=base_score,
@@ -841,24 +907,20 @@ if __name__ == '__main__':
     dataset_type = FullDataset
     # dataset_type = ProtoDataset
 
-    test_dataset_i = 5
-    train_files = [x for x in global_data_files]
-
     split_by_video = True
     with_stratification = False
     if split_by_video:
-        del train_files[test_dataset_i]
-        train_dataset = dataset_type(train_files)
-        test_dataset = dataset_type([global_data_files[test_dataset_i]])
+        train_dataset = dataset_type(global_train_files)
+        holdout_dataset = dataset_type(global_holdout_files)
     else:
-        temp_dataset = dataset_type(train_files)
-        temp_df = next(x for x in temp_dataset)
+        temp_dataset = dataset_type(global_train_files)
+        temp_df = temp_dataset.get_dataframe()
         from sklearn.model_selection import train_test_split
         temp_df_train, temp_df_test = train_test_split(
             temp_df, test_size=0.20, random_state=42, # shuffle=False,
             stratify=temp_df['Interaction'].values if with_stratification else None)
         train_dataset = FullDatasetFromSingleDf(temp_df_train)
-        test_dataset = FullDatasetFromSingleDf(temp_df_test)
+        holdout_dataset = FullDatasetFromSingleDf(temp_df_test)
         # by frame
 
     # def __init__(self, *, x_extractor, y_extractor, x_pre_processors, y_pre_processors, y_post_processors,
@@ -867,6 +929,7 @@ if __name__ == '__main__':
         x_extractor=build_X_only_builtins(non_odour_non_prob_features),
         y_extractor=build_Y_get_interaction(),
         x_pre_processors=[
+            # build_under_sampling() # AARONT: TODO: Add under sampling here?  Would be useful if we build per label models.
             # build_feature_selection()
         ],
         y_pre_processors=[], # Example: for odours we have to combine 6 labels into 1
@@ -878,48 +941,20 @@ if __name__ == '__main__':
         y_final_post_processor=None
     )
 
-    # Turn this on if you want to compare against the method used by Simba
     exp = Experiment(
         train_dataset=train_dataset,
-        test_dataset=test_dataset,
-        # RandomForestClassifier,
-        model_wrapper=ModelWrapper(
+        holdout_dataset=holdout_dataset,
+        model_wrapper=XgbCvModelWrapper(
             transformer=transformer,
-            # model_type=DecisionTreeClassifier,
-            model_type=RandomForestClassifier,
-            model_kwargs=dict(
-                # n_estimators=1000,
-                n_estimators=200,
-                bootstrap=True,
-                verbose=1,
-                n_jobs=-1,
-                criterion='entropy',  # Gini is standard, shouldn't be a huge factor
-                min_samples_leaf=2,
-                max_features='sqrt',
-                # max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
-                random_state=42,
-                #     ccp_alpha=0.005, # NEW PARAMETER, I NEED TO DEFINE MY EXPERIMENT SETUPS BETTER, AND STORE SOME RESULTS!!
-                # Probably need to whip up a database again, that's the only way I have been able to navigate this in the past
-                # Alternatively I could very carefully define my experiments, and then run them all in a batch and create a
-                # meaningful report.  This is probably the best way to proceed.  It will lead to the most robust iteration
-                # and progress.
-                # class_weight='balanced',  # balance weights at nodes based on class frequencies
-            )
-        )
-    )
-    exp.run()
-    exp.generate_classification_report('DTREE_classification_report.pdf')
-
-    exp = Experiment(
-        train_dataset=train_dataset,
-        test_dataset=test_dataset,
-        model_wrapper=ModelWrapper(
-            transformer=transformer,
-            model_type=xgb.XGBClassifier,
+            model_type=None,
+            # model_type=xgb.XGBClassifier,
             model_kwargs=xgb_params,
         )
     )
     exp.run()
+
+    # TODO: If we are going to handle the different labels separately, then build one full pipeline and full optimization
+    #       for each.  Build a final class to aggregate the models.  This allows each model to optimize it's own parameters.
     exp.generate_classification_report('XGB_classification_report.pdf')
 
     if to_label_input_path and output_path:
@@ -931,6 +966,38 @@ if __name__ == '__main__':
 
 
 
+
+    # # Turn this on if you want to compare against the method used by Simba
+    # exp = Experiment(
+    #     train_dataset=train_dataset,
+    #     holdout_dataset=holdout_dataset,
+    #     # RandomForestClassifier,
+    #     model_wrapper=ModelWrapper(
+    #         transformer=transformer,
+    #         # model_type=DecisionTreeClassifier,
+    #         model_type=RandomForestClassifier,
+    #         model_kwargs=dict(
+    #             # n_estimators=1000,
+    #             n_estimators=200,
+    #             bootstrap=True,
+    #             verbose=1,
+    #             n_jobs=-1,
+    #             criterion='entropy',  # Gini is standard, shouldn't be a huge factor
+    #             min_samples_leaf=2,
+    #             max_features='sqrt',
+    #             # max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
+    #             random_state=42,
+    #             #     ccp_alpha=0.005, # NEW PARAMETER, I NEED TO DEFINE MY EXPERIMENT SETUPS BETTER, AND STORE SOME RESULTS!!
+    #             # Probably need to whip up a database again, that's the only way I have been able to navigate this in the past
+    #             # Alternatively I could very carefully define my experiments, and then run them all in a batch and create a
+    #             # meaningful report.  This is probably the best way to proceed.  It will lead to the most robust iteration
+    #             # and progress.
+    #             # class_weight='balanced',  # balance weights at nodes based on class frequencies
+    #         )
+    #     )
+    # )
+    # exp.run()
+    # exp.generate_classification_report('DTREE_classification_report.pdf')
 
 
 
