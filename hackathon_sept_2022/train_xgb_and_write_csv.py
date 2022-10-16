@@ -1,4 +1,5 @@
 import abc
+import functools
 import glob
 import sys
 import pandas as pd
@@ -40,11 +41,15 @@ class CrossValidator(object):
 
 
 class Dataset(abc.ABC):
-    def __init__(self, input_files):
+    def __init__(self, input_files, with_cv_indexes):
         # assert isinstance(input_files, list)
-        self.df, self.data_files, self.cv_indexes = None, None, None
+        self.data_files = None
         self.init_data(input_files)
-        assert self.df is not None and self.data_files is not None and self.cv_indexes is not None
+        assert self.data_files is not None
+        dfs = [pd.read_csv(f, index_col=0) for f in self.data_files]
+        self.df = pd.concat(dfs)
+        if with_cv_indexes:
+            self.init_cv_indexes(dfs)
 
     @abc.abstractmethod
     def init_data(self, input_files):
@@ -52,9 +57,6 @@ class Dataset(abc.ABC):
 
     def get_dataframe(self):
         return self.df
-
-    def get_cv_indexes(self):
-        return self.cv_indexes
 
     def __str__(self):
         return f'{self.__class__.__name__}:'
@@ -81,28 +83,28 @@ class Dataset(abc.ABC):
         self.cv_indexes = []
         from itertools import chain
         for i in range(len(per_video_cv_indexes)):
+            # xgb can not handle iterators, maybe GridSearchCv can??
             train_idxs = list(chain.from_iterable([idxs for m, idxs in enumerate(per_video_cv_indexes) if m != i]))
             test_idxs = per_video_cv_indexes[i]
             self.cv_indexes.append( (train_idxs, test_idxs) )
-        nums = [len(train) + len(test) for (train, test) in self.cv_indexes]
-        import functools
-        num = functools.reduce(lambda x,y: x+y, nums, 0)
-        print(f'AARONT: Number of integers we created...: {num}; Number of cv splits: {len(self.cv_indexes)}')
+        # nums = [len(train) + len(test) for (train, test) in self.cv_indexes]
+        # import functools
+        # num = functools.reduce(lambda x,y: x+y, nums, 0)
+        # print(f'AARONT: Number of integers we created...: {num}; Number of cv splits: {len(self.cv_indexes)}')
+
+    def get_cv_indexes(self):
+        return self.cv_indexes
 
 
 class ProtoDataset(Dataset):
     def init_data(self, input_files):
         self.data_files = [input_files[0], input_files[1]]
-        dfs = [pd.read_csv(f, index_col=0) for f in self.data_files]
-        self.init_cv_indexes(dfs)
-        self.df = pd.concat(dfs)
 
 
 class FullDataset(Dataset):
     def init_data(self, input_files):
         self.data_files = input_files
         dfs = [pd.read_csv(f, index_col=0) for f in self.data_files]
-        self.init_cv_indexes(dfs)
         self.df = pd.concat(dfs)
 
 class FullDatasetFromSingleDf(Dataset):
@@ -222,8 +224,8 @@ class ModelWrapper(object):
         assert self._trained_model, 'Need to call fit on this ModelWrapper first'
         X = self.transformer.forward(df, x_only=True)
 
-        y_pred = self._trained_model.predict(X)
-        y_prob = self._trained_model.predict_proba(X)
+        y_pred = self._trained_model.predict(X, ntree_limit=300) # HACK: pass ntree_limit just for xgb with DART...
+        y_prob = self._trained_model.predict_proba(X, ntree_limit=300)
 
         assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
         y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
@@ -241,11 +243,94 @@ class ModelWrapper(object):
         return y
 
 
+class MyXgbWrapper(xgb.XGBClassifier):
+    """ Just calculate the 'scale_pos_weight' before fitting. """
+    def fit(self, X, y, *args, **kwargs):
+        ratio = float(np.sum(y == 0)) / np.sum(y == 1)
+        self.set_params(scale_pos_weight=ratio)
+        return super(xgb.XGBClassifier, self).fit(X, y, *args, **kwargs)
+
+
+class GridCvModelWrapper(ModelWrapper):
+    def __init__(self, *, model_type, model_static_args, model_kwargs_grid, transformer: Transformer):
+        self.model_type = model_type
+        self.model_static_args = model_static_args
+        self.model_kwargs_grid = model_kwargs_grid
+        self.transformer = transformer
+        self._trained_model = None
+
+    def __str__(self):
+        return f"""
+        Model type: {self.model_type}
+        Model static args: {self.model_static_args}
+        Model kwargs grid: {self.model_kwargs_grid}
+        Number of perms in grid: {functools.reduce(lambda acc,l: acc*len(l), self.model_kwargs_grid.values(), 1)}
+        Best model: {self._trained_model}
+        Transformer: {self.transformer}
+        """
+
+    def fit(self, dataset):
+        cv_indexes = dataset.get_cv_indexes()
+        df = dataset.get_dataframe()
+        assert isinstance(df, pd.DataFrame)
+        assert self._trained_model is None
+
+        print('AARONT: Training model... (remove this line if everything works)')
+        X, y = self.transformer.forward(df)
+
+        model_kwargs_grid = self.model_kwargs_grid
+        ### HACK: We do manual sample weighting for now, XGB doesn't support
+        scale_pos_weights = model_kwargs_grid.get('scale_pos_weight')
+        if scale_pos_weights:
+            # We could potentially have multiple scale_pos weights and want to compare them, but usually this will just handle a single instance
+            new_scale_pos_weights = []
+            for scale_pos_weight in scale_pos_weights:
+                if isinstance(scale_pos_weight, str) and scale_pos_weight.startswith('AARONT_balanced'):
+                    assert isinstance(y, (numpy.ndarray, pd.Series)), f'Expected numpy array or pandas Series, got {y} instead'
+                    # HACK: We will match the sklearn interface and calculate weight balancing ourselves...
+                    _, modifier = scale_pos_weight.split(':')
+                    modifier = float(modifier)
+                    new_scale_pos_weights.append(((y == 0).sum() / (y >= 1).sum()) * modifier)  # * 0.5 # deweighting a bit
+            model_kwargs_grid['scale_pos_weight'] = new_scale_pos_weights
+        ### END HACKS...
+        from sklearn.model_selection import GridSearchCV
+        clf = GridSearchCV(
+            self.model_type(**self.model_static_args),
+            self.model_kwargs_grid,
+            # scoring='precision',
+            scoring='f1', # binary target f1
+            # scoring='neg_log_loss', # uses predict_proba... hmm; Only problem: imbalance!!
+            verbose=3,
+            cv=cv_indexes,
+            n_jobs=4, # Hard to know what is best when training on the GPU... From task manager looks like maybe 4 jobs at a time can be kept busy
+            error_score='raise',
+            return_train_score=True, # Calculating train score is not required to select the parameters,
+                                       # however can be used to get insight into over/under fitting trade off
+        )
+        self._trained_model = clf.fit(X, y)
+
+        return self # just for interface compatibility
+
+    def predict(self, df):
+        """ You will always get back predictions and probabilities. Deal with it. """
+        assert self._trained_model, 'Need to call fit on this ModelWrapper first'
+        X = self.transformer.forward(df, x_only=True)
+
+        y_pred = self._trained_model.predict(X)
+        y_prob = self._trained_model.predict_proba(X)
+
+        assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
+        y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
+        y_pred, y_prob = self.transformer.backward(y_pred, y_prob, df)
+        return y_pred, y_prob
+
+
 class XgbCvModelWrapper(ModelWrapper):
     """ Uses a model_type and kwargs to create a template for models.
     Then uses a Transformer to do pre/post processing.
     And all methods accept preloaded dataframes, just plain from disk dataframes."""
     def __init__(self, *, model_type, model_kwargs, transformer: Transformer):
+        raise NotImplementedError('No longer works, crashes GPU with memory due to expansion of CV indexes, which is not avoidable')
         # NOTE: If you want to do any extra special model specific things like specify constraints
         #       you should do that as an additional wrapper around your base model
         assert model_type is None, 'HACK: When using the xgb interface it does not make sense to store a model_type'
@@ -613,6 +698,20 @@ class Experiment(object):
         start = time.time()
 
         model = self.model_wrapper.fit(self.train_dataset) # Pass the dataset so CV has access to indexes
+        tm = model._trained_model
+        print('saving cv_results...  From this average metrics per parameter can be calculated')
+        with open('sklearn_grid_search_cv_results.pkl', 'wb') as out_file:
+            import pickle
+            pickle.dump(tm.cv_results_, out_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+        print(f'Finished training model; best_score: {tm.best_score_}; best_estimator: {tm.best_estimator_}')
+        print(f'Best grid search params: {tm.best_params_}')
+        print(f'''cv_results:
+mean_test_score: {tm.cv_results_['mean_test_score']}
+std_test_score: {tm.cv_results_['std_test_score']}
+mean_train_score: {tm.cv_results_['mean_train_score']}
+std_train_score: {tm.cv_results_['std_train_score']}
+''')
 
         df_test = self.holdout_dataset.get_dataframe()
         df_train = self.train_dataset.get_dataframe()
@@ -868,41 +967,85 @@ if __name__ == '__main__':
             interaction_constraints[prefix].append(raw_dlc_features_only.index(s))
             # prefix = parts[1]
             # interaction_constraints[prefix].append(raw_dlc_features_only.index(s))
+        interaction_constraints['Nose'].extend(interaction_constraints['Tail'])
         print(interaction_constraints)
         interaction_constraints = list(interaction_constraints.values())
         print(interaction_constraints)
     else:
         interaction_constraints = None
 
-    # xgb_params = xgb_high_recall_set
-    xgb_params = dict(
-        n_jobs=14, # Wait... should this still be 14 jobs with GPU??
-        tree_method='gpu_hist',
+    xgb_params_grid_full = dict(
+        scale_pos_weight=['AARONT_balanced:1.0', 'AARONT_balanced:1.5'], # NOTE: Has to be in grid search part
+        #             for sampling_method in ('gradient_based', 'uniform') # with subsample=0.5, positive results in favour grad
+        #             for grow_policy in ('lossguide', 'depthwise') # null exp, might be meaningful to deeper trees
+        # TODO: for max_bin in (256, 512, 1024) # better continuous feature binning
+        #             for objective in ('binary:logistic', 'binary:hinge')
+        #             for eval_metric in ('logloss', 'error', 'error@0.2', 'error@0.8') # totally null exp
+        # max_delta_step is too important, make sure you test it against 0!
+        # max_delta_step - The maximum step size that a leaf node can take.
+        #     In practice, this means that leaf values can be no larger than max_delta_step * eta
+        ##for max_delta_step in (0, 1)  # max_delta_step has a large impact.  Why? What is it?
+        #             for eta in (0.1, 0.2, 0.3)
+        # gamme is used during prunning.  min_split_loss
+        ### for gamma in (0.0, 100.,)  # , 1000.,)
+        #             for subsample in (1, 0.5, 0.1)
+        #             for num_parallel_tree in (1, 10) # it is 39 seconds per model with 100 trees...
+        # # RF was a noop, I didn't use column sub sampling though.  Not necessary I think
+        #        for col_split_by_node in (0.75, )
+        # TODO: min_child_weight
+        #    For classification this gives the required sum of p*(1-p), where p is the probability
+        #        THE SUM of p*(1-p), which is 0.25 max.  You will need at least 4 * min_child_weight rows
+        #        to keep the split.
+        min_child_weight=[0, 2],
+        ## for min_child_weight in (0, 2)  # inconclusive experiments, just sanity checking
+        #             for base_score in (0.5, 0.1) # default 0.5, leave this alone because we are already weighting.
+        # TODO: EARLY STOPPING BASED ON A HOLDOUT SET!!!
+        # https://xgboost.readthedocs.io/en/latest/python/python_intro.html#early-stopping
+        # This works with both metrics to minimize (RMSE, log loss, etc.) and to maximize (MAP, NDCG, AUC).
+        # Note that if you specify more than one evaluation metric the last one in param['eval_metric']
+        # is used for early stopping. (saw someone do this with 'ams@0.15' in a competition)
+        booster=['gbtree', 'dart'],  # TODO: Try dart, note: Using predict() with DART booster
+        # If the booster object is DART type, predict() will perform dropouts, i.e. only some of the trees will be evaluated.
+        # This will produce incorrect results if data is not the training data. To obtain correct results on test sets,
+        # set iteration_range to a nonzero value, e.g.
+        ################# ACTUALLY: from the repl:  set ntree_limit=num_round.....
+        #             preds = bst.predict(dtest, iteration_range=(0, num_round))
+        # base_score=['match_scale_pos_weight'], # AARONT: TODO: This is a global bias for prediction!!! Could be inverse of scale_pos_weight???
+        n_estimators=[300],  # The number of boosting rounds; default 100?
+        gamma=[0.0, 10., 100.],
+        learning_rate=[0.3],
+        max_depth=[2, 4],  # default is 6; Experiments showed 2 or 3 worked best
+        max_delta_step=[0, 1, 2],  # Was set to 1; VERY IMPORTANT PARAMETER! Read description in comments elsewhere
+    )
+    xgb_model_static_args = dict(
+
+        ######## Below is true static
+        early_stopping_rounds=[3, 20, 30],  # TODO: Tune early stopping?? DOESN'T HAVE AN IMPACT
+        base_score=[0.5, 0.9, 0.1],
+        n_jobs=[14], # Wait... should this still be 14 jobs with GPU?? Doesn't make a difference.  Can't see any jobs in the task manager
+        tree_method=['gpu_hist'],
         # tree_method='exact', # More time but enumarates all possible splits
         #                 base_score=base_score,
         #                 scale_pos_weight='AARONT_balanced',
-        scale_pos_weight='AARONT_balanced:1.0',
-        # eta=0.3, # default 0.3; learning rate
+        # eta=0.3, # default 0.3; learning rate NOTE: sklearn interface uses: learning_rate instead!
         # gamma=100,  # default 0.0; min_split_loss (minimum loss reduction to create a split)
-        max_depth=4,  # default is 6; Experiments showed 2 or 3 worked best
-        n_estimators=300, # The number of boosting rounds; default 100?
-        # early_stopping_rounds=20, # TODO: Tune early stopping??
         # use_label_encoder=False,
-        objective='binary:logistic',
+        objective=['binary:logistic'],
         #                 eval_metric=eval_metric,
         #                 objective=objective,
-        max_delta_step=1,  # Was set to 1; VERY IMPORTANT PARAMETER! Read description in comments elsewhere
         #                 subsample=subsample,
-        subsample=0.5,  # sample of the rows to use, sampled once every boosting iteration
-        sampling_method='gradient_based',  # allows very small subsample, as low as 0.1
-        grow_policy='lossguide',
-        num_parallel_tree=10,
-        colsample_bytree=0.75, colsample_bylevel=0.75, colsample_bynode=0.75,
-        # min_child_weight=1,
-        interaction_constraints=interaction_constraints,
-        asdf='not a param', # xgb does not raise an error for an unrecognized parameter...
+        subsample=[0.5],  # sample of the rows to use, sampled once every boosting iteration
+        sampling_method=['gradient_based'],  # allows very small subsample, as low as 0.1
+        grow_policy=['lossguide'],
+        num_parallel_tree=[1],
+        colsample_bytree=[0.75],
+        colsample_bylevel=[0.75],
+        colsample_bynode=[0.75],
+        # asdf='not a param', # xgb does not raise an error for an unrecognized parameter...
+        interaction_constraints=[interaction_constraints],
     )
-
+    xgb_model_static_args = {k:v[0] for k,v in xgb_model_static_args.items()}
+    print(xgb_model_static_args)
 
     dataset_type = FullDataset
     # dataset_type = ProtoDataset
@@ -910,17 +1053,17 @@ if __name__ == '__main__':
     split_by_video = True
     with_stratification = False
     if split_by_video:
-        train_dataset = dataset_type(global_train_files)
-        holdout_dataset = dataset_type(global_holdout_files)
+        train_dataset = dataset_type(global_train_files, with_cv_indexes=True)
+        holdout_dataset = dataset_type(global_holdout_files, with_cv_indexes=False)
     else:
-        temp_dataset = dataset_type(global_train_files)
+        temp_dataset = dataset_type(global_train_files, with_cv_indexes=False)
         temp_df = temp_dataset.get_dataframe()
         from sklearn.model_selection import train_test_split
         temp_df_train, temp_df_test = train_test_split(
             temp_df, test_size=0.20, random_state=42, # shuffle=False,
             stratify=temp_df['Interaction'].values if with_stratification else None)
-        train_dataset = FullDatasetFromSingleDf(temp_df_train)
-        holdout_dataset = FullDatasetFromSingleDf(temp_df_test)
+        train_dataset = FullDatasetFromSingleDf(temp_df_train, with_cv_indexes=False)
+        holdout_dataset = FullDatasetFromSingleDf(temp_df_test, with_cv_indexes=False)
         # by frame
 
     # def __init__(self, *, x_extractor, y_extractor, x_pre_processors, y_pre_processors, y_post_processors,
@@ -941,21 +1084,26 @@ if __name__ == '__main__':
         y_final_post_processor=None
     )
 
+
     exp = Experiment(
+        # AARONT: TODO: Implement so that score is calculated for each step of the y post processing transforms.
+        #               Also: Do we still need the y_final_processor thing??? That we might handle differently.
         train_dataset=train_dataset,
         holdout_dataset=holdout_dataset,
-        model_wrapper=XgbCvModelWrapper(
+        model_wrapper=GridCvModelWrapper(
             transformer=transformer,
-            model_type=None,
-            # model_type=xgb.XGBClassifier,
-            model_kwargs=xgb_params,
+            # model_type=MyXgbWrapper,
+            model_type=xgb.XGBClassifier,
+            model_static_args=xgb_model_static_args,
+            model_kwargs_grid=xgb_params_grid_full,
         )
     )
     exp.run()
 
     # TODO: If we are going to handle the different labels separately, then build one full pipeline and full optimization
     #       for each.  Build a final class to aggregate the models.  This allows each model to optimize it's own parameters.
-    exp.generate_classification_report('XGB_classification_report.pdf')
+    ## TODO: Make my own visualization, don't want to do CV again
+    # exp.generate_classification_report('XGB_classification_report.pdf')
 
     if to_label_input_path and output_path:
         to_label_files = glob.glob(os.path.join(to_label_input_path, '*.csv'))
