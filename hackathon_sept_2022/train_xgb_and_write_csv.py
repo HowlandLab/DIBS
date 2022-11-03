@@ -19,6 +19,7 @@ from sklearn import tree
 import xgboost as xgb
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 # TODO: Import xgboost-gpu and use it
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
@@ -47,6 +48,7 @@ class Dataset(abc.ABC):
         self.init_data(input_files)
         assert self.data_files is not None
         dfs = [pd.read_csv(f, index_col=0) for f in self.data_files]
+        self._dfs = dfs
         self.df = pd.concat(dfs)
         if with_cv_indexes:
             self.init_cv_indexes(dfs)
@@ -57,6 +59,9 @@ class Dataset(abc.ABC):
 
     def get_dataframe(self):
         return self.df
+
+    def get_dfs(self):
+        return self._dfs
 
     def __str__(self):
         return f'{self.__class__.__name__}:'
@@ -83,7 +88,7 @@ class Dataset(abc.ABC):
         self.cv_indexes = []
         from itertools import chain
         for i in range(len(per_video_cv_indexes)):
-            # xgb can not handle iterators, maybe GridSearchCv can??
+            # xgb can not handle iterators, maybe GridSearchCV can??
             train_idxs = list(chain.from_iterable([idxs for m, idxs in enumerate(per_video_cv_indexes) if m != i]))
             test_idxs = per_video_cv_indexes[i]
             self.cv_indexes.append( (train_idxs, test_idxs) )
@@ -224,8 +229,10 @@ class ModelWrapper(object):
         assert self._trained_model, 'Need to call fit on this ModelWrapper first'
         X = self.transformer.forward(df, x_only=True)
 
-        y_pred = self._trained_model.predict(X, ntree_limit=300) # HACK: pass ntree_limit just for xgb with DART...
-        y_prob = self._trained_model.predict_proba(X, ntree_limit=300)
+        y_pred = self._trained_model.predict(X)
+        y_prob = self._trained_model.predict_proba(X)
+        # y_pred = self._trained_model.predict(X, ntree_limit=300) # HACK: pass ntree_limit just for xgb with DART...
+        # y_prob = self._trained_model.predict_proba(X, ntree_limit=300)
 
         assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
         y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
@@ -243,12 +250,194 @@ class ModelWrapper(object):
         return y
 
 
-class MyXgbWrapper(xgb.XGBClassifier):
-    """ Just calculate the 'scale_pos_weight' before fitting. """
-    def fit(self, X, y, *args, **kwargs):
-        ratio = float(np.sum(y == 0)) / np.sum(y == 1)
-        self.set_params(scale_pos_weight=ratio)
-        return super(xgb.XGBClassifier, self).fit(X, y, *args, **kwargs)
+import torch
+import torch.nn as nn
+torch.manual_seed(42)
+
+
+class MyRNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers=1):
+        super().__init__()
+        self.rnn_hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.rnn = nn.RNN(input_size=input_size,hidden_size=hidden_size,num_layers=num_layers,
+                          batch_first=True) # batch is first dim
+        # OR: nn.GRU, nn.LSTM are both options.  No extra params for either
+        self.fc = nn.Linear(hidden_size, 1) # TODO: Why (hidden_size, 1)? What exactly do we pass to this layer?
+        # self.sigmoid = nn.Sigmoid()
+
+    def init_hidden(self, device): # batch_size=1, so we ignore batching for now
+        # 1 frame, and number hidden
+        hx = torch.zeros(self.num_layers, self.rnn_hidden_size).to(device)
+        # print('hx before init:', hx)
+        # torch.nn.init.xavier_normal_(hx)
+        # print('hx after init:', hx)
+        return hx
+
+    def forward(self, x, hx, c):
+        # hx is the final hidden state, we propagate forward manually.  This is slow in it's current implementation.
+        # Would be faster to batch up videos, or possibly pass whole video at a time and apply fc to whole thing,
+        # but I am not sure how the backprop works in that case (does it work?)
+        out, hx = self.rnn(x, hx)
+        # print(f'shape of thing: {_all_hidden_state.shape}; {_all_hidden_state}; shape of hidden: {hidden.shape}; hidden: {hidden}')
+        # out = hidden[-1,:,:] # As per textbook I am following, we use the final hidden state from the last hidden
+        #                      layer as the input to the fully connected layer.  TODO: Y thou????
+        print_iter = 2000
+        # if c % print_iter == 0:
+        #     print('hx:', hx)
+        #     print('out1:', out)
+        out = self.fc(out)
+        # if c % print_iter == 0:
+        #     print('out2:', out)
+        # TODO: Add layers if working: 1 extra fully connected with paired ReLU
+        ## Disabling the sigmoid, using BCE with logits instead
+        # out = self.sigmoid(out) # Binary classification task
+        # if c % print_iter == 0:
+        #     print('out3:', out)
+        return out, hx
+
+
+class RNN_ModelWraper(ModelWrapper):
+    def __init__(self, *, holdout_dataset, transformer: Transformer):
+        self.holdout_dataset = holdout_dataset
+        self.transformer = transformer
+        self._trained_model = None
+
+    def __str__(self):
+        return f"""
+        Transformer: {self.transformer}
+        """
+
+    def fit(self, dataset):
+        ## AARONT: TEMP: Hard coding the RNN layers here while prototyping
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print(device)
+        if device == 'cpu': raise RuntimeError('Why using CPU???')
+
+        train_dfs = dataset.get_dfs()
+        holdout_dfs = self.holdout_dataset.get_dfs()
+
+        # (batches, sequence, input_variables)
+        def f(df):
+            X,y = self.transformer.forward(df)
+            # X = X.values[np.newaxis, ...] # This if you want batches to run in parallel.  We don't
+            # y = y[np.newaxis, ..., ]
+            X = X.values
+            X = torch.from_numpy(X).float().to(device)
+            y = torch.from_numpy(y).float().to(device)
+            return X,y
+        # train_batches =   [ (f(X),f(y)) for X,y in map(self.transformer.forward, train_dfs)]
+        # holdout_batches = [ (f(X),f(y)) for X,y in map(self.transformer.forward, holdout_dfs)]
+        train_batches =   list(map(f, train_dfs))
+        holdout_batches = list(map(f, holdout_dfs))
+
+        def get_batches(_list_of_batches, batch_size=5):
+            prev_i = 0
+            new_batches = []
+            for i in range(batch_size, len(_list_of_batches), batch_size):
+                # TODO: have to pad?? Embed??
+                new_batch = torch.Tensor(zip(_list_of_batches[prev_i:i])).to(device)
+                new_batches.append(new_batch)
+                prev_i = i
+            return new_batches
+
+        tempX,tempY = train_batches[0]
+        print(f'Shape of Xs: {tempX.shape}; shape of yx: {tempY.shape}')
+        n_vars = tempX.shape[1]
+        rnn_model = MyRNN(input_size=n_vars, hidden_size=8, num_layers=20)
+        print('rnn_model:', rnn_model)
+        rnn_model.to(device)
+        self._trained_model = rnn_model
+
+        optimizer = torch.optim.Adam(rnn_model.parameters(), lr=0.001)
+        # WithLogits combines loss with a sigmoid.  Is more numerically stable!
+        loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([4]).to(device))
+
+        def train():
+            rnn_model.train()
+            total_acc, total_loss = 0,0
+            new_train_batches = get_batches(train_batches)
+            for i, (X, y) in enumerate(new_train_batches):
+                optimizer.zero_grad()
+                # TODO: Does X need to be a torch tensor or something??
+                # TODO: How run on GPU again???
+                # print(f'Type of data in X??: {X}')
+                # print(f'Type of data in y??: {y}')
+                hx = rnn_model.init_hidden(device)
+                batch_acc, batch_loss = 0, 0
+                loss = 0
+                pred_ys = []
+                # print('X.shape:',X.shape)
+                for c in range(X.shape[0]):
+                    x = X[:,c,:].reshape(-1,1,-1)
+                    pred, hx = rnn_model(x, hx, c)
+                    pred_ys.append(pred)
+                    curr_y = y[c].reshape(1,-1)
+                    # print(f'What is pred??? shape: {pred.shape}; pred: {pred}; curr_y.shape: {curr_y.shape}')
+                    # if c % 2000 == 0:
+                    #     print('curr_y', curr_y)
+                    loss += loss_fn(pred, curr_y)
+                loss.backward()  # back-prop?
+                optimizer.step()
+                batch_loss = loss.item() / y.size(0) # This is from text, probably doesn't work on numpy array.
+                pred_ys = torch.Tensor(pred_ys).to(device)
+                batch_acc += (
+                    (pred_ys > 0.0).float() == y
+                ).float().sum().item() / y.size(0)
+                print(f'Batch {i} training accuracy: {batch_acc:.4f}; training loss: {batch_loss:.4f}')
+                total_acc += batch_acc
+                total_loss += batch_loss
+            return total_acc/len(train_batches), total_loss/len(train_batches)
+            # TODO: At end of train step, save progress??  Maybe every X steps if it goes well
+
+        def evaluate():
+            rnn_model.eval()
+            total_acc, total_loss = 0,0
+            with torch.no_grad():
+                hx = rnn_model.init_hidden(device)
+                batch_acc, batch_loss, loss = 0, 0, 0
+                for i, (X, y) in enumerate(holdout_batches):
+                    pred_ys = []
+                    # print('X.shape:',X.shape)
+                    for c in range(X.shape[0]):
+                        x = X[c, :].reshape(1, -1)
+                        pred, hx = rnn_model(x, hx, c)
+                        pred_ys.append(pred)
+                        # print(f'What is pred??? shape: {pred.shape}; pred: {pred};')
+                        curr_y = y[c].reshape(1, -1)
+                        # if c % 2000 == 0:
+                        #     print('curr_y', curr_y)
+                        loss += loss_fn(pred, curr_y)
+                batch_loss = loss.item() / y.size(0)
+                print('pred_ys[:50]:', pred_ys[:50])
+                pred_ys = torch.Tensor(pred_ys).to(device)
+                batch_acc += (
+                                     (pred_ys > 0.0).float() == y
+                             ).float().sum().item() / y.size(0)
+                print(f'Batch {i} training accuracy: {batch_acc:.4f}; training loss: {batch_loss:.4f}')
+                total_acc += batch_acc
+                total_loss += batch_loss
+            return total_acc/len(holdout_batches), total_loss/len(holdout_batches)
+
+        num_epochs = 1000
+        models_dir_name = 'TEMP_RNN_CHECKPOINTS'
+        os.makedirs(models_dir_name, exist_ok=True)
+        old_models = glob.glob(os.path.join(models_dir_name, '*.model'))
+        # if old_models:
+        #     raise NotImplementedError('AARONT: HERE; Have to load models')
+        #     rnn_model.load_state_dict(torch.load(asdf))
+        #     rnn_model.eval()
+        for epoch in range(num_epochs):
+            acc_train, loss_train = train()
+            acc_valid, loss_valid = evaluate()
+            print(f'Epoch {epoch} train accuracy: {acc_train:.4f}; validation accuracy: {acc_valid:.4f}; train loss: {loss_train:.4f}; validation loss: {loss_valid:.4f}')
+            # Save to disk after every epoch
+            if epoch % 100 == 0:
+                torch.save(rnn_model.state_dict(), os.path.join(models_dir_name, f'rnn_epoch_{epoch}.model'))
+            # TODO: Add signal handler to save model as well.
+
+    def predict(self, df):
+        raise NotImplementedError('AARONT: Here.')
 
 
 class GridCvModelWrapper(ModelWrapper):
@@ -289,20 +478,25 @@ class GridCvModelWrapper(ModelWrapper):
                     assert isinstance(y, (numpy.ndarray, pd.Series)), f'Expected numpy array or pandas Series, got {y} instead'
                     # HACK: We will match the sklearn interface and calculate weight balancing ourselves...
                     _, modifier = scale_pos_weight.split(':')
-                    modifier = float(modifier)
-                    new_scale_pos_weights.append(((y == 0).sum() / (y >= 1).sum()) * modifier)  # * 0.5 # deweighting a bit
+                    if modifier == 'no_weight':
+                        new_scale_pos_weights.append(1)
+                    else:
+                        modifier = float(modifier)
+                        new_scale_pos_weights.append(((y == 0).sum() / (y >= 1).sum()) * modifier)  # * 0.5 # deweighting a bit
             model_kwargs_grid['scale_pos_weight'] = new_scale_pos_weights
         ### END HACKS...
-        from sklearn.model_selection import GridSearchCV
         clf = GridSearchCV(
             self.model_type(**self.model_static_args),
             self.model_kwargs_grid,
             # scoring='precision',
-            scoring='f1', # binary target f1
+            # scoring='f1', # binary target f1
+            scoring='precision',
             # scoring='neg_log_loss', # uses predict_proba... hmm; Only problem: imbalance!!
             verbose=3,
             cv=cv_indexes,
-            n_jobs=4, # Hard to know what is best when training on the GPU... From task manager looks like maybe 4 jobs at a time can be kept busy
+            # TODO: My machine is cooking itself with anything more than 1 job, need to figure out how to get the fans running correctly in windows 11
+            n_jobs=1, # Hard to know what is best when training on the GPU... From task manager looks like maybe 4 jobs at a time can be kept busy
+            # 8 jobs locked the whole machine up eventually, somehow the scheduler thought it was a good idea to let them try and share the GPU
             error_score='raise',
             return_train_score=True, # Calculating train score is not required to select the parameters,
                                        # however can be used to get insight into over/under fitting trade off
@@ -311,18 +505,19 @@ class GridCvModelWrapper(ModelWrapper):
 
         return self # just for interface compatibility
 
-    def predict(self, df):
-        """ You will always get back predictions and probabilities. Deal with it. """
-        assert self._trained_model, 'Need to call fit on this ModelWrapper first'
-        X = self.transformer.forward(df, x_only=True)
-
-        y_pred = self._trained_model.predict(X)
-        y_prob = self._trained_model.predict_proba(X)
-
-        assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
-        y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
-        y_pred, y_prob = self.transformer.backward(y_pred, y_prob, df)
-        return y_pred, y_prob
+    ## AARONT: Commenting out for now because we should be able to use the generic version for GridCV predict
+    # def predict(self, df):
+    #     """ You will always get back predictions and probabilities. Deal with it. """
+    #     assert self._trained_model, 'Need to call fit on this ModelWrapper first'
+    #     X = self.transformer.forward(df, x_only=True)
+    #
+    #     y_pred = self._trained_model.predict(X)
+    #     y_prob = self._trained_model.predict_proba(X)
+    #
+    #     assert isinstance(y_prob, numpy.ndarray) and y_prob.shape[1] == 2, 'Assuming nd array with 2 output cols, further the second col should be associated with label 1!'
+    #     y_prob = y_prob[:,1] # We just want the second col, with the correct labels!
+    #     y_pred, y_prob = self.transformer.backward(y_pred, y_prob, df)
+    #     return y_pred, y_prob
 
 
 class XgbCvModelWrapper(ModelWrapper):
@@ -427,7 +622,7 @@ def build_X_buildins_and_distance(distance_features):
         return [df[non_odour_non_prob_features + [x_feature]] for x_feature in distance_features]
     return X_builtins_and_distance
 
-def build_X_builtings_and_distance_combined(distance_features):
+def build_X_builting_and_distance_combined(distance_features):
     def X_builtins_and_distance_combined(df):
         min_dists = df[distance_features].min(axis=1)
         new_df = df.copy()
@@ -531,6 +726,8 @@ def build_Y_post_processor_klienberg_filtering():
         print(f'df cols: {df.columns}')
         # AARONT: TODO: I think the math domain error is due to the offsets calculation, they need to have some spacing
         #               or something like that and are not getting the spacing they need!
+        # From the paper: Adjusting 'b' controls inertia that keeps automaton in it's current state (which arg is b?)
+        #
         kleinbergBouts = kleinberg(offsets, s=2.0, gamma=0.3) # TODO: Params?
         print(f'AARONT: k-filtering bouts: {kleinbergBouts}')
         kleinbergDf = pd.DataFrame(kleinbergBouts, columns=['Hierarchy', 'Start', 'Stop'])
@@ -699,19 +896,20 @@ class Experiment(object):
 
         model = self.model_wrapper.fit(self.train_dataset) # Pass the dataset so CV has access to indexes
         tm = model._trained_model
-        print('saving cv_results...  From this average metrics per parameter can be calculated')
-        with open('sklearn_grid_search_cv_results.pkl', 'wb') as out_file:
-            import pickle
-            pickle.dump(tm.cv_results_, out_file, protocol=pickle.HIGHEST_PROTOCOL)
+        if isinstance(tm, GridSearchCV):
+            print('saving cv_results...  From this average metrics per parameter can be calculated')
+            with open('sklearn_grid_search_cv_results.pkl', 'wb') as out_file:
+                import pickle
+                pickle.dump(tm.cv_results_, out_file, protocol=pickle.HIGHEST_PROTOCOL)
 
-        print(f'Finished training model; best_score: {tm.best_score_}; best_estimator: {tm.best_estimator_}')
-        print(f'Best grid search params: {tm.best_params_}')
-        print(f'''cv_results:
-mean_test_score: {tm.cv_results_['mean_test_score']}
-std_test_score: {tm.cv_results_['std_test_score']}
-mean_train_score: {tm.cv_results_['mean_train_score']}
-std_train_score: {tm.cv_results_['std_train_score']}
-''')
+            print(f'Finished training model; best_score: {tm.best_score_}; best_estimator: {tm.best_estimator_}')
+            print(f'Best grid search params: {tm.best_params_}')
+            print(f'''cv_results:
+    mean_test_score: {tm.cv_results_['mean_test_score']}
+    std_test_score: {tm.cv_results_['std_test_score']}
+    mean_train_score: {tm.cv_results_['mean_train_score']}
+    std_train_score: {tm.cv_results_['std_train_score']}
+    ''')
 
         df_test = self.holdout_dataset.get_dataframe()
         df_train = self.train_dataset.get_dataframe()
@@ -925,7 +1123,7 @@ if __name__ == '__main__':
         "Tail_end_p",
     ]
 
-    filter_p = use_raw_dlc_features = True
+    filter_p = use_raw_dlc_features = False
 
     if filter_p:
         raw_dlc_features_only = [s for s in raw_dlc_features_only if '_p' not in s]
@@ -934,7 +1132,10 @@ if __name__ == '__main__':
         non_odour_non_prob_features = raw_dlc_features_only
     else:
         non_odour_non_prob_features = sorted(set(temp_df.columns) - set(
-            odour_features + prob_features + interaction_features + raw_dlc_features_only
+            # odour_features + # Obsolete
+            # prob_features + # Don't filter out probability features, use exactly what Simba is using
+            interaction_features +
+            raw_dlc_features_only
         ))
         msg = '\n'.join(non_odour_non_prob_features)
         # print(f'non_odour_non_prob_features: {msg}')
@@ -975,7 +1176,13 @@ if __name__ == '__main__':
         interaction_constraints = None
 
     xgb_params_grid_full = dict(
-        scale_pos_weight=['AARONT_balanced:1.0', 'AARONT_balanced:1.5'], # NOTE: Has to be in grid search part
+        # TODO: Average results over 'dart' and 'gbtree'.  Dart is 6x slower, so would need a significant improvement to justify
+        #          Actually dart is max_depth * 6x slower!!
+        scale_pos_weight=[
+            'AARONT_balanced:no_weight',
+            'AARONT_balanced:1.0',
+            # 'AARONT_balanced:1.5', # NOTE: Has to be in grid search part
+        ],
         #             for sampling_method in ('gradient_based', 'uniform') # with subsample=0.5, positive results in favour grad
         #             for grow_policy in ('lossguide', 'depthwise') # null exp, might be meaningful to deeper trees
         # TODO: for max_bin in (256, 512, 1024) # better continuous feature binning
@@ -990,13 +1197,19 @@ if __name__ == '__main__':
         ### for gamma in (0.0, 100.,)  # , 1000.,)
         #             for subsample in (1, 0.5, 0.1)
         #             for num_parallel_tree in (1, 10) # it is 39 seconds per model with 100 trees...
+        max_depth=[6,10],  # default is 6; Experiments showed 2 or 3 worked best
+        max_delta_step=[0, 1],  # Was set to 1; VERY IMPORTANT PARAMETER! Read description in comments elsewhere
+        gamma=[0.0, 10.],
+        base_score=[0.5, 0.9, 0.1], # Has some impact.  Not sure if this applies to the positive class or 0 class. (as in, is 0.9 the probability of 0 class or 1 class?)
         # # RF was a noop, I didn't use column sub sampling though.  Not necessary I think
         #        for col_split_by_node in (0.75, )
         # TODO: min_child_weight
         #    For classification this gives the required sum of p*(1-p), where p is the probability
         #        THE SUM of p*(1-p), which is 0.25 max.  You will need at least 4 * min_child_weight rows
         #        to keep the split.
-        min_child_weight=[0, 2],
+        # TODO: Best model had min child weight 2, could be the good regularizer
+        # min_child_weight=[0, 2, 4, 6, 8],
+        min_child_weight=[0, 4],
         ## for min_child_weight in (0, 2)  # inconclusive experiments, just sanity checking
         #             for base_score in (0.5, 0.1) # default 0.5, leave this alone because we are already weighting.
         # TODO: EARLY STOPPING BASED ON A HOLDOUT SET!!!
@@ -1004,26 +1217,21 @@ if __name__ == '__main__':
         # This works with both metrics to minimize (RMSE, log loss, etc.) and to maximize (MAP, NDCG, AUC).
         # Note that if you specify more than one evaluation metric the last one in param['eval_metric']
         # is used for early stopping. (saw someone do this with 'ams@0.15' in a competition)
+        # base_score=['match_scale_pos_weight'], # AARONT: TODO: This is a global bias for prediction!!! Could be inverse of scale_pos_weight???
+    )
+    xgb_model_static_args = dict(
+        n_estimators=[300],  # The number of boosting rounds; default 100?
+        learning_rate=[0.3],
         booster=['gbtree', 'dart'],  # TODO: Try dart, note: Using predict() with DART booster
         # If the booster object is DART type, predict() will perform dropouts, i.e. only some of the trees will be evaluated.
         # This will produce incorrect results if data is not the training data. To obtain correct results on test sets,
         # set iteration_range to a nonzero value, e.g.
         ################# ACTUALLY: from the repl:  set ntree_limit=num_round.....
         #             preds = bst.predict(dtest, iteration_range=(0, num_round))
-        # base_score=['match_scale_pos_weight'], # AARONT: TODO: This is a global bias for prediction!!! Could be inverse of scale_pos_weight???
-        n_estimators=[300],  # The number of boosting rounds; default 100?
-        gamma=[0.0, 10., 100.],
-        learning_rate=[0.3],
-        max_depth=[2, 4],  # default is 6; Experiments showed 2 or 3 worked best
-        max_delta_step=[0, 1, 2],  # Was set to 1; VERY IMPORTANT PARAMETER! Read description in comments elsewhere
-    )
-    xgb_model_static_args = dict(
 
         ######## Below is true static
-        early_stopping_rounds=[3, 20, 30],  # TODO: Tune early stopping?? DOESN'T HAVE AN IMPACT
-        base_score=[0.5, 0.9, 0.1],
+        # early_stopping_rounds=[3, 20, 30],  # TODO: Tune early stopping?? DOESN'T HAVE AN IMPACT
         n_jobs=[14], # Wait... should this still be 14 jobs with GPU?? Doesn't make a difference.  Can't see any jobs in the task manager
-        tree_method=['gpu_hist'],
         # tree_method='exact', # More time but enumarates all possible splits
         #                 base_score=base_score,
         #                 scale_pos_weight='AARONT_balanced',
@@ -1034,15 +1242,17 @@ if __name__ == '__main__':
         #                 eval_metric=eval_metric,
         #                 objective=objective,
         #                 subsample=subsample,
+        # subsample=[0.1],  # sample of the rows to use, sampled once every boosting iteration
         subsample=[0.5],  # sample of the rows to use, sampled once every boosting iteration
-        sampling_method=['gradient_based'],  # allows very small subsample, as low as 0.1
-        grow_policy=['lossguide'],
-        num_parallel_tree=[1],
-        colsample_bytree=[0.75],
-        colsample_bylevel=[0.75],
-        colsample_bynode=[0.75],
+        tree_method=['gpu_hist'],
+        # sampling_method=['gradient_based'],  # allows very small subsample, as low as 0.1
+        grow_policy=['lossguide'],  # TODO: What are the grow policies? Why this option?
+        # num_parallel_tree=[10],
+        # colsample_bytree=[0.75],
+        # colsample_bylevel=[0.75],
+        # colsample_bynode=[0.75],
         # asdf='not a param', # xgb does not raise an error for an unrecognized parameter...
-        interaction_constraints=[interaction_constraints],
+        interaction_constraints=[interaction_constraints], # AARONT: Commenting out for moment
     )
     xgb_model_static_args = {k:v[0] for k,v in xgb_model_static_args.items()}
     print(xgb_model_static_args)
@@ -1055,6 +1265,9 @@ if __name__ == '__main__':
     if split_by_video:
         train_dataset = dataset_type(global_train_files, with_cv_indexes=True)
         holdout_dataset = dataset_type(global_holdout_files, with_cv_indexes=False)
+        ## For NN don't need cv indexes
+        # train_dataset = dataset_type(global_train_files, with_cv_indexes=False)
+        # holdout_dataset = dataset_type(global_holdout_files, with_cv_indexes=False)
     else:
         temp_dataset = dataset_type(global_train_files, with_cv_indexes=False)
         temp_df = temp_dataset.get_dataframe()
@@ -1072,11 +1285,12 @@ if __name__ == '__main__':
         x_extractor=build_X_only_builtins(non_odour_non_prob_features),
         y_extractor=build_Y_get_interaction(),
         x_pre_processors=[
-            # build_under_sampling() # AARONT: TODO: Add under sampling here?  Would be useful if we build per label models.
+        # build_under_sampling() # AARONT: TODO: Add under sampling here?  Would be useful if we build per label models.
             # build_feature_selection()
         ],
         y_pre_processors=[], # Example: for odours we have to combine 6 labels into 1
         y_post_processors=[
+            # TODO: Turn on min bought duration
             # build_Y_post_processor_min_bought_duration(min_bout_duration=10),
             # AARONT: TODO: Had 'math domain error downstream here, would have to fix that!  Turning off'
             # build_Y_post_processor_klienberg_filtering()
@@ -1092,13 +1306,23 @@ if __name__ == '__main__':
         holdout_dataset=holdout_dataset,
         model_wrapper=GridCvModelWrapper(
             transformer=transformer,
-            # model_type=MyXgbWrapper,
             model_type=xgb.XGBClassifier,
             model_static_args=xgb_model_static_args,
             model_kwargs_grid=xgb_params_grid_full,
         )
     )
     exp.run()
+
+    # RNN_exp = Experiment(
+    #     train_dataset=train_dataset,
+    #     holdout_dataset=holdout_dataset,
+    #     model_wrapper=RNN_ModelWraper(
+    #         holdout_dataset=holdout_dataset, # AARONT: TEMP: Hack to get holdout dataset to NN for validation while training
+    #         transformer=transformer,
+    #     )
+    # )
+    # RNN_exp.run()
+
 
     # TODO: If we are going to handle the different labels separately, then build one full pipeline and full optimization
     #       for each.  Build a final class to aggregate the models.  This allows each model to optimize it's own parameters.
@@ -1108,44 +1332,39 @@ if __name__ == '__main__':
     if to_label_input_path and output_path:
         to_label_files = glob.glob(os.path.join(to_label_input_path, '*.csv'))
         output_df = exp.generate_output_df(to_label_files, output_path)
-    raise RuntimeError('CONGRATS!! You made it to the end of the script and MIGHT want to start labeling the output!!')
+        raise RuntimeError('CONGRATS!! You made it to the end of the script and MIGHT want to start labeling the output!!')
 
-
-
-
-
-
-    # # Turn this on if you want to compare against the method used by Simba
-    # exp = Experiment(
-    #     train_dataset=train_dataset,
-    #     holdout_dataset=holdout_dataset,
-    #     # RandomForestClassifier,
-    #     model_wrapper=ModelWrapper(
-    #         transformer=transformer,
-    #         # model_type=DecisionTreeClassifier,
-    #         model_type=RandomForestClassifier,
-    #         model_kwargs=dict(
-    #             # n_estimators=1000,
-    #             n_estimators=200,
-    #             bootstrap=True,
-    #             verbose=1,
-    #             n_jobs=-1,
-    #             criterion='entropy',  # Gini is standard, shouldn't be a huge factor
-    #             min_samples_leaf=2,
-    #             max_features='sqrt',
-    #             # max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
-    #             random_state=42,
-    #             #     ccp_alpha=0.005, # NEW PARAMETER, I NEED TO DEFINE MY EXPERIMENT SETUPS BETTER, AND STORE SOME RESULTS!!
-    #             # Probably need to whip up a database again, that's the only way I have been able to navigate this in the past
-    #             # Alternatively I could very carefully define my experiments, and then run them all in a batch and create a
-    #             # meaningful report.  This is probably the best way to proceed.  It will lead to the most robust iteration
-    #             # and progress.
-    #             # class_weight='balanced',  # balance weights at nodes based on class frequencies
-    #         )
-    #     )
-    # )
-    # exp.run()
-    # exp.generate_classification_report('DTREE_classification_report.pdf')
+    # Turn this on if you want to compare against the method used by Simba
+    exp = Experiment(
+        train_dataset=train_dataset,
+        holdout_dataset=holdout_dataset,
+        # RandomForestClassifier,
+        model_wrapper=ModelWrapper(
+            transformer=transformer,
+            # model_type=DecisionTreeClassifier,
+            model_type=RandomForestClassifier,
+            model_kwargs=dict(
+                # n_estimators=1000,
+                n_estimators=200,
+                bootstrap=True,
+                verbose=1,
+                n_jobs=-1,
+                criterion='gini',  # Gini is standard, shouldn't be a huge factor
+                min_samples_leaf=50,
+                max_features='sqrt',
+                # max_depth=15,  # LIMIT MAX DEPTH!!  Runtime AND generalization error should improve drastically
+                random_state=42,
+                #     ccp_alpha=0.005, # NEW PARAMETER, I NEED TO DEFINE MY EXPERIMENT SETUPS BETTER, AND STORE SOME RESULTS!!
+                # Probably need to whip up a database again, that's the only way I have been able to navigate this in the past
+                # Alternatively I could very carefully define my experiments, and then run them all in a batch and create a
+                # meaningful report.  This is probably the best way to proceed.  It will lead to the most robust iteration
+                # and progress.
+                # class_weight='balanced',  # balance weights at nodes based on class frequencies
+            )
+        )
+    )
+    exp.run()
+    exp.generate_classification_report('DTREE_classification_report.pdf')
 
 
 
