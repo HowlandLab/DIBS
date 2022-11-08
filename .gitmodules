@@ -1,3 +1,6 @@
 [submodule "hackathon_sept_2022/hackathon"]
 	path = hackathon_sept_2022/hackathon
 	url = git@github.com:HowlandLab/hackathon.git
+[submodule "overleaf-sync-repo/63698616ce40f15d5223d638"]
+	path = overleaf-sync-repo/63698616ce40f15d5223d638
+	url = https://git.overleaf.com/63698616ce40f15d5223d638
